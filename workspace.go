@@ -2,6 +2,7 @@ package tmx
 
 import (
 	"log"
+	"os"
 	"path"
 	"sync"
 
@@ -77,8 +78,10 @@ func (w *Workspace) scanWorker(wg *sync.WaitGroup, out chan *Project, ipath stri
 	// scan the folder
 	entries, err := afero.ReadDir(AppFs, w.projectPath(ipath))
 	if err != nil {
-		log.Printf("error reading the directory %q: %s", w.projectPath(ipath), err)
-		return
+		if os.IsNotExist(err) {
+			return
+		}
+		log.Fatalf("error reading the directory %q: %s", w.projectPath(ipath), err)
 	}
 	for _, entry := range entries {
 		// scan the entry if it's a directory
