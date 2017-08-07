@@ -73,3 +73,29 @@ func TestCodeScan(t *testing.T) {
 	assert.Equal(t, expected["TestCodeScan"].Workspaces["STORY-123"].ProfileName, c.Profiles["TestCodeScan"].Workspaces["STORY-123"].ProfileName)
 	assert.Equal(t, expected["TestCodeScan"].Workspaces["STORY-123"].Projects["github.com/kalbasit/private"], c.Profiles["TestCodeScan"].Workspaces["STORY-123"].Projects["github.com/kalbasit/private"])
 }
+
+func TestFindProjectBySessionName(t *testing.T) {
+	// swap the filesystem
+	oldAppFS := AppFs
+	AppFs = afero.NewMemMapFs()
+	defer func() { AppFs = oldAppFS }()
+	// create the filesystem we want to scan
+	prepareFilesystem()
+	// create a code
+	c := &Code{
+		Path: "/home/kalbasit/code",
+	}
+	// scan now
+	c.Scan()
+	// assert now
+	expected := &Project{
+		ImportPath:    "github.com/kalbasit/tmx",
+		CodePath:      "/home/kalbasit/code",
+		ProfileName:   "TestFindProjectBySessionName",
+		WorkspaceName: "base",
+	}
+	project, err := c.FindProjectBySessionName("TestFindProjectBySessionName@base=github" + dotChar + "com/kalbasit/tmx")
+	if assert.NoError(t, err) {
+		assert.Equal(t, expected, project)
+	}
+}

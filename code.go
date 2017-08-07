@@ -1,16 +1,26 @@
 package tmx
 
 import (
+	"errors"
 	"log"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/spf13/afero"
 )
 
-// AppFs represents the filesystem of the app. It is exported to be used as a
-// test helper.
-var AppFs afero.Fs
+var (
+	// AppFs represents the filesystem of the app. It is exported to be used as a
+	// test helper.
+	AppFs afero.Fs
+
+	// ErrSessionNotFound is returned if the session name did not yield a project
+	// we know about
+	ErrSessionNotFound = errors.New("project not found")
+
+	sessionNameRegex = regexp.MustCompile("^([a-zA-Z0-9]+)@([a-zA-Z0-9]+)=(.*)$")
+)
 
 func init() {
 	AppFs = afero.NewOsFs()
@@ -59,4 +69,20 @@ func (c *Code) Scan() {
 		}
 	}
 	wg.Wait()
+}
+
+// FindProjectBySessionName returns the project represented by the session name
+func (c *Code) FindProjectBySessionName(name string) (*Project, error) {
+	ms := sessionNameRegex.FindStringSubmatch(name)
+	if len(ms) == 4 {
+		if profile := c.Profiles[ms[1]]; profile != nil {
+			if workspace := profile.Workspaces[ms[2]]; workspace != nil {
+				if project := workspace.Projects[strings.Replace(strings.Replace(ms[3], dotChar, ".", -1), colonChar, ":", -1)]; project != nil {
+					return project, nil
+				}
+			}
+		}
+	}
+
+	return nil, ErrSessionNotFound
 }
