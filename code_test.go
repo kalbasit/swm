@@ -1,6 +1,7 @@
 package tmx
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -16,7 +17,8 @@ func TestCodeScan(t *testing.T) {
 	prepareFilesystem()
 	// create a code
 	c := &Code{
-		Path: "/home/kalbasit/code",
+		Path:           "/home/kalbasit/code",
+		ExcludePattern: regexp.MustCompile("^.snapshots$"),
 	}
 	// scan now
 	c.Scan()

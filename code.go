@@ -2,6 +2,7 @@ package tmx
 
 import (
 	"log"
+	"regexp"
 	"sync"
 
 	"github.com/spf13/afero"
@@ -19,6 +20,9 @@ type Code struct {
 	// Path is the base path of this profile
 	Path string
 
+	// ExcludePattern is a list of patterns to ignore
+	ExcludePattern *regexp.Regexp
+
 	Profiles map[string]*Profile
 }
 
@@ -35,6 +39,10 @@ func (c *Code) Scan() {
 	}
 	for _, entry := range entries {
 		if entry.IsDir() {
+			// does this folder match the exclude pattern?
+			if c.ExcludePattern != nil && c.ExcludePattern.MatchString(entry.Name()) {
+				continue
+			}
 			// create the workspace
 			p := &Profile{
 				Name:     entry.Name(),
