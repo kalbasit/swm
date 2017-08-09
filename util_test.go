@@ -20,9 +20,23 @@ func prepareFilesystem(test string) {
 		AppFs.MkdirAll("/home/kalbasit/code/TestFindProjectBySessionName/base/src/github.com/kalbasit/tmx/.git", 0755)
 		AppFs.MkdirAll("/home/kalbasit/code/TestFindProjectBySessionName/base/src/github.com/kalbasit/dotfiles/.git", 0755)
 		AppFs.MkdirAll("/home/kalbasit/code/TestFindProjectBySessionName/STORY-123/src/github.com/kalbasit/private/.git", 0755)
-	case "TestSessionNames":
-		AppFs.MkdirAll("/home/kalbasit/code/TestSessionNames/base/src/github.com/kalbasit/tmx/.git", 0755)
-		AppFs.MkdirAll("/home/kalbasit/code/TestSessionNames/base/src/github.com/kalbasit/dotfiles/.git", 0755)
-		AppFs.MkdirAll("/home/kalbasit/code/TestSessionNames/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+	case "TestCodeSessionNames":
+		AppFs.MkdirAll("/home/kalbasit/code/TestCodeSessionNames/base/src/github.com/kalbasit/tmx/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestCodeSessionNames/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestCodeSessionNames/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+	case "TestProfileSessionNames":
+		AppFs.MkdirAll("/home/kalbasit/code/TestProfileSessionNames/base/src/github.com/kalbasit/tmx/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestProfileSessionNames/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestProfileSessionNames/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestOtherProfileSessionNames/base/src/github.com/kalbasit/tmx/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestOtherProfileSessionNames/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestOtherProfileSessionNames/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+	case "TestWorkspaceSessionNames":
+		AppFs.MkdirAll("/home/kalbasit/code/TestWorkspaceSessionNames/base/src/github.com/kalbasit/tmx/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestWorkspaceSessionNames/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestWorkspaceSessionNames/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestOtherWorkspaceSessionNames/base/src/github.com/kalbasit/tmx/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestOtherWorkspaceSessionNames/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestOtherWorkspaceSessionNames/STORY-123/src/github.com/kalbasit/private/.git", 0755)
 	}
 }

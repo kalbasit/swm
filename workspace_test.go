@@ -1,6 +1,7 @@
 package tmx
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -49,4 +50,28 @@ func TestWorkspaceScan(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expected, w.Projects)
+}
+
+func TestWorkspaceSessionNames(t *testing.T) {
+	// swap the filesystem
+	oldAppFS := AppFs
+	AppFs = afero.NewMemMapFs()
+	defer func() { AppFs = oldAppFS }()
+	// create the filesystem we want to scan
+	prepareFilesystem(t.Name())
+	// create a code
+	c := &Code{
+		Path: "/home/kalbasit/code",
+	}
+	// scan now
+	c.Scan()
+	// assert now
+	want := []string{
+		"TestWorkspaceSessionNames@base=github" + dotChar + "com/kalbasit/tmx",
+		"TestWorkspaceSessionNames@base=github" + dotChar + "com/kalbasit/dotfiles",
+	}
+	got := c.Profiles["TestWorkspaceSessionNames"].Workspaces["base"].SessionNames()
+	sort.Strings(want)
+	sort.Strings(got)
+	assert.Equal(t, want, got)
 }

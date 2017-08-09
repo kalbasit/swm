@@ -55,3 +55,15 @@ func (p *Profile) Scan() {
 	}
 	wg.Wait()
 }
+
+// SessionNames returns the session names for projects in all workspaces of this profile
+func (p *Profile) SessionNames() []string {
+	var res []string
+	for _, workspace := range p.Workspaces {
+		for _, project := range workspace.Projects {
+			res = append(res, project.SessionName())
+		}
+	}
+
+	return res
+}

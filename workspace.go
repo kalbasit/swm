@@ -46,6 +46,16 @@ func (w *Workspace) Scan() {
 	<-reducerQuit
 }
 
+// SessionNames returns the session names for this workspace
+func (w *Workspace) SessionNames() []string {
+	var res []string
+	for _, project := range w.Projects {
+		res = append(res, project.SessionName())
+	}
+
+	return res
+}
+
 func (w *Workspace) scanReducer(out chan *Project, quit chan struct{}) {
 	for {
 		select {

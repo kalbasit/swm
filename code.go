@@ -87,6 +87,7 @@ func (c *Code) FindProjectBySessionName(name string) (*Project, error) {
 	return nil, ErrSessionNotFound
 }
 
+// SessionNames returns the session names for projects in all workspaces in all profiles
 func (c *Code) SessionNames() []string {
 	var res []string
 	for _, profile := range c.Profiles {

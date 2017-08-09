@@ -101,7 +101,7 @@ func TestFindProjectBySessionName(t *testing.T) {
 	}
 }
 
-func TestSessionNames(t *testing.T) {
+func TestCodeSessionNames(t *testing.T) {
 	// swap the filesystem
 	oldAppFS := AppFs
 	AppFs = afero.NewMemMapFs()
@@ -116,9 +116,9 @@ func TestSessionNames(t *testing.T) {
 	c.Scan()
 	// assert now
 	want := []string{
-		"TestSessionNames@base=github" + dotChar + "com/kalbasit/tmx",
-		"TestSessionNames@base=github" + dotChar + "com/kalbasit/dotfiles",
-		"TestSessionNames@STORY-123=github" + dotChar + "com/kalbasit/private",
+		"TestCodeSessionNames@base=github" + dotChar + "com/kalbasit/tmx",
+		"TestCodeSessionNames@base=github" + dotChar + "com/kalbasit/dotfiles",
+		"TestCodeSessionNames@STORY-123=github" + dotChar + "com/kalbasit/private",
 	}
 	got := c.SessionNames()
 	sort.Strings(want)
