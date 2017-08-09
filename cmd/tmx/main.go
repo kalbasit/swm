@@ -137,10 +137,9 @@ func getSessionNames(c *tmx.Code) []string {
 	if workspace == "" {
 		return p.SessionNames()
 	}
-	// TODO: must also return the base workspace
 	w := p.Workspaces[workspace]
-	if w == nil {
-		log.Fatalf("workspace %q not found", workspace)
+	if w != nil {
+		return append(w.SessionNames(), p.Workspaces["base"].SessionNames())
 	}
 	return w.SessionNames()
 }
