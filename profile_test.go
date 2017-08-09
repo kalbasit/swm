@@ -102,3 +102,18 @@ func TestProfileSessionNames(t *testing.T) {
 	sort.Strings(got)
 	assert.Equal(t, want, got)
 }
+
+func TestBaseWorkSpace(t *testing.T) {
+	// create a new Code
+	c := &Code{
+		Profiles: map[string]*Profile{
+			"personal": &Profile{
+				Workspaces: map[string]*Workspace{
+					"base": &Workspace{},
+				},
+			},
+		},
+	}
+	// assert now
+	assert.Exactly(t, c.Profiles["personal"].Workspaces[baseWorkspaceName], c.Profiles["personal"].BaseWorkspace())
+}
