@@ -24,7 +24,7 @@ func TestWorkspaceScan(t *testing.T) {
 	AppFs = afero.NewMemMapFs()
 	defer func() { AppFs = oldAppFS }()
 	// create the filesystem we want to scan
-	prepareFilesystem()
+	prepareFilesystem(t.Name())
 	// create a workspace
 	w := &Workspace{
 		Name:        "base",

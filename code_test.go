@@ -14,7 +14,7 @@ func TestCodeScan(t *testing.T) {
 	AppFs = afero.NewMemMapFs()
 	defer func() { AppFs = oldAppFS }()
 	// create the filesystem we want to scan
-	prepareFilesystem()
+	prepareFilesystem(t.Name())
 	// create a code
 	c := &Code{
 		Path:           "/home/kalbasit/code",
@@ -80,7 +80,7 @@ func TestFindProjectBySessionName(t *testing.T) {
 	AppFs = afero.NewMemMapFs()
 	defer func() { AppFs = oldAppFS }()
 	// create the filesystem we want to scan
-	prepareFilesystem()
+	prepareFilesystem(t.Name())
 	// create a code
 	c := &Code{
 		Path: "/home/kalbasit/code",

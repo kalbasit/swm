@@ -23,7 +23,7 @@ func TestProfileScan(t *testing.T) {
 	AppFs = afero.NewMemMapFs()
 	defer func() { AppFs = oldAppFS }()
 	// create the filesystem we want to scan
-	prepareFilesystem()
+	prepareFilesystem(t.Name())
 	// create a workspace
 	p := &Profile{
 		Name:     "TestProfileScan",
