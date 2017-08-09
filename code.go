@@ -86,3 +86,16 @@ func (c *Code) FindProjectBySessionName(name string) (*Project, error) {
 
 	return nil, ErrSessionNotFound
 }
+
+func (c *Code) SessionNames() []string {
+	var res []string
+	for _, profile := range c.Profiles {
+		for _, workspace := range profile.Workspaces {
+			for _, project := range workspace.Projects {
+				res = append(res, project.SessionName())
+			}
+		}
+	}
+
+	return res
+}

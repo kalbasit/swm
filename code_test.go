@@ -2,6 +2,7 @@ package tmx
 
 import (
 	"regexp"
+	"sort"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -98,4 +99,29 @@ func TestFindProjectBySessionName(t *testing.T) {
 	if assert.NoError(t, err) {
 		assert.Equal(t, expected, project)
 	}
+}
+
+func TestSessionNames(t *testing.T) {
+	// swap the filesystem
+	oldAppFS := AppFs
+	AppFs = afero.NewMemMapFs()
+	defer func() { AppFs = oldAppFS }()
+	// create the filesystem we want to scan
+	prepareFilesystem(t.Name())
+	// create a code
+	c := &Code{
+		Path: "/home/kalbasit/code",
+	}
+	// scan now
+	c.Scan()
+	// assert now
+	want := []string{
+		"TestSessionNames@base=github" + dotChar + "com/kalbasit/tmx",
+		"TestSessionNames@base=github" + dotChar + "com/kalbasit/dotfiles",
+		"TestSessionNames@STORY-123=github" + dotChar + "com/kalbasit/private",
+	}
+	got := c.SessionNames()
+	sort.Strings(want)
+	sort.Strings(got)
+	assert.Equal(t, want, got)
 }

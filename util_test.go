@@ -20,4 +20,9 @@ func prepareFilesystem(test string) {
 		AppFs.MkdirAll("/home/kalbasit/code/TestFindProjectBySessionName/base/src/github.com/kalbasit/tmx/.git", 0755)
 		AppFs.MkdirAll("/home/kalbasit/code/TestFindProjectBySessionName/base/src/github.com/kalbasit/dotfiles/.git", 0755)
 		AppFs.MkdirAll("/home/kalbasit/code/TestFindProjectBySessionName/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+	case "TestSessionNames":
+		AppFs.MkdirAll("/home/kalbasit/code/TestSessionNames/base/src/github.com/kalbasit/tmx/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestSessionNames/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestSessionNames/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+	}
 }
