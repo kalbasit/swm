@@ -68,7 +68,7 @@ func main() {
 	flag.Parse()
 	// parse the socketPath as workspace if needed
 	if workspace == "" && socketPath != "" {
-		workspace = strings.Split(socketPath, ",")[0]
+		workspace = strings.Split(path.Base(socketPath), ",")[0]
 	}
 	// create the code and load/scan
 	c := tmx.New(codePath, regexp.MustCompile("^.snapshots$"))
