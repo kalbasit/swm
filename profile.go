@@ -8,7 +8,8 @@ import (
 	"github.com/spf13/afero"
 )
 
-const baseWorkspaceName = "base"
+// BaseWorkspaceName represents the name of the base workspace
+const BaseWorkspaceName = "base"
 
 type Profile struct {
 	// Name is the name of the profile
@@ -23,7 +24,7 @@ type Profile struct {
 
 // BaseWorkspace returns the base workspace
 func (p *Profile) BaseWorkspace() *Workspace {
-	return p.Workspaces[baseWorkspaceName]
+	return p.Workspaces[BaseWorkspaceName]
 }
 
 // Path returns the absolute path of the profile
