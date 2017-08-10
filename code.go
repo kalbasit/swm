@@ -28,7 +28,7 @@ var (
 	// ErrCodePathEmpty is returned if Code.Path is empty or invalid
 	ErrCodePathEmpty = errors.New("code path is empty or does not exist")
 
-	sessionNameRegex = regexp.MustCompile("^([a-zA-Z0-9]+)@([a-zA-Z0-9]+)=(.*)$")
+	sessionNameRegex = regexp.MustCompile("^([a-zA-Z0-9_-]+)@([a-zA-Z0-9_-]+)=(.*)$")
 )
 
 func init() {
