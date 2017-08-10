@@ -1,8 +1,11 @@
 package tmx
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
+	"os"
+	"path"
 	"regexp"
 	"strings"
 	"sync"
@@ -15,17 +18,48 @@ var (
 	// test helper.
 	AppFs afero.Fs
 
+	// CachePath represents the path at which the cache will be stored
+	CachePath string
+
 	// ErrSessionNotFound is returned if the session name did not yield a project
 	// we know about
 	ErrSessionNotFound = errors.New("project not found")
+
+	// ErrCodePathEmpty is returned if Code.Path is empty or invalid
+	ErrCodePathEmpty = errors.New("code path is empty or does not exist")
 
 	sessionNameRegex = regexp.MustCompile("^([a-zA-Z0-9]+)@([a-zA-Z0-9]+)=(.*)$")
 )
 
 func init() {
+	// initialize AppFs to use the OS filesystem
 	AppFs = afero.NewOsFs()
+
+	// initialize the cache path
+	CachePath = path.Join(os.Getenv("HOME"), ".cache", "tmx")
+	if _, err := AppFs.Stat(CachePath); os.IsNotExist(err) {
+		if err := AppFs.MkdirAll(CachePath, 0755); err != nil {
+			log.Fatalf("error creating the directory %q to store cache: %s", CachePath, err)
+		}
+	}
 }
 
+// Code represents a code folder that follows the following structure:
+// code/
+// |-- profile1
+// |   |-- base
+// |   |   |-- src
+// |   |       |-- go.import.path
+// |   |-- STORY-123
+// |   |   |-- src
+// |   |       |-- go.import.path
+// |-- profile2
+// |   |-- base
+// |   |   |-- src
+// |   |       |-- go.import.path
+// |   |-- STORY-123
+// |   |   |-- src
+// |   |       |-- go.import.path
 type Code struct {
 	// Path is the base path of this profile
 	Path string
@@ -34,6 +68,51 @@ type Code struct {
 	ExcludePattern *regexp.Regexp
 
 	Profiles map[string]*Profile
+}
+
+// New returns a new empty Code, caller must call Load to load from cache or
+// scan the code directory
+func New(p string, ignore *regexp.Regexp) *Code { return &Code{Path: p, ExcludePattern: ignore} }
+
+// LoadOrScan loads the code from the cache (if it exists), otherwise it will
+// initiate a full scan and save it in cache.
+func (c *Code) LoadOrScan() error {
+	// validate the Code, we cannot load an invalid Code
+	if err := c.validate(); err != nil {
+		return err
+	}
+	// try loading from cache
+	if err := c.Load(); err != nil {
+		c.Scan()
+		return c.Save()
+	}
+
+	return nil
+}
+
+// Load load the code from cache
+func (c *Code) Load() error {
+	// validate the Code, we cannot load an invalid Code
+	if err := c.validate(); err != nil {
+		return err
+	}
+	// parse the cache file now
+	f, err := AppFs.Open(path.Join(CachePath, strings.Replace(c.Path, "/", "-", -1)+".json"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return json.NewDecoder(f).Decode(c)
+}
+
+// Save saves the code to the cache file
+func (c *Code) Save() error {
+	f, err := AppFs.Create(path.Join(CachePath, strings.Replace(c.Path, "/", "-", -1)+".json"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return json.NewEncoder(f).Encode(c)
 }
 
 // Scan scans the entire profile to build the workspaces
@@ -99,4 +178,15 @@ func (c *Code) SessionNames() []string {
 	}
 
 	return res
+}
+
+func (c *Code) validate() error {
+	if c.Path == "" {
+		return ErrCodePathEmpty
+	}
+	if _, err := AppFs.Stat(c.Path); err != nil {
+		return ErrCodePathEmpty
+	}
+
+	return nil
 }

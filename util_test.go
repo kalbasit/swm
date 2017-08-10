@@ -11,6 +11,21 @@ func prepareFilesystem(test string) {
 		AppFs.MkdirAll("/home/kalbasit/code/TestProfileScan/base/src/github.com/kalbasit/tmx/.git", 0755)
 		AppFs.MkdirAll("/home/kalbasit/code/TestProfileScan/base/src/github.com/kalbasit/dotfiles/.git", 0755)
 		AppFs.MkdirAll("/home/kalbasit/code/TestProfileScan/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+	case "TestSave":
+		AppFs.MkdirAll("/home/kalbasit/code/TestSave/base/src/github.com/kalbasit/tmx/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestSave/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestSave/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/.snapshots/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+	case "TestLoad":
+		AppFs.MkdirAll("/home/kalbasit/code/TestLoad/base/src/github.com/kalbasit/tmx/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestLoad/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestLoad/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/.snapshots/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+	case "TestLoadOrScan":
+		AppFs.MkdirAll("/home/kalbasit/code/TestLoadOrScan/base/src/github.com/kalbasit/tmx/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestLoadOrScan/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestLoadOrScan/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/.snapshots/STORY-123/src/github.com/kalbasit/private/.git", 0755)
 	case "TestCodeScan":
 		AppFs.MkdirAll("/home/kalbasit/code/TestCodeScan/base/src/github.com/kalbasit/tmx/.git", 0755)
 		AppFs.MkdirAll("/home/kalbasit/code/TestCodeScan/base/src/github.com/kalbasit/dotfiles/.git", 0755)
