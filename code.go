@@ -21,9 +21,9 @@ var (
 	// CachePath represents the path at which the cache will be stored
 	CachePath string
 
-	// ErrSessionNotFound is returned if the session name did not yield a project
+	// ErrProjectNotFound is returned if the session name did not yield a project
 	// we know about
-	ErrSessionNotFound = errors.New("project not found")
+	ErrProjectNotFound = errors.New("project not found")
 
 	// ErrCodePathEmpty is returned if Code.Path is empty or invalid
 	ErrCodePathEmpty = errors.New("code path is empty or does not exist")
@@ -154,16 +154,21 @@ func (c *Code) Scan() {
 func (c *Code) FindProjectBySessionName(name string) (*Project, error) {
 	ms := sessionNameRegex.FindStringSubmatch(name)
 	if len(ms) == 4 {
-		if profile := c.Profiles[ms[1]]; profile != nil {
-			if workspace := profile.Workspaces[ms[2]]; workspace != nil {
-				if project := workspace.Projects[strings.Replace(strings.Replace(ms[3], dotChar, ".", -1), colonChar, ":", -1)]; project != nil {
-					return project, nil
-				}
+		if p := c.Profiles[ms[1]]; p != nil {
+			w := p.Workspaces[ms[2]]
+			if w == nil {
+				return p.BaseWorkspace().FindProjectBySessionName(ms[3])
 			}
+
+			if prj, err := w.FindProjectBySessionName(ms[3]); err == nil && prj != nil {
+				return prj, nil
+			}
+
+			return p.BaseWorkspace().FindProjectBySessionName(ms[3])
 		}
 	}
 
-	return nil, ErrSessionNotFound
+	return nil, ErrProjectNotFound
 }
 
 // SessionNames returns the session names for projects in all workspaces in all profiles

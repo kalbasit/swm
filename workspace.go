@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"sync"
 
 	"github.com/spf13/afero"
@@ -21,6 +22,15 @@ type Workspace struct {
 
 	// Projects is a list of projects
 	Projects map[string]*Project
+}
+
+// FindProjectBySessionName returns the project represented by the session name
+func (w *Workspace) FindProjectBySessionName(name string) (*Project, error) {
+	if project := w.Projects[strings.Replace(strings.Replace(name, dotChar, ".", -1), colonChar, ":", -1)]; project != nil {
+		return project, nil
+	}
+
+	return nil, ErrProjectNotFound
 }
 
 func (w *Workspace) Path() string {
