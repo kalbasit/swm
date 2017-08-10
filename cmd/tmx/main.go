@@ -116,7 +116,10 @@ func tmuxStart(c *tmx.Code, sessions []string) error {
 			} {
 				cmd := exec.Command(tmuxPath, args...)
 				cmd.Dir = project.Path()
-				cmd.Env = []string{}
+				cmd.Env = []string{
+					fmt.Sprintf("ACTIVE_PROFILE=%s", project.ProfileName),
+					fmt.Sprintf("GOPATH=%s", path.Join(c.Path, project.ProfileName, project.WorkspaceName)),
+				}
 				if err := cmd.Run(); err != nil {
 					log.Fatalf("error running tmux with args %v: %s", args, err)
 				}
