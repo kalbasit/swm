@@ -50,6 +50,25 @@ func TestWorkspaceScan(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expected, w.Projects)
+
+	// test with the non base workspace
+	w = &Workspace{
+		Name:        "STORY-123",
+		CodePath:    "/home/kalbasit/code",
+		ProfileName: "TestWorkspaceScan",
+	}
+	// scan now
+	w.Scan()
+	// assert now
+	expected = map[string]*Project{
+		"github.com/kalbasit/dotfiles": &Project{
+			ImportPath:    "github.com/kalbasit/dotfiles",
+			CodePath:      "/home/kalbasit/code",
+			ProfileName:   "TestWorkspaceScan",
+			WorkspaceName: "STORY-123",
+		},
+	}
+	assert.Equal(t, expected, w.Projects)
 }
 
 func TestWorkspaceSessionNames(t *testing.T) {
