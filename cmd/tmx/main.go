@@ -105,6 +105,10 @@ func tmuxStart(c *tmx.Code, sessions []string) error {
 			for _, args := range [][]string{
 				// start the session
 				{"-L", project.WorkspaceName, "new-session", "-d", "-s", sessionName},
+				// set the active profile
+				{"-L", project.WorkspaceName, "set-environment", "-t", sessionName, "ACTIVE_PROFILE", project.ProfileName},
+				// set the new GOPATH
+				{"-L", project.WorkspaceName, "set-environment", "-t", sessionName, "GOPATH", path.Join(c.Path, project.ProfileName, project.WorkspaceName)},
 				// start a new shell on window 1
 				{"-L", project.WorkspaceName, "new-window", "-t", sessionName + ":1"},
 				// start vim in the first window
@@ -112,10 +116,7 @@ func tmuxStart(c *tmx.Code, sessions []string) error {
 			} {
 				cmd := exec.Command(tmuxPath, args...)
 				cmd.Dir = project.Path()
-				cmd.Env = []string{
-					fmt.Sprintf("ACTIVE_PROFILE=%s", project.ProfileName),
-					fmt.Sprintf("GOPATH=%s", path.Join(c.Path, project.ProfileName, project.WorkspaceName)),
-				}
+				cmd.Env = []string{}
 				if err := cmd.Run(); err != nil {
 					log.Fatalf("error running tmux with args %v: %s", args, err)
 				}
