@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -19,9 +18,6 @@ var (
 	// codePath is the path to the code folder
 	codePath string
 
-	// cachePath is the absolute path of the cache file
-	cachePath string
-
 	// killPane if true will kill the tmux pane currently running the tmx
 	killPane bool
 
@@ -36,11 +32,13 @@ var (
 
 	// tmuxPath is the PATH to the tmux executable
 	tmuxPath string
+
+	// gitPath is the PATH to the git binary
+	gitPath string
 )
 
 func init() {
 	flag.StringVar(&codePath, "code", path.Join(os.Getenv("HOME"), "code"), "The code path to scan")
-	flag.StringVar(&cachePath, "cache", path.Join(os.Getenv("HOME"), ".cache", "tmx.json"), "The path of the file used to store the cache")
 	flag.BoolVar(&killPane, "kill-pane", false, "kill the pane after the session has been switched; only relevant within TMUX")
 	flag.StringVar(&profile, "profile", os.Getenv("ACTIVE_PROFILE"), "the name of the profile")
 	flag.StringVar(&workspace, "workspace", parseWorkspace(), "the name of the workspace")
@@ -54,6 +52,10 @@ func init() {
 	if err != nil {
 		log.Fatalf("error looking up the tmux executable, is it installed? %s", err)
 	}
+	gitPath, err = exec.LookPath("git")
+	if err != nil {
+		log.Fatalf("error looking up the git executable, is it installed? %s", err)
+	}
 }
 
 func main() {
@@ -64,9 +66,9 @@ func main() {
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("error running %q: %s", fmt.Sprintf("%s -L %s start-server", tmuxPath, workspace), err)
 	}
-	// load the code
-	c, err := loadCode()
-	if err != nil {
+	// create the code and load/scan
+	c := tmx.New(codePath, regexp.MustCompile("^.snapshots$"))
+	if err := c.LoadOrScan(); err != nil {
 		log.Fatalf("error loading the code, did you run tmxrc?: %s", err)
 	}
 	// select the session using fzf
@@ -80,18 +82,18 @@ func main() {
 		log.Fatalf("error filtering the session: %s", err)
 	}
 	// start a TMUX session (or attach to an existing one)
-	tmuxStart(c, sessionName)
+	if err := tmuxStart(c, sessionName); err != nil {
+		log.Fatalf("error attaching the session %q: %s", sessionName, err)
+	}
 }
 
-func tmuxStart(c *tmx.Code, sessions []string) {
+func tmuxStart(c *tmx.Code, sessions []string) error {
 	// loop over the selected session to start, only the last one will be attached
 	for i, sessionName := range sessions {
-		// find the project for this session
-		// TODO: if the session was not found but we do have one that match in the
-		// base profile, then we must create a new one first.
-		project, err := c.FindProjectBySessionName(sessionName)
+		// load the project
+		project, err := findProject(c, sessionName)
 		if err != nil {
-			log.Fatalf("session %q not found", sessionName)
+			return err
 		}
 		// run tmux ls -F #{session_name} to find out if we have one running already
 		cmd := exec.Command(tmuxPath, "-L", workspace, "list-sessions", "-F", "#{session_name}")
@@ -120,6 +122,40 @@ func tmuxStart(c *tmx.Code, sessions []string) {
 			fmt.Printf("must attach now\n")
 		}
 	}
+
+	return nil
+}
+
+func findProject(c *tmx.Code, name string) (*tmx.Project, error) {
+	// find the project for this session
+	p, err := c.FindProjectBySessionName(name)
+	if err != nil {
+		return nil, err
+	}
+	// if the returned project belongs to the base workspace and we are not on
+	// a base workspace then we have to clone it, and update the cache.
+	if workspace != tmx.BaseWorkspaceName && p.Base() {
+		// deep clone p into p2 and change the workspace
+		p2 := &tmx.Project{}
+		*p2 = *p
+		p2.WorkspaceName = workspace
+		// create the new worktree
+		cmd := exec.Command(gitPath, "worktree", "add", "-b", workspace, p2.Path(), "master")
+		cmd.Dir = p.Path()
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("error creating a new worktree: %s\n%s", err, string(out))
+		}
+		// re-scan and save
+		c.Scan()
+		if err := c.Save(); err != nil {
+			return nil, fmt.Errorf("error saving the cache: %s", err)
+		}
+
+		p = p2
+	}
+
+	return p, nil
 }
 
 // getSessionNames returns all the sessions under the profile (if profile is
@@ -139,7 +175,7 @@ func getSessionNames(c *tmx.Code) []string {
 	}
 	w := p.Workspaces[workspace]
 	if w != nil {
-		return append(w.SessionNames(), p.Workspaces["base"].SessionNames())
+		return append(w.SessionNames(), p.Workspaces["base"].SessionNames()...)
 	}
 	return w.SessionNames()
 }
@@ -166,20 +202,6 @@ func withFilter(command string, input func(in io.WriteCloser)) ([]string, error)
 		res = res[0 : len(res)-1]
 	}
 	return res, nil
-}
-
-func loadCode() (*tmx.Code, error) {
-	// open the file
-	f, err := os.Open(cachePath)
-	if err != nil {
-		return nil, err
-	}
-	// decode it
-	var c tmx.Code
-	if err := json.NewDecoder(f).Decode(&c); err != nil {
-		return nil, err
-	}
-	return &c, nil
 }
 
 func parseWorkspace() string {
