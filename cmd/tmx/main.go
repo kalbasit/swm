@@ -105,6 +105,8 @@ func tmuxStart(c *tmx.Code, sessions []string) error {
 				{"-L", workspace, "new-session", "-d", "-s", sessionName},
 				// set the active profile
 				{"-L", workspace, "set-environment", "-t", sessionName, "ACTIVE_PROFILE", profile},
+				// set the new GOPATH
+				{"-L", workspace, "set-environment", "-t", sessionName, "GOPATH", path.Join(c.Path, profile, workspace)},
 				// start a new shell on window 1
 				{"-L", workspace, "new-window", "-t", sessionName + ":1"},
 				// start vim in the first window
