@@ -1,10 +1,6 @@
-hash: 9c30630812e0a87de6ace36f34b08a4ee5790ee537ee6145b1a1af1335dbe842
-updated: 2017-08-07T14:27:31.626372451-07:00
+hash: 01a4811c8aa4b9eb616301bb1df81e6c1e82be536248236a4b7262ef57cb4757
+updated: 2017-08-09T18:05:33.538786802-07:00
 imports:
-- name: github.com/junegunn/fzf
-  version: ecb6b234cc130c760f792f95ce59b413be4cb5c4
-  subpackages:
-  - src
 - name: github.com/spf13/afero
   version: 9be650865eab0c12963d8753212f4f9c66cdcf12
   subpackages:
