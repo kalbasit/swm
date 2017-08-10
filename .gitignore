@@ -15,3 +15,6 @@
 
 # vendored dependencies
 vendor/
+
+# glide
+debug
