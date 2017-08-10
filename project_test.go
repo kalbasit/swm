@@ -29,3 +29,8 @@ func TestProjectSessionName(t *testing.T) {
 	// assert the Path
 	assert.Equal(t, "personal@base=github\u2022com/kalbasit/tmx", p.SessionName())
 }
+
+func TestBaseProject(t *testing.T) {
+	assert.True(t, (&Project{WorkspaceName: BaseWorkspaceName}).Base())
+	assert.False(t, (&Project{WorkspaceName: "STORY-123"}).Base())
+}

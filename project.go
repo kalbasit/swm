@@ -26,6 +26,9 @@ type Project struct {
 	WorkspaceName string
 }
 
+// Base returns true if this project is under the base workspace
+func (p *Project) Base() bool { return p.WorkspaceName == BaseWorkspaceName }
+
 // Path returns the absolute path of the project
 func (p *Project) Path() string {
 	return path.Join(p.CodePath, p.ProfileName, p.WorkspaceName, srcDir, p.ImportPath)
