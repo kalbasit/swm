@@ -324,21 +324,34 @@ func TestFindProjectBySessionName(t *testing.T) {
 	// scan now
 	c.Scan()
 	// what do we expect to get back
-	expected := &Project{
-		ImportPath:    "github.com/kalbasit/tmx",
-		CodePath:      "/home/kalbasit/code",
-		ProfileName:   "TestFindProjectBySessionName",
-		WorkspaceName: "base",
+	expected := map[string]*Project{
+		"base": {
+			ImportPath:    "github.com/kalbasit/tmx",
+			CodePath:      "/home/kalbasit/code",
+			ProfileName:   "TestFindProjectBySessionName",
+			WorkspaceName: "base",
+		},
+		"STORY-123": {
+			ImportPath:    "github.com/kalbasit/tmx",
+			CodePath:      "/home/kalbasit/code",
+			ProfileName:   "TestFindProjectBySessionName",
+			WorkspaceName: "STORY-123",
+		},
 	}
 	// assert we can find it by using the base workspace
 	project, err := c.FindProjectBySessionName("TestFindProjectBySessionName@base=github" + dotChar + "com/kalbasit/tmx")
 	if assert.NoError(t, err) {
-		assert.Equal(t, expected, project)
+		assert.Equal(t, expected["base"], project)
+	}
+	// assert we can find it by using the STORY-123 workspace
+	project, err = c.FindProjectBySessionName("TestFindProjectBySessionName@STORY-123=github" + dotChar + "com/kalbasit/tmx")
+	if assert.NoError(t, err) {
+		assert.Equal(t, expected["STORY-123"], project)
 	}
 	// assert we can find the same one if the workspace does not exist
 	project, err = c.FindProjectBySessionName("TestFindProjectBySessionName@notexistant=github" + dotChar + "com/kalbasit/tmx")
 	if assert.NoError(t, err) {
-		assert.Equal(t, expected, project)
+		assert.Equal(t, expected["base"], project)
 	}
 }
 
