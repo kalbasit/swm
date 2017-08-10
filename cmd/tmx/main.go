@@ -164,6 +164,7 @@ func findProject(c *tmx.Code, name string) (*tmx.Project, error) {
 // non empty) and for the current workspace (if not empty). The base workspaces
 // will always be returned
 // TODO: move this to code as a helper
+// TODO: should not return projects in both base and workspace
 func getSessionNames(c *tmx.Code) []string {
 	if profile == "" {
 		return c.SessionNames()
@@ -177,7 +178,7 @@ func getSessionNames(c *tmx.Code) []string {
 	}
 	w := p.Workspaces[workspace]
 	if w != nil {
-		return append(w.SessionNames(), p.Workspaces["base"].SessionNames()...)
+		return append(w.SessionNames(), p.BaseWorkspace().SessionNames()...)
 	}
 	return w.SessionNames()
 }
