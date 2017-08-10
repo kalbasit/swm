@@ -115,5 +115,5 @@ func TestBaseWorkSpace(t *testing.T) {
 		},
 	}
 	// assert now
-	assert.Exactly(t, c.Profiles["personal"].Workspaces[baseWorkspaceName], c.Profiles["personal"].BaseWorkspace())
+	assert.Exactly(t, c.Profiles["personal"].Workspaces[BaseWorkspaceName], c.Profiles["personal"].BaseWorkspace())
 }

@@ -155,11 +155,13 @@ func (c *Code) FindProjectBySessionName(name string) (*Project, error) {
 	ms := sessionNameRegex.FindStringSubmatch(name)
 	if len(ms) == 4 {
 		if p := c.Profiles[ms[1]]; p != nil {
+			// load the workspace
 			w := p.Workspaces[ms[2]]
 			if w == nil {
+				// if workspace is empty, try looking for the same project under the
+				// base project.
 				return p.BaseWorkspace().FindProjectBySessionName(ms[3])
 			}
-
 			if prj, err := w.FindProjectBySessionName(ms[3]); err == nil && prj != nil {
 				return prj, nil
 			}
