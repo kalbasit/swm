@@ -1,4 +1,4 @@
-package tmx
+package code
 
 import (
 	"sort"
@@ -33,49 +33,49 @@ func TestProfileScan(t *testing.T) {
 	// scan now
 	p.Scan()
 	// assert now
-	expected := map[string]*Workspace{
-		"base": &Workspace{
+	expected := map[string]*Story{
+		"base": &Story{
 			Name:        "base",
 			CodePath:    "/home/kalbasit/code",
 			ProfileName: "TestProfileScan",
 			Projects: map[string]*Project{
-				"github.com/kalbasit/tmx": &Project{
-					ImportPath:    "github.com/kalbasit/tmx",
-					CodePath:      "/home/kalbasit/code",
-					ProfileName:   "TestProfileScan",
-					WorkspaceName: "base",
+				"github.com/kalbasit/swm": &Project{
+					ImportPath:  "github.com/kalbasit/swm",
+					CodePath:    "/home/kalbasit/code",
+					ProfileName: "TestProfileScan",
+					StoryName:   "base",
 				},
 				"github.com/kalbasit/dotfiles": &Project{
-					ImportPath:    "github.com/kalbasit/dotfiles",
-					CodePath:      "/home/kalbasit/code",
-					ProfileName:   "TestProfileScan",
-					WorkspaceName: "base",
+					ImportPath:  "github.com/kalbasit/dotfiles",
+					CodePath:    "/home/kalbasit/code",
+					ProfileName: "TestProfileScan",
+					StoryName:   "base",
 				},
 			},
 		},
-		"STORY-123": &Workspace{
+		"STORY-123": &Story{
 			Name:        "STORY-123",
 			CodePath:    "/home/kalbasit/code",
 			ProfileName: "TestProfileScan",
 			Projects: map[string]*Project{
 				"github.com/kalbasit/private": &Project{
-					ImportPath:    "github.com/kalbasit/private",
-					CodePath:      "/home/kalbasit/code",
-					ProfileName:   "TestProfileScan",
-					WorkspaceName: "STORY-123",
+					ImportPath:  "github.com/kalbasit/private",
+					CodePath:    "/home/kalbasit/code",
+					ProfileName: "TestProfileScan",
+					StoryName:   "STORY-123",
 				},
 			},
 		},
 	}
-	assert.Equal(t, expected["base"].Name, p.Workspaces["base"].Name)
-	assert.Equal(t, expected["base"].CodePath, p.Workspaces["base"].CodePath)
-	assert.Equal(t, expected["base"].ProfileName, p.Workspaces["base"].ProfileName)
-	assert.Equal(t, expected["base"].Projects["github.com/kalbasit/tmx"], p.Workspaces["base"].Projects["github.com/kalbasit/tmx"])
-	assert.Equal(t, expected["base"].Projects["github.com/kalbasit/dotfiles"], p.Workspaces["base"].Projects["github.com/kalbasit/dotfiles"])
-	assert.Equal(t, expected["STORY-123"].Name, p.Workspaces["STORY-123"].Name)
-	assert.Equal(t, expected["STORY-123"].CodePath, p.Workspaces["STORY-123"].CodePath)
-	assert.Equal(t, expected["STORY-123"].ProfileName, p.Workspaces["STORY-123"].ProfileName)
-	assert.Equal(t, expected["STORY-123"].Projects["github.com/kalbasit/private"], p.Workspaces["STORY-123"].Projects["github.com/kalbasit/private"])
+	assert.Equal(t, expected["base"].Name, p.Stories["base"].Name)
+	assert.Equal(t, expected["base"].CodePath, p.Stories["base"].CodePath)
+	assert.Equal(t, expected["base"].ProfileName, p.Stories["base"].ProfileName)
+	assert.Equal(t, expected["base"].Projects["github.com/kalbasit/swm"], p.Stories["base"].Projects["github.com/kalbasit/swm"])
+	assert.Equal(t, expected["base"].Projects["github.com/kalbasit/dotfiles"], p.Stories["base"].Projects["github.com/kalbasit/dotfiles"])
+	assert.Equal(t, expected["STORY-123"].Name, p.Stories["STORY-123"].Name)
+	assert.Equal(t, expected["STORY-123"].CodePath, p.Stories["STORY-123"].CodePath)
+	assert.Equal(t, expected["STORY-123"].ProfileName, p.Stories["STORY-123"].ProfileName)
+	assert.Equal(t, expected["STORY-123"].Projects["github.com/kalbasit/private"], p.Stories["STORY-123"].Projects["github.com/kalbasit/private"])
 }
 
 func TestProfileSessionNames(t *testing.T) {
@@ -93,7 +93,7 @@ func TestProfileSessionNames(t *testing.T) {
 	c.Scan()
 	// assert now
 	want := []string{
-		"TestProfileSessionNames@base=github" + dotChar + "com/kalbasit/tmx",
+		"TestProfileSessionNames@base=github" + dotChar + "com/kalbasit/swm",
 		"TestProfileSessionNames@base=github" + dotChar + "com/kalbasit/dotfiles",
 		"TestProfileSessionNames@STORY-123=github" + dotChar + "com/kalbasit/private",
 	}
@@ -108,12 +108,12 @@ func TestBaseWorkSpace(t *testing.T) {
 	c := &Code{
 		Profiles: map[string]*Profile{
 			"personal": &Profile{
-				Workspaces: map[string]*Workspace{
-					"base": &Workspace{},
+				Stories: map[string]*Story{
+					"base": &Story{},
 				},
 			},
 		},
 	}
 	// assert now
-	assert.Exactly(t, c.Profiles["personal"].Workspaces[BaseWorkspaceName], c.Profiles["personal"].BaseWorkspace())
+	assert.Exactly(t, c.Profiles["personal"].Stories[BaseStory], c.Profiles["personal"].BaseStory())
 }

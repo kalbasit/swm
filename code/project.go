@@ -1,4 +1,4 @@
-package tmx
+package code
 
 import (
 	"fmt"
@@ -22,22 +22,22 @@ type Project struct {
 	// ProfileName is the name of the profile for this workspace
 	ProfileName string
 
-	// WorkspaceName is the name
-	WorkspaceName string
+	// StoryName is the name
+	StoryName string
 }
 
 // Base returns true if this project is under the base workspace
-func (p *Project) Base() bool { return p.WorkspaceName == BaseWorkspaceName }
+func (p *Project) Base() bool { return p.StoryName == BaseStory }
 
 // Path returns the absolute path of the project
 func (p *Project) Path() string {
-	return path.Join(p.CodePath, p.ProfileName, p.WorkspaceName, srcDir, p.ImportPath)
+	return path.Join(p.CodePath, p.ProfileName, p.StoryName, srcDir, p.ImportPath)
 }
 
 // SessionName returns the session name to be used for TMUX. The format is:
 // profile@workspace=ImportPath the ImportPath does not include dots or columns
 func (p *Project) SessionName() string {
-	return fmt.Sprintf("%s@%s=%s", p.ProfileName, p.WorkspaceName, p.tmuxSafeName())
+	return fmt.Sprintf("%s@%s=%s", p.ProfileName, p.StoryName, p.tmuxSafeName())
 }
 
 func (p *Project) tmuxSafeName() string {

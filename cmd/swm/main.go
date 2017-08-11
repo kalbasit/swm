@@ -12,14 +12,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kalbasit/tmx"
+	"github.com/kalbasit/swm/code"
 )
 
 var (
 	// codePath is the path to the code folder
 	codePath string
 
-	// killPane if true will kill the tmux pane currently running the tmx
+	// killPane if true will kill the tmux pane currently running the swm
 	killPane bool
 
 	// profile select the profile, defaults to the current profile
@@ -71,7 +71,7 @@ func main() {
 		workspace = strings.Split(path.Base(socketPath), ",")[0]
 	}
 	// create the code and load/scan
-	c := tmx.New(codePath, regexp.MustCompile("^.snapshots$"))
+	c := code.New(codePath, regexp.MustCompile("^.snapshots$"))
 	if err := c.LoadOrScan(); err != nil {
 		log.Fatalf("error loading the code: %s", err)
 	}
@@ -91,7 +91,7 @@ func main() {
 	}
 }
 
-func tmuxStart(c *tmx.Code, sessions []string) error {
+func tmuxStart(c *code.Code, sessions []string) error {
 	// loop over the selected session to start, only the last one will be attached
 	for i, sessionName := range sessions {
 		// load the project
@@ -100,19 +100,19 @@ func tmuxStart(c *tmx.Code, sessions []string) error {
 			return err
 		}
 		// run tmux has-session -t sessionName to check if session already exists
-		if err := exec.Command(tmuxPath, "-L", project.WorkspaceName, "has-session", "-t", sessionName).Run(); err != nil {
+		if err := exec.Command(tmuxPath, "-L", project.StoryName, "has-session", "-t", sessionName).Run(); err != nil {
 			// session does not exist, we should start it
 			for _, args := range [][]string{
 				// start the session
-				{"-L", project.WorkspaceName, "new-session", "-d", "-s", sessionName},
+				{"-L", project.StoryName, "new-session", "-d", "-s", sessionName},
 				// set the active profile
-				{"-L", project.WorkspaceName, "set-environment", "-t", sessionName, "ACTIVE_PROFILE", project.ProfileName},
+				{"-L", project.StoryName, "set-environment", "-t", sessionName, "ACTIVE_PROFILE", project.ProfileName},
 				// set the new GOPATH
-				{"-L", project.WorkspaceName, "set-environment", "-t", sessionName, "GOPATH", path.Join(c.Path, project.ProfileName, project.WorkspaceName)},
+				{"-L", project.StoryName, "set-environment", "-t", sessionName, "GOPATH", path.Join(c.Path, project.ProfileName, project.StoryName)},
 				// start a new shell on window 1
-				{"-L", project.WorkspaceName, "new-window", "-t", sessionName + ":1"},
+				{"-L", project.StoryName, "new-window", "-t", sessionName + ":1"},
 				// start vim in the first window
-				{"-L", project.WorkspaceName, "send-keys", "-t", sessionName + ":0", "clear; vim", "Enter"},
+				{"-L", project.StoryName, "send-keys", "-t", sessionName + ":0", "clear; vim", "Enter"},
 			} {
 				cmd := exec.Command(tmuxPath, args...)
 				cmd.Dir = project.Path()
@@ -120,7 +120,7 @@ func tmuxStart(c *tmx.Code, sessions []string) error {
 				cmd.Env = func() []string {
 					res := []string{
 						fmt.Sprintf("ACTIVE_PROFILE=%s", project.ProfileName),
-						fmt.Sprintf("GOPATH=%s", path.Join(c.Path, project.ProfileName, project.WorkspaceName)),
+						fmt.Sprintf("GOPATH=%s", path.Join(c.Path, project.ProfileName, project.StoryName)),
 					}
 					for _, v := range os.Environ() {
 						if k := strings.Split(v, "=")[0]; k != "ACTIVE_PROFILE" && k != "GOPATH" && k != "TMUX" {
@@ -142,12 +142,12 @@ func tmuxStart(c *tmx.Code, sessions []string) error {
 				// kill the pane once attached
 				defer func() {
 					if killPane {
-						exec.Command(tmuxPath, "-L", project.WorkspaceName, "kill-pane").Run()
+						exec.Command(tmuxPath, "-L", project.StoryName, "kill-pane").Run()
 					}
 				}()
-				return exec.Command(tmuxPath, "-L", project.WorkspaceName, "switch-client", "-t", sessionName).Run()
+				return exec.Command(tmuxPath, "-L", project.StoryName, "switch-client", "-t", sessionName).Run()
 			}
-			cmd := exec.Command(tmuxPath, "-L", project.WorkspaceName, "attach", "-t", sessionName)
+			cmd := exec.Command(tmuxPath, "-L", project.StoryName, "attach", "-t", sessionName)
 			cmd.Stdin = os.Stdin
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
@@ -158,7 +158,7 @@ func tmuxStart(c *tmx.Code, sessions []string) error {
 	return errors.New("no session selected")
 }
 
-func findProject(c *tmx.Code, name string) (*tmx.Project, error) {
+func findProject(c *code.Code, name string) (*code.Project, error) {
 	// find the project for this session
 	p, err := c.FindProjectBySessionName(name)
 	if err != nil {
@@ -166,11 +166,11 @@ func findProject(c *tmx.Code, name string) (*tmx.Project, error) {
 	}
 	// if the returned project belongs to the base workspace and we are not on
 	// a base workspace then we have to clone it, and update the cache.
-	if workspace != "" && workspace != tmx.BaseWorkspaceName && p.Base() {
+	if workspace != "" && workspace != code.BaseStory && p.Base() {
 		// deep clone p into p2 and change the workspace
-		p2 := &tmx.Project{}
+		p2 := &code.Project{}
 		*p2 = *p
-		p2.WorkspaceName = workspace
+		p2.StoryName = workspace
 		// create the new worktree
 		cmd := exec.Command(gitPath, "worktree", "add", "-b", workspace, p2.Path(), "master")
 		cmd.Dir = p.Path()
@@ -195,7 +195,7 @@ func findProject(c *tmx.Code, name string) (*tmx.Project, error) {
 // will always be returned
 // TODO: move this to code as a helper
 // TODO: should not return projects in both base and workspace
-func getSessionNames(c *tmx.Code) []string {
+func getSessionNames(c *code.Code) []string {
 	if profile == "" {
 		return c.SessionNames()
 	}
@@ -206,11 +206,11 @@ func getSessionNames(c *tmx.Code) []string {
 	if workspace == "" {
 		return p.SessionNames()
 	}
-	w := p.Workspaces[workspace]
+	w := p.Stories[workspace]
 	if w != nil {
-		return append(w.SessionNames(), p.BaseWorkspace().SessionNames()...)
+		return append(w.SessionNames(), p.BaseStory().SessionNames()...)
 	}
-	return p.BaseWorkspace().SessionNames()
+	return p.BaseStory().SessionNames()
 }
 
 // withFilter filters input using fzf
