@@ -1,19 +1,13 @@
 package code
 
-import (
-	"sort"
-	"testing"
-
-	"github.com/spf13/afero"
-	"github.com/stretchr/testify/assert"
-)
+/*
 
 func TestWorkspacePath(t *testing.T) {
 	// create a new project
-	p := &Story{
-		Name:        "base",
-		CodePath:    "/home/kalbasit/code",
-		ProfileName: "personal",
+	p := &story{
+		name:        "base",
+		codePath:    "/home/kalbasit/code",
+		profileName: "personal",
 	}
 	// assert the Path
 	assert.Equal(t, "/home/kalbasit/code/personal/base", p.GoPath())
@@ -27,48 +21,48 @@ func TestWorkspaceScan(t *testing.T) {
 	// create the filesystem we want to scan
 	prepareFilesystem(t.Name())
 	// create a workspace
-	w := &Story{
-		Name:        "base",
-		CodePath:    "/home/kalbasit/code",
-		ProfileName: "TestWorkspaceScan",
+	w := &story{
+		name:        "base",
+		codePath:    "/home/kalbasit/code",
+		profileName: "TestWorkspaceScan",
 	}
 	// scan now
-	w.Scan()
+	w.scan()
 	// assert now
-	expected := map[string]*Project{
-		"github.com/kalbasit/swm": &Project{
+	expected := map[string]*project{
+		"github.com/kalbasit/swm": &project{
 			ImportPath:  "github.com/kalbasit/swm",
 			CodePath:    "/home/kalbasit/code",
 			ProfileName: "TestWorkspaceScan",
 			StoryName:   "base",
 		},
-		"github.com/kalbasit/dotfiles": &Project{
+		"github.com/kalbasit/dotfiles": &project{
 			ImportPath:  "github.com/kalbasit/dotfiles",
 			CodePath:    "/home/kalbasit/code",
 			ProfileName: "TestWorkspaceScan",
 			StoryName:   "base",
 		},
 	}
-	assert.Equal(t, expected, w.Projects)
+	assert.Equal(t, expected, w.projects)
 
 	// test with the non base workspace
-	w = &Story{
-		Name:        "STORY-123",
-		CodePath:    "/home/kalbasit/code",
-		ProfileName: "TestWorkspaceScan",
+	w = &story{
+		name:        "STORY-123",
+		codePath:    "/home/kalbasit/code",
+		profileName: "TestWorkspaceScan",
 	}
 	// scan now
-	w.Scan()
+	w.scan()
 	// assert now
-	expected = map[string]*Project{
-		"github.com/kalbasit/dotfiles": &Project{
+	expected = map[string]*project{
+		"github.com/kalbasit/dotfiles": &project{
 			ImportPath:  "github.com/kalbasit/dotfiles",
 			CodePath:    "/home/kalbasit/code",
 			ProfileName: "TestWorkspaceScan",
 			StoryName:   "STORY-123",
 		},
 	}
-	assert.Equal(t, expected, w.Projects)
+	assert.Equal(t, expected, w.projects)
 }
 
 func TestWorkspaceSessionNames(t *testing.T) {
@@ -79,17 +73,17 @@ func TestWorkspaceSessionNames(t *testing.T) {
 	// create the filesystem we want to scan
 	prepareFilesystem(t.Name())
 	// create a code
-	c := &Code{
-		Path: "/home/kalbasit/code",
+	c := &code{
+		path: "/home/kalbasit/code",
 	}
 	// scan now
-	c.Scan()
+	c.scan()
 	// assert now
 	want := []string{
 		"TestWorkspaceSessionNames@base=github" + dotChar + "com/kalbasit/swm",
 		"TestWorkspaceSessionNames@base=github" + dotChar + "com/kalbasit/dotfiles",
 	}
-	got := c.Profiles["TestWorkspaceSessionNames"].Stories["base"].SessionNames()
+	got := c.profiles["TestWorkspaceSessionNames"].stories["base"].SessionNames()
 	sort.Strings(want)
 	sort.Strings(got)
 	assert.Equal(t, want, got)
@@ -103,20 +97,21 @@ func TestWorkspaceFindProjectBySessionName(t *testing.T) {
 	// create the filesystem we want to scan
 	prepareFilesystem(t.Name())
 	// create a code
-	c := &Code{
-		Path: "/home/kalbasit/code",
+	c := &code{
+		path: "/home/kalbasit/code",
 	}
 	// scan now
-	c.Scan()
+	c.scan()
 	// assert it now
-	expected := &Project{
+	expected := &project{
 		ImportPath:  "github.com/kalbasit/swm",
 		CodePath:    "/home/kalbasit/code",
 		ProfileName: "TestWorkspaceFindProjectBySessionName",
 		StoryName:   "base",
 	}
-	project, err := c.Profiles["TestWorkspaceFindProjectBySessionName"].Stories["base"].FindProjectBySessionName("github" + dotChar + "com/kalbasit/swm")
+	project, err := c.profiles["TestWorkspaceFindProjectBySessionName"].stories["base"].FindProjectBySessionName("github" + dotChar + "com/kalbasit/swm")
 	if assert.NoError(t, err) {
 		assert.Equal(t, expected, project)
 	}
 }
+*/

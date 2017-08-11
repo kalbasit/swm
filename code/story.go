@@ -10,44 +10,50 @@ import (
 	"github.com/spf13/afero"
 )
 
-type Story struct {
-	// Name is the name of the story
-	Name string
+// baseStoryName represents the name of the base story
+const baseStoryName = "base"
 
-	// CodePath is the path of Code.Path
-	CodePath string
+// story implements the Story interface
+type story struct {
+	// profile returns the parent profile
+	profile *profile
 
-	// ProfileName is the name of the profile for this story
-	ProfileName string
+	// name is the name of the story
+	name string
 
-	// Projects is a list of projects
-	Projects map[string]*Project
+	// projects is a list of projects
+	projects map[string]*project
+}
+
+// Base returns true if this story is the base story
+func (s *story) Base() bool {
+	return s.name == baseStoryName
+}
+
+// GoPath returns the absolute GOPATH of this story.
+func (s *story) GoPath() string {
+	if s.name == baseStoryName {
+		return path.Join(s.profile.code.Path(), s.profile.name, s.name)
+	}
+
+	return path.Join(s.profile.code.Path(), s.profile.name, "stories", s.name)
 }
 
 // FindProjectBySessionName returns the project represented by the session name
-func (s *Story) FindProjectBySessionName(name string) (*Project, error) {
-	if project := s.Projects[strings.Replace(strings.Replace(name, dotChar, ".", -1), colonChar, ":", -1)]; project != nil {
+func (s *story) FindProjectBySessionName(name string) (*project, error) {
+	if project := s.projects[strings.Replace(strings.Replace(name, dotChar, ".", -1), colonChar, ":", -1)]; project != nil {
 		return project, nil
 	}
 
 	return nil, ErrProjectNotFound
 }
 
-// GoPath returns the absolute GOPATH of this story.
-func (s *Story) GoPath() string {
-	if s.Name == BaseStory {
-		return path.Join(s.CodePath, s.ProfileName, s.Name)
-	}
-
-	return path.Join(s.CodePath, s.ProfileName, "stories", s.Name)
-}
-
-// Scan scans the entire story to build projects
-func (s *Story) Scan() {
+// scan scans the entire story to build projects
+func (s *story) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
-	out := make(chan *Project, 1000)
-	s.Projects = make(map[string]*Project)
+	out := make(chan *project, 1000)
+	s.projects = make(map[string]*project)
 	// start the workers
 	wg.Add(1)
 	go s.scanWorker(&wg, out, "")
@@ -62,16 +68,16 @@ func (s *Story) Scan() {
 }
 
 // SessionNames returns the session names for this story
-func (s *Story) SessionNames() []string {
+func (s *story) SessionNames() []string {
 	var res []string
-	for _, project := range s.Projects {
+	for _, project := range s.projects {
 		res = append(res, project.SessionName())
 	}
 
 	return res
 }
 
-func (s *Story) scanReducer(out chan *Project, quit chan struct{}) {
+func (s *story) scanReducer(out chan *project, quit chan struct{}) {
 	for {
 		select {
 		case project, ok := <-out:
@@ -79,22 +85,20 @@ func (s *Story) scanReducer(out chan *Project, quit chan struct{}) {
 				close(quit)
 				return
 			}
-			s.Projects[project.ImportPath] = project
+			s.projects[project.importPath] = project
 		}
 	}
 }
 
-func (s *Story) scanWorker(wg *sync.WaitGroup, out chan *Project, ipath string) {
+func (s *story) scanWorker(wg *sync.WaitGroup, out chan *project, ipath string) {
 	defer wg.Done()
 
 	// do we have a .git folder here?
 	if _, err := AppFs.Stat(path.Join(s.projectPath(ipath), ".git")); err == nil {
 		// return this project
-		out <- &Project{
-			ImportPath:  ipath,
-			CodePath:    s.CodePath,
-			ProfileName: s.ProfileName,
-			StoryName:   s.Name,
+		out <- &project{
+			story:      s,
+			importPath: ipath,
 		}
 
 		return
@@ -117,6 +121,6 @@ func (s *Story) scanWorker(wg *sync.WaitGroup, out chan *Project, ipath string) 
 	}
 }
 
-func (s *Story) projectPath(ipath string) string {
+func (s *story) projectPath(ipath string) string {
 	return path.Join(s.GoPath(), srcDir, ipath)
 }

@@ -1,13 +1,9 @@
 package code
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
-	"os"
-	"path"
 	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/spf13/afero"
@@ -18,126 +14,86 @@ var (
 	// test helper.
 	AppFs afero.Fs
 
-	// CachePath represents the path at which the cache will be stored
-	CachePath string
+	// ErrCodePathEmpty is returned if Code.Path is empty or invalid
+	ErrCodePathEmpty = errors.New("code path is empty or does not exist")
+
+	// ErrProfileNoFound is returned if the profile was not found
+	ErrProfileNoFound = errors.New("profile not found")
+
+	// ErrStoryNoFound is returned if the story was not found
+	ErrStoryNoFound = errors.New("story not found")
 
 	// ErrProjectNotFound is returned if the session name did not yield a project
 	// we know about
 	ErrProjectNotFound = errors.New("project not found")
-
-	// ErrCodePathEmpty is returned if Code.Path is empty or invalid
-	ErrCodePathEmpty = errors.New("code path is empty or does not exist")
-
-	sessionNameRegex = regexp.MustCompile("^([a-zA-Z0-9_-]+)@([a-zA-Z0-9_-]+)=(.*)$")
 )
 
 func init() {
 	// initialize AppFs to use the OS filesystem
 	AppFs = afero.NewOsFs()
-
-	// initialize the cache path
-	CachePath = path.Join(os.Getenv("HOME"), ".cache", "swm")
-	if _, err := AppFs.Stat(CachePath); os.IsNotExist(err) {
-		if err := AppFs.MkdirAll(CachePath, 0755); err != nil {
-			log.Fatalf("error creating the directory %q to store cache: %s", CachePath, err)
-		}
-	}
 }
 
-// Code represents a code folder that follows the following structure:
-// code/
-// |-- profile1
-// |   |-- base
-// |   |   |-- src
-// |   |       |-- go.import.path
-// |   |-- stories
-// |   |   |-- STORY-123
-// |   |       |-- src
-// |   |           |-- go.import.path
-// |-- profile2
-// |   |-- base
-// |   |   |-- src
-// |   |       |-- go.import.path
-// |   |-- stories
-// |   |   |-- STORY-123
-// |   |       |-- src
-// |   |           |-- go.import.path
-type Code struct {
-	// Path is the base path of this profile
-	Path string
+// code implements the coder interface
+type code struct {
+	// path is the base path of this profile
+	path string
 
-	// ExcludePattern is a list of patterns to ignore
-	ExcludePattern *regexp.Regexp
+	// excludePattern is a list of patterns to ignore
+	excludePattern *regexp.Regexp
 
-	Profiles map[string]*Profile
+	profiles map[string]*profile
 }
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
-func New(p string, ignore *regexp.Regexp) *Code { return &Code{Path: p, ExcludePattern: ignore} }
+func New(p string, ignore *regexp.Regexp) *code { return &code{path: p, excludePattern: ignore} }
 
-// LoadOrScan loads the code from the cache (if it exists), otherwise it will
+// Path returns the absolute path of this coder
+func (c *code) Path() string { return c.path }
+
+// Profile returns the profile given it's name or an error if no profile with
+// this name was found
+func (c *code) Profile(name string) (*profile, error) {
+	p, ok := c.profiles[name]
+	if !ok {
+		return nil, ErrProfileNoFound
+	}
+	return p, nil
+}
+
+// Scan loads the code from the cache (if it exists), otherwise it will
 // initiate a full scan and save it in cache.
-func (c *Code) LoadOrScan() error {
+func (c *code) Scan() error {
 	// validate the Code, we cannot load an invalid Code
 	if err := c.validate(); err != nil {
 		return err
 	}
-	// try loading from cache
-	if err := c.Load(); err != nil {
-		c.Scan()
-		return c.Save()
-	}
+	c.scan()
 
 	return nil
 }
 
-// Load load the code from cache
-func (c *Code) Load() error {
-	// validate the Code, we cannot load an invalid Code
-	if err := c.validate(); err != nil {
-		return err
-	}
-	// parse the cache file now
-	f, err := AppFs.Open(path.Join(CachePath, strings.Replace(c.Path, "/", "-", -1)+".json"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return json.NewDecoder(f).Decode(c)
-}
-
-// Save saves the code to the cache file
-func (c *Code) Save() error {
-	f, err := AppFs.Create(path.Join(CachePath, strings.Replace(c.Path, "/", "-", -1)+".json"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return json.NewEncoder(f).Encode(c)
-}
-
-// Scan scans the entire profile to build the workspaces
-func (c *Code) Scan() {
+// scan scans the entire profile to build the workspaces
+func (c *code) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
-	c.Profiles = make(map[string]*Profile)
+	c.profiles = make(map[string]*profile)
 	// read the profile and scan all profiles
-	entries, err := afero.ReadDir(AppFs, c.Path)
+	entries, err := afero.ReadDir(AppFs, c.path)
 	if err != nil {
-		log.Printf("error reading the directory %q: %s", c.Path, err)
+		log.Printf("error reading the directory %q: %s", c.path, err)
 		return
 	}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			// does this folder match the exclude pattern?
-			if c.ExcludePattern != nil && c.ExcludePattern.MatchString(entry.Name()) {
+			if c.excludePattern != nil && c.excludePattern.MatchString(entry.Name()) {
 				continue
 			}
 			// create the workspace
-			p := &Profile{
-				Name:     entry.Name(),
-				CodePath: c.Path,
+			p := &profile{
+				name: entry.Name(),
+				code: c,
 			}
 			// start scanning it
 			wg.Add(1)
@@ -146,54 +102,17 @@ func (c *Code) Scan() {
 				p.Scan()
 			}()
 			// add it to the profile
-			c.Profiles[entry.Name()] = p
+			c.profiles[entry.Name()] = p
 		}
 	}
 	wg.Wait()
 }
 
-// FindProjectBySessionName returns the project represented by the session name
-func (c *Code) FindProjectBySessionName(name string) (*Project, error) {
-	ms := sessionNameRegex.FindStringSubmatch(name)
-	if len(ms) == 4 {
-		if p := c.Profiles[ms[1]]; p != nil {
-			// load the workspace
-			w := p.Stories[ms[2]]
-			if w == nil {
-				// if workspace is empty, try looking for the same project under the
-				// base project.
-				return p.BaseStory().FindProjectBySessionName(ms[3])
-			}
-			if prj, err := w.FindProjectBySessionName(ms[3]); err == nil && prj != nil {
-				return prj, nil
-			}
-
-			return p.BaseStory().FindProjectBySessionName(ms[3])
-		}
-	}
-
-	return nil, ErrProjectNotFound
-}
-
-// SessionNames returns the session names for projects in all workspaces in all profiles
-func (c *Code) SessionNames() []string {
-	var res []string
-	for _, profile := range c.Profiles {
-		for _, workspace := range profile.Stories {
-			for _, project := range workspace.Projects {
-				res = append(res, project.SessionName())
-			}
-		}
-	}
-
-	return res
-}
-
-func (c *Code) validate() error {
-	if c.Path == "" {
+func (c *code) validate() error {
+	if c.path == "" {
 		return ErrCodePathEmpty
 	}
-	if _, err := AppFs.Stat(c.Path); err != nil {
+	if _, err := AppFs.Stat(c.path); err != nil {
 		return ErrCodePathEmpty
 	}
 
