@@ -14,10 +14,13 @@ func prepareFilesystem(test string) {
 		afero.WriteFile(AppFs, "/home/kalbasit/code/TestWorkspaceScan/stories/STORY-123/src/github.com/kalbasit/dotfiles/.git", []byte(
 			"gitdir: /home/kalbasit/code/TestWorkspaceScan/base/src/github.com/kalbasit/.git/worktrees/dotfiles",
 		), 0644)
-	case "TestProfileScan":
-		AppFs.MkdirAll("/home/kalbasit/code/TestProfileScan/base/src/github.com/kalbasit/swm/.git", 0755)
-		AppFs.MkdirAll("/home/kalbasit/code/TestProfileScan/base/src/github.com/kalbasit/dotfiles/.git", 0755)
-		AppFs.MkdirAll("/home/kalbasit/code/TestProfileScan/stories/STORY-123/src/github.com/kalbasit/private/.git", 0755)
+	case "TestProfileNoBaseScan":
+		AppFs.MkdirAll("/home/kalbasit/code/TestProfileNoBaseScan/base/src/github.com/kalbasit/swm/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestProfileNoBaseScan/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+	case "TestProfileBaseScan":
+		AppFs.MkdirAll("/home/kalbasit/code/TestProfileBaseScan/base/src/github.com/kalbasit/swm/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestProfileBaseScan/base/src/github.com/kalbasit/dotfiles/.git", 0755)
+		AppFs.MkdirAll("/home/kalbasit/code/TestProfileBaseScan/stories/STORY-123/src/github.com/kalbasit/private/.git", 0755)
 	case "TestSave":
 		AppFs.MkdirAll("/home/kalbasit/code/TestSave/base/src/github.com/kalbasit/swm/.git", 0755)
 		AppFs.MkdirAll("/home/kalbasit/code/TestSave/base/src/github.com/kalbasit/dotfiles/.git", 0755)
