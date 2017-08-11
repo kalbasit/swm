@@ -1,4 +1,4 @@
-package tmx
+package code
 
 import (
 	"encoding/json"

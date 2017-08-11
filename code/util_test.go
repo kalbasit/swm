@@ -1,4 +1,4 @@
-package tmx
+package code
 
 import "github.com/spf13/afero"
 
