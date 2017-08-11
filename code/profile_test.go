@@ -39,8 +39,8 @@ func TestProfileScan(t *testing.T) {
 			CodePath:    "/home/kalbasit/code",
 			ProfileName: "TestProfileScan",
 			Projects: map[string]*Project{
-				"github.com/kalbasit/tmx": &Project{
-					ImportPath:  "github.com/kalbasit/tmx",
+				"github.com/kalbasit/swm": &Project{
+					ImportPath:  "github.com/kalbasit/swm",
 					CodePath:    "/home/kalbasit/code",
 					ProfileName: "TestProfileScan",
 					StoryName:   "base",
@@ -70,7 +70,7 @@ func TestProfileScan(t *testing.T) {
 	assert.Equal(t, expected["base"].Name, p.Stories["base"].Name)
 	assert.Equal(t, expected["base"].CodePath, p.Stories["base"].CodePath)
 	assert.Equal(t, expected["base"].ProfileName, p.Stories["base"].ProfileName)
-	assert.Equal(t, expected["base"].Projects["github.com/kalbasit/tmx"], p.Stories["base"].Projects["github.com/kalbasit/tmx"])
+	assert.Equal(t, expected["base"].Projects["github.com/kalbasit/swm"], p.Stories["base"].Projects["github.com/kalbasit/swm"])
 	assert.Equal(t, expected["base"].Projects["github.com/kalbasit/dotfiles"], p.Stories["base"].Projects["github.com/kalbasit/dotfiles"])
 	assert.Equal(t, expected["STORY-123"].Name, p.Stories["STORY-123"].Name)
 	assert.Equal(t, expected["STORY-123"].CodePath, p.Stories["STORY-123"].CodePath)
@@ -93,7 +93,7 @@ func TestProfileSessionNames(t *testing.T) {
 	c.Scan()
 	// assert now
 	want := []string{
-		"TestProfileSessionNames@base=github" + dotChar + "com/kalbasit/tmx",
+		"TestProfileSessionNames@base=github" + dotChar + "com/kalbasit/swm",
 		"TestProfileSessionNames@base=github" + dotChar + "com/kalbasit/dotfiles",
 		"TestProfileSessionNames@STORY-123=github" + dotChar + "com/kalbasit/private",
 	}

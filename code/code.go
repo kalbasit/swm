@@ -36,7 +36,7 @@ func init() {
 	AppFs = afero.NewOsFs()
 
 	// initialize the cache path
-	CachePath = path.Join(os.Getenv("HOME"), ".cache", "tmx")
+	CachePath = path.Join(os.Getenv("HOME"), ".cache", "swm")
 	if _, err := AppFs.Stat(CachePath); os.IsNotExist(err) {
 		if err := AppFs.MkdirAll(CachePath, 0755); err != nil {
 			log.Fatalf("error creating the directory %q to store cache: %s", CachePath, err)

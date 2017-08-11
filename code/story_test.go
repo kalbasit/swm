@@ -36,8 +36,8 @@ func TestWorkspaceScan(t *testing.T) {
 	w.Scan()
 	// assert now
 	expected := map[string]*Project{
-		"github.com/kalbasit/tmx": &Project{
-			ImportPath:  "github.com/kalbasit/tmx",
+		"github.com/kalbasit/swm": &Project{
+			ImportPath:  "github.com/kalbasit/swm",
 			CodePath:    "/home/kalbasit/code",
 			ProfileName: "TestWorkspaceScan",
 			StoryName:   "base",
@@ -86,7 +86,7 @@ func TestWorkspaceSessionNames(t *testing.T) {
 	c.Scan()
 	// assert now
 	want := []string{
-		"TestWorkspaceSessionNames@base=github" + dotChar + "com/kalbasit/tmx",
+		"TestWorkspaceSessionNames@base=github" + dotChar + "com/kalbasit/swm",
 		"TestWorkspaceSessionNames@base=github" + dotChar + "com/kalbasit/dotfiles",
 	}
 	got := c.Profiles["TestWorkspaceSessionNames"].Stories["base"].SessionNames()
@@ -110,12 +110,12 @@ func TestWorkspaceFindProjectBySessionName(t *testing.T) {
 	c.Scan()
 	// assert it now
 	expected := &Project{
-		ImportPath:  "github.com/kalbasit/tmx",
+		ImportPath:  "github.com/kalbasit/swm",
 		CodePath:    "/home/kalbasit/code",
 		ProfileName: "TestWorkspaceFindProjectBySessionName",
 		StoryName:   "base",
 	}
-	project, err := c.Profiles["TestWorkspaceFindProjectBySessionName"].Stories["base"].FindProjectBySessionName("github" + dotChar + "com/kalbasit/tmx")
+	project, err := c.Profiles["TestWorkspaceFindProjectBySessionName"].Stories["base"].FindProjectBySessionName("github" + dotChar + "com/kalbasit/swm")
 	if assert.NoError(t, err) {
 		assert.Equal(t, expected, project)
 	}

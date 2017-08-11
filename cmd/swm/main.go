@@ -19,7 +19,7 @@ var (
 	// codePath is the path to the code folder
 	codePath string
 
-	// killPane if true will kill the tmux pane currently running the tmx
+	// killPane if true will kill the tmux pane currently running the swm
 	killPane bool
 
 	// profile select the profile, defaults to the current profile

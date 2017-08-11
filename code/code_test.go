@@ -34,8 +34,8 @@ func TestLoad(t *testing.T) {
 						CodePath:    "/home/kalbasit/code",
 						ProfileName: "TestLoad",
 						Projects: map[string]*Project{
-							"github.com/kalbasit/tmx": &Project{
-								ImportPath:  "github.com/kalbasit/tmx",
+							"github.com/kalbasit/swm": &Project{
+								ImportPath:  "github.com/kalbasit/swm",
 								CodePath:    "/home/kalbasit/code",
 								ProfileName: "TestLoad",
 								StoryName:   "base",
@@ -67,7 +67,7 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, expected["TestLoad"].Stories["base"].Name, c.Profiles["TestLoad"].Stories["base"].Name)
 		assert.Equal(t, expected["TestLoad"].Stories["base"].CodePath, c.Profiles["TestLoad"].Stories["base"].CodePath)
 		assert.Equal(t, expected["TestLoad"].Stories["base"].ProfileName, c.Profiles["TestLoad"].Stories["base"].ProfileName)
-		assert.Equal(t, expected["TestLoad"].Stories["base"].Projects["github.com/kalbasit/tmx"], c.Profiles["TestLoad"].Stories["base"].Projects["github.com/kalbasit/tmx"])
+		assert.Equal(t, expected["TestLoad"].Stories["base"].Projects["github.com/kalbasit/swm"], c.Profiles["TestLoad"].Stories["base"].Projects["github.com/kalbasit/swm"])
 		assert.Equal(t, expected["TestLoad"].Stories["base"].Projects["github.com/kalbasit/dotfiles"], c.Profiles["TestLoad"].Stories["base"].Projects["github.com/kalbasit/dotfiles"])
 		assert.Equal(t, expected["TestLoad"].Stories["STORY-123"].Name, c.Profiles["TestLoad"].Stories["STORY-123"].Name)
 		assert.Equal(t, expected["TestLoad"].Stories["STORY-123"].CodePath, c.Profiles["TestLoad"].Stories["STORY-123"].CodePath)
@@ -112,8 +112,8 @@ func TestSave(t *testing.T) {
 						CodePath:    "/home/kalbasit/code",
 						ProfileName: "TestSave",
 						Projects: map[string]*Project{
-							"github.com/kalbasit/tmx": &Project{
-								ImportPath:  "github.com/kalbasit/tmx",
+							"github.com/kalbasit/swm": &Project{
+								ImportPath:  "github.com/kalbasit/swm",
 								CodePath:    "/home/kalbasit/code",
 								ProfileName: "TestSave",
 								StoryName:   "base",
@@ -145,7 +145,7 @@ func TestSave(t *testing.T) {
 		assert.Equal(t, expected["TestSave"].Stories["base"].Name, c.Profiles["TestSave"].Stories["base"].Name)
 		assert.Equal(t, expected["TestSave"].Stories["base"].CodePath, c.Profiles["TestSave"].Stories["base"].CodePath)
 		assert.Equal(t, expected["TestSave"].Stories["base"].ProfileName, c.Profiles["TestSave"].Stories["base"].ProfileName)
-		assert.Equal(t, expected["TestSave"].Stories["base"].Projects["github.com/kalbasit/tmx"], c.Profiles["TestSave"].Stories["base"].Projects["github.com/kalbasit/tmx"])
+		assert.Equal(t, expected["TestSave"].Stories["base"].Projects["github.com/kalbasit/swm"], c.Profiles["TestSave"].Stories["base"].Projects["github.com/kalbasit/swm"])
 		assert.Equal(t, expected["TestSave"].Stories["base"].Projects["github.com/kalbasit/dotfiles"], c.Profiles["TestSave"].Stories["base"].Projects["github.com/kalbasit/dotfiles"])
 		assert.Equal(t, expected["TestSave"].Stories["STORY-123"].Name, c.Profiles["TestSave"].Stories["STORY-123"].Name)
 		assert.Equal(t, expected["TestSave"].Stories["STORY-123"].CodePath, c.Profiles["TestSave"].Stories["STORY-123"].CodePath)
@@ -191,8 +191,8 @@ func TestLoadOrScan(t *testing.T) {
 						CodePath:    "/home/kalbasit/code",
 						ProfileName: "TestLoadOrScan",
 						Projects: map[string]*Project{
-							"github.com/kalbasit/tmx": &Project{
-								ImportPath:  "github.com/kalbasit/tmx",
+							"github.com/kalbasit/swm": &Project{
+								ImportPath:  "github.com/kalbasit/swm",
 								CodePath:    "/home/kalbasit/code",
 								ProfileName: "TestLoadOrScan",
 								StoryName:   "base",
@@ -224,7 +224,7 @@ func TestLoadOrScan(t *testing.T) {
 		assert.Equal(t, expected["TestLoadOrScan"].Stories["base"].Name, c.Profiles["TestLoadOrScan"].Stories["base"].Name)
 		assert.Equal(t, expected["TestLoadOrScan"].Stories["base"].CodePath, c.Profiles["TestLoadOrScan"].Stories["base"].CodePath)
 		assert.Equal(t, expected["TestLoadOrScan"].Stories["base"].ProfileName, c.Profiles["TestLoadOrScan"].Stories["base"].ProfileName)
-		assert.Equal(t, expected["TestLoadOrScan"].Stories["base"].Projects["github.com/kalbasit/tmx"], c.Profiles["TestLoadOrScan"].Stories["base"].Projects["github.com/kalbasit/tmx"])
+		assert.Equal(t, expected["TestLoadOrScan"].Stories["base"].Projects["github.com/kalbasit/swm"], c.Profiles["TestLoadOrScan"].Stories["base"].Projects["github.com/kalbasit/swm"])
 		assert.Equal(t, expected["TestLoadOrScan"].Stories["base"].Projects["github.com/kalbasit/dotfiles"], c.Profiles["TestLoadOrScan"].Stories["base"].Projects["github.com/kalbasit/dotfiles"])
 		assert.Equal(t, expected["TestLoadOrScan"].Stories["STORY-123"].Name, c.Profiles["TestLoadOrScan"].Stories["STORY-123"].Name)
 		assert.Equal(t, expected["TestLoadOrScan"].Stories["STORY-123"].CodePath, c.Profiles["TestLoadOrScan"].Stories["STORY-123"].CodePath)
@@ -269,8 +269,8 @@ func TestCodeScan(t *testing.T) {
 					CodePath:    "/home/kalbasit/code",
 					ProfileName: "TestCodeScan",
 					Projects: map[string]*Project{
-						"github.com/kalbasit/tmx": &Project{
-							ImportPath:  "github.com/kalbasit/tmx",
+						"github.com/kalbasit/swm": &Project{
+							ImportPath:  "github.com/kalbasit/swm",
 							CodePath:    "/home/kalbasit/code",
 							ProfileName: "TestCodeScan",
 							StoryName:   "base",
@@ -302,7 +302,7 @@ func TestCodeScan(t *testing.T) {
 	assert.Equal(t, expected["TestCodeScan"].Stories["base"].Name, c.Profiles["TestCodeScan"].Stories["base"].Name)
 	assert.Equal(t, expected["TestCodeScan"].Stories["base"].CodePath, c.Profiles["TestCodeScan"].Stories["base"].CodePath)
 	assert.Equal(t, expected["TestCodeScan"].Stories["base"].ProfileName, c.Profiles["TestCodeScan"].Stories["base"].ProfileName)
-	assert.Equal(t, expected["TestCodeScan"].Stories["base"].Projects["github.com/kalbasit/tmx"], c.Profiles["TestCodeScan"].Stories["base"].Projects["github.com/kalbasit/tmx"])
+	assert.Equal(t, expected["TestCodeScan"].Stories["base"].Projects["github.com/kalbasit/swm"], c.Profiles["TestCodeScan"].Stories["base"].Projects["github.com/kalbasit/swm"])
 	assert.Equal(t, expected["TestCodeScan"].Stories["base"].Projects["github.com/kalbasit/dotfiles"], c.Profiles["TestCodeScan"].Stories["base"].Projects["github.com/kalbasit/dotfiles"])
 	assert.Equal(t, expected["TestCodeScan"].Stories["STORY-123"].Name, c.Profiles["TestCodeScan"].Stories["STORY-123"].Name)
 	assert.Equal(t, expected["TestCodeScan"].Stories["STORY-123"].CodePath, c.Profiles["TestCodeScan"].Stories["STORY-123"].CodePath)
@@ -326,30 +326,30 @@ func TestFindProjectBySessionName(t *testing.T) {
 	// what do we expect to get back
 	expected := map[string]*Project{
 		"base": {
-			ImportPath:  "github.com/kalbasit/tmx",
+			ImportPath:  "github.com/kalbasit/swm",
 			CodePath:    "/home/kalbasit/code",
 			ProfileName: "TestFindProjectBySessionName",
 			StoryName:   "base",
 		},
 		"STORY-123": {
-			ImportPath:  "github.com/kalbasit/tmx",
+			ImportPath:  "github.com/kalbasit/swm",
 			CodePath:    "/home/kalbasit/code",
 			ProfileName: "TestFindProjectBySessionName",
 			StoryName:   "STORY-123",
 		},
 	}
 	// assert we can find it by using the base workspace
-	project, err := c.FindProjectBySessionName("TestFindProjectBySessionName@base=github" + dotChar + "com/kalbasit/tmx")
+	project, err := c.FindProjectBySessionName("TestFindProjectBySessionName@base=github" + dotChar + "com/kalbasit/swm")
 	if assert.NoError(t, err) {
 		assert.Equal(t, expected["base"], project)
 	}
 	// assert we can find it by using the STORY-123 workspace
-	project, err = c.FindProjectBySessionName("TestFindProjectBySessionName@STORY-123=github" + dotChar + "com/kalbasit/tmx")
+	project, err = c.FindProjectBySessionName("TestFindProjectBySessionName@STORY-123=github" + dotChar + "com/kalbasit/swm")
 	if assert.NoError(t, err) {
 		assert.Equal(t, expected["STORY-123"], project)
 	}
 	// assert we can find the same one if the workspace does not exist
-	project, err = c.FindProjectBySessionName("TestFindProjectBySessionName@notexistant=github" + dotChar + "com/kalbasit/tmx")
+	project, err = c.FindProjectBySessionName("TestFindProjectBySessionName@notexistant=github" + dotChar + "com/kalbasit/swm")
 	if assert.NoError(t, err) {
 		assert.Equal(t, expected["base"], project)
 	}
@@ -370,7 +370,7 @@ func TestCodeSessionNames(t *testing.T) {
 	c.Scan()
 	// assert now
 	want := []string{
-		"TestCodeSessionNames@base=github" + dotChar + "com/kalbasit/tmx",
+		"TestCodeSessionNames@base=github" + dotChar + "com/kalbasit/swm",
 		"TestCodeSessionNames@base=github" + dotChar + "com/kalbasit/dotfiles",
 		"TestCodeSessionNames@STORY-123=github" + dotChar + "com/kalbasit/private",
 	}
