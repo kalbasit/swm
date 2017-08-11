@@ -1,7 +1,6 @@
 package code
 
 import (
-	"log"
 	"path"
 	"sync"
 
@@ -51,26 +50,24 @@ func (p *Profile) Scan() {
 	}()
 	// read the profile and scan all workspaces
 	entries, err := afero.ReadDir(AppFs, path.Join(p.Path(), "stories"))
-	if err != nil {
-		log.Printf("error reading the directory %q: %s", path.Join(p.Path(), "stories"), err)
-		return
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			// create the workspace
-			s := &Story{
-				Name:        entry.Name(),
-				CodePath:    p.CodePath,
-				ProfileName: p.Name,
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				// create the workspace
+				s := &Story{
+					Name:        entry.Name(),
+					CodePath:    p.CodePath,
+					ProfileName: p.Name,
+				}
+				// start scanning it
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					s.Scan()
+				}()
+				// add it to the profile
+				p.Stories[entry.Name()] = s
 			}
-			// start scanning it
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				s.Scan()
-			}()
-			// add it to the profile
-			p.Stories[entry.Name()] = s
 		}
 	}
 	wg.Wait()

@@ -18,7 +18,7 @@ func TestProfilePath(t *testing.T) {
 	assert.Equal(t, "/home/kalbasit/code/personal", p.Path())
 }
 
-func TestProfileScan(t *testing.T) {
+func TestProfileNoBaseScan(t *testing.T) {
 	// swap the filesystem
 	oldAppFS := AppFs
 	AppFs = afero.NewMemMapFs()
@@ -27,7 +27,7 @@ func TestProfileScan(t *testing.T) {
 	prepareFilesystem(t.Name())
 	// create a workspace
 	p := &Profile{
-		Name:     "TestProfileScan",
+		Name:     "TestProfileNoBaseScan",
 		CodePath: "/home/kalbasit/code",
 	}
 	// scan now
@@ -37,18 +37,18 @@ func TestProfileScan(t *testing.T) {
 		"base": &Story{
 			Name:        "base",
 			CodePath:    "/home/kalbasit/code",
-			ProfileName: "TestProfileScan",
+			ProfileName: "TestProfileNoBaseScan",
 			Projects: map[string]*Project{
 				"github.com/kalbasit/swm": &Project{
 					ImportPath:  "github.com/kalbasit/swm",
 					CodePath:    "/home/kalbasit/code",
-					ProfileName: "TestProfileScan",
+					ProfileName: "TestProfileNoBaseScan",
 					StoryName:   "base",
 				},
 				"github.com/kalbasit/dotfiles": &Project{
 					ImportPath:  "github.com/kalbasit/dotfiles",
 					CodePath:    "/home/kalbasit/code",
-					ProfileName: "TestProfileScan",
+					ProfileName: "TestProfileNoBaseScan",
 					StoryName:   "base",
 				},
 			},
@@ -56,12 +56,68 @@ func TestProfileScan(t *testing.T) {
 		"STORY-123": &Story{
 			Name:        "STORY-123",
 			CodePath:    "/home/kalbasit/code",
-			ProfileName: "TestProfileScan",
+			ProfileName: "TestProfileNoBaseScan",
 			Projects: map[string]*Project{
 				"github.com/kalbasit/private": &Project{
 					ImportPath:  "github.com/kalbasit/private",
 					CodePath:    "/home/kalbasit/code",
-					ProfileName: "TestProfileScan",
+					ProfileName: "TestProfileNoBaseScan",
+					StoryName:   "STORY-123",
+				},
+			},
+		},
+	}
+	assert.Equal(t, expected["base"].Name, p.Stories["base"].Name)
+	assert.Equal(t, expected["base"].CodePath, p.Stories["base"].CodePath)
+	assert.Equal(t, expected["base"].ProfileName, p.Stories["base"].ProfileName)
+	assert.Equal(t, expected["base"].Projects["github.com/kalbasit/swm"], p.Stories["base"].Projects["github.com/kalbasit/swm"])
+	assert.Equal(t, expected["base"].Projects["github.com/kalbasit/dotfiles"], p.Stories["base"].Projects["github.com/kalbasit/dotfiles"])
+}
+
+func TestProfileBaseScan(t *testing.T) {
+	// swap the filesystem
+	oldAppFS := AppFs
+	AppFs = afero.NewMemMapFs()
+	defer func() { AppFs = oldAppFS }()
+	// create the filesystem we want to scan
+	prepareFilesystem(t.Name())
+	// create a workspace
+	p := &Profile{
+		Name:     "TestProfileBaseScan",
+		CodePath: "/home/kalbasit/code",
+	}
+	// scan now
+	p.Scan()
+	// assert now
+	expected := map[string]*Story{
+		"base": &Story{
+			Name:        "base",
+			CodePath:    "/home/kalbasit/code",
+			ProfileName: "TestProfileBaseScan",
+			Projects: map[string]*Project{
+				"github.com/kalbasit/swm": &Project{
+					ImportPath:  "github.com/kalbasit/swm",
+					CodePath:    "/home/kalbasit/code",
+					ProfileName: "TestProfileBaseScan",
+					StoryName:   "base",
+				},
+				"github.com/kalbasit/dotfiles": &Project{
+					ImportPath:  "github.com/kalbasit/dotfiles",
+					CodePath:    "/home/kalbasit/code",
+					ProfileName: "TestProfileBaseScan",
+					StoryName:   "base",
+				},
+			},
+		},
+		"STORY-123": &Story{
+			Name:        "STORY-123",
+			CodePath:    "/home/kalbasit/code",
+			ProfileName: "TestProfileBaseScan",
+			Projects: map[string]*Project{
+				"github.com/kalbasit/private": &Project{
+					ImportPath:  "github.com/kalbasit/private",
+					CodePath:    "/home/kalbasit/code",
+					ProfileName: "TestProfileBaseScan",
 					StoryName:   "STORY-123",
 				},
 			},
