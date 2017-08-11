@@ -4,11 +4,9 @@ go:
 cache:
   directories:
     - vendor
-    - $HOME/.glide
 before_install:
-  # Install Glide
-  - go get -u github.com/Masterminds/glide
-before_script:
-  - glide install
+  - go get -u github.com/golang/dep/cmd/dep
   - go get -u golang.org/x/tools/cmd/cover
-script: go test $(glide nv)
+install:
+  - dep ensure
+script: go test -v -cover -bench=. $(go list ./... | grep -v /vendor/)
