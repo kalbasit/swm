@@ -50,16 +50,18 @@ func init() {
 // |   |-- base
 // |   |   |-- src
 // |   |       |-- go.import.path
-// |   |-- STORY-123
-// |   |   |-- src
-// |   |       |-- go.import.path
+// |   |-- stories
+// |   |   |-- STORY-123
+// |   |       |-- src
+// |   |           |-- go.import.path
 // |-- profile2
 // |   |-- base
 // |   |   |-- src
 // |   |       |-- go.import.path
-// |   |-- STORY-123
-// |   |   |-- src
-// |   |       |-- go.import.path
+// |   |-- stories
+// |   |   |-- STORY-123
+// |   |       |-- src
+// |   |           |-- go.import.path
 type Code struct {
 	// Path is the base path of this profile
 	Path string
@@ -156,17 +158,17 @@ func (c *Code) FindProjectBySessionName(name string) (*Project, error) {
 	if len(ms) == 4 {
 		if p := c.Profiles[ms[1]]; p != nil {
 			// load the workspace
-			w := p.Workspaces[ms[2]]
+			w := p.Stories[ms[2]]
 			if w == nil {
 				// if workspace is empty, try looking for the same project under the
 				// base project.
-				return p.BaseWorkspace().FindProjectBySessionName(ms[3])
+				return p.BaseStory().FindProjectBySessionName(ms[3])
 			}
 			if prj, err := w.FindProjectBySessionName(ms[3]); err == nil && prj != nil {
 				return prj, nil
 			}
 
-			return p.BaseWorkspace().FindProjectBySessionName(ms[3])
+			return p.BaseStory().FindProjectBySessionName(ms[3])
 		}
 	}
 
@@ -177,7 +179,7 @@ func (c *Code) FindProjectBySessionName(name string) (*Project, error) {
 func (c *Code) SessionNames() []string {
 	var res []string
 	for _, profile := range c.Profiles {
-		for _, workspace := range profile.Workspaces {
+		for _, workspace := range profile.Stories {
 			for _, project := range workspace.Projects {
 				res = append(res, project.SessionName())
 			}
