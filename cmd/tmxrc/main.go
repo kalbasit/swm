@@ -7,7 +7,7 @@ import (
 	"path"
 	"regexp"
 
-	"github.com/kalbasit/tmx"
+	"github.com/kalbasit/swm/code"
 )
 
 var (
@@ -23,7 +23,7 @@ func main() {
 	// parse the flags
 	flag.Parse()
 	// create the code and scan
-	c := tmx.New(codePath, regexp.MustCompile("^.snapshots$"))
+	c := code.New(codePath, regexp.MustCompile("^.snapshots$"))
 	// scan the code folder
 	c.Scan()
 	// save it

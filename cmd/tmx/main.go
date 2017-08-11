@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kalbasit/tmx"
+	"github.com/kalbasit/swm/code"
 )
 
 var (
@@ -71,7 +71,7 @@ func main() {
 		workspace = strings.Split(path.Base(socketPath), ",")[0]
 	}
 	// create the code and load/scan
-	c := tmx.New(codePath, regexp.MustCompile("^.snapshots$"))
+	c := code.New(codePath, regexp.MustCompile("^.snapshots$"))
 	if err := c.LoadOrScan(); err != nil {
 		log.Fatalf("error loading the code: %s", err)
 	}
@@ -91,7 +91,7 @@ func main() {
 	}
 }
 
-func tmuxStart(c *tmx.Code, sessions []string) error {
+func tmuxStart(c *code.Code, sessions []string) error {
 	// loop over the selected session to start, only the last one will be attached
 	for i, sessionName := range sessions {
 		// load the project
@@ -158,7 +158,7 @@ func tmuxStart(c *tmx.Code, sessions []string) error {
 	return errors.New("no session selected")
 }
 
-func findProject(c *tmx.Code, name string) (*tmx.Project, error) {
+func findProject(c *code.Code, name string) (*code.Project, error) {
 	// find the project for this session
 	p, err := c.FindProjectBySessionName(name)
 	if err != nil {
@@ -166,9 +166,9 @@ func findProject(c *tmx.Code, name string) (*tmx.Project, error) {
 	}
 	// if the returned project belongs to the base workspace and we are not on
 	// a base workspace then we have to clone it, and update the cache.
-	if workspace != "" && workspace != tmx.BaseWorkspaceName && p.Base() {
+	if workspace != "" && workspace != code.BaseWorkspaceName && p.Base() {
 		// deep clone p into p2 and change the workspace
-		p2 := &tmx.Project{}
+		p2 := &code.Project{}
 		*p2 = *p
 		p2.WorkspaceName = workspace
 		// create the new worktree
@@ -195,7 +195,7 @@ func findProject(c *tmx.Code, name string) (*tmx.Project, error) {
 // will always be returned
 // TODO: move this to code as a helper
 // TODO: should not return projects in both base and workspace
-func getSessionNames(c *tmx.Code) []string {
+func getSessionNames(c *code.Code) []string {
 	if profile == "" {
 		return c.SessionNames()
 	}
