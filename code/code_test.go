@@ -67,3 +67,8 @@ func TestCodeScan(t *testing.T) {
 	c.scan()
 	assertFn()
 }
+
+func TestPath(t *testing.T) {
+	c := &code{path: "/code"}
+	assert.Equal(t, "/code", c.Path())
+}
