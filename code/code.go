@@ -99,7 +99,7 @@ func (c *code) scan() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				p.Scan()
+				p.scan()
 			}()
 			// add it to the profile
 			c.profiles[entry.Name()] = p

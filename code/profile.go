@@ -40,8 +40,8 @@ func (p *profile) Story(name string) (Story, error) {
 	return s, nil
 }
 
-// Scan scans the entire profile to build the workspaces
-func (p *profile) Scan() {
+// scan scans the entire profile to build the workspaces
+func (p *profile) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
 	p.stories = make(map[string]*story)

@@ -1,5 +1,11 @@
 package code
 
+import "testing"
+
+func TestStoryProject(t *testing.T) {
+	t.Skip("not implemented yet")
+}
+
 /*
 
 func TestWorkspacePath(t *testing.T) {

@@ -1,6 +1,7 @@
 package code
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path"
@@ -39,12 +40,26 @@ func (s *story) GoPath() string {
 	return path.Join(s.profile.code.Path(), s.profile.name, "stories", s.name)
 }
 
+// Projects returns all the projects that are available for this story as
+// well as all the projects for this profile in the base story (with no
+// duplicates). All projects returned from the base story will be a copy of
+// the base project with the story changed. The caller must call Ensure() on
+// a project to make sure it exists (as a worktree) before using it.
 func (s *story) Projects() []Project {
 	var res []Project
 	for _, prj := range s.projects {
 		res = append(res, prj)
 	}
 	return res
+}
+
+// Project returns the project given the importPath or an error if no project
+// exists. If the project does not exist for this story but does exist in the
+// Base story, it will be copied and story changed. The caller must call
+// Ensure() on the project to make sure it exists (as a worktree) before
+// using it.
+func (s *story) Project(importPath string) (Project, error) {
+	return nil, errors.New("not implemented yet")
 }
 
 // scan scans the entire story to build projects
