@@ -35,8 +35,11 @@ type Profile interface {
 	// Coder returns the coder under which this exists
 	Coder() Coder
 
-	// Base returns true if this story is the base story
-	Base() bool
+	// Base returns the base Story
+	Base() Story
+
+	// Path returns the absolute path to this profile
+	Path() string
 
 	// Story returns the story given it's name or an error if no story with this
 	// name was found
@@ -47,6 +50,9 @@ type Profile interface {
 type Story interface {
 	// Profile returns the profile under which this story exists
 	Profile() Profile
+
+	// Base returns true if this story is the base story
+	Base() bool
 
 	// GoPath returns the absolute GOPATH of this story.
 	GoPath() string
@@ -64,8 +70,8 @@ type Project interface {
 	// Story returns the story to which this project belongs to
 	Story() Story
 
-	// Ensure ensures the project exists as a worktree and is ready to be used.
-	// This is a noop for base projects.
+	// Ensure ensures the project exists on disk, by creating a new worktree from
+	// the base project, or noop if the worktree already exists on disk.
 	Ensure() error
 
 	// Path returns the absolute path to this project

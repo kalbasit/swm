@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"sync"
 
 	"github.com/spf13/afero"
@@ -25,10 +24,11 @@ type story struct {
 	projects map[string]*project
 }
 
+// Profile returns the profile under which this story exists
+func (s *story) Profile() Profile { return s.profile }
+
 // Base returns true if this story is the base story
-func (s *story) Base() bool {
-	return s.name == baseStoryName
-}
+func (s *story) Base() bool { return s.name == baseStoryName }
 
 // GoPath returns the absolute GOPATH of this story.
 func (s *story) GoPath() string {
@@ -39,13 +39,12 @@ func (s *story) GoPath() string {
 	return path.Join(s.profile.code.Path(), s.profile.name, "stories", s.name)
 }
 
-// FindProjectBySessionName returns the project represented by the session name
-func (s *story) FindProjectBySessionName(name string) (*project, error) {
-	if project := s.projects[strings.Replace(strings.Replace(name, dotChar, ".", -1), colonChar, ":", -1)]; project != nil {
-		return project, nil
+func (s *story) Projects() []Project {
+	var res []Project
+	for _, prj := range s.projects {
+		res = append(res, prj)
 	}
-
-	return nil, ErrProjectNotFound
+	return res
 }
 
 // scan scans the entire story to build projects
@@ -65,16 +64,6 @@ func (s *story) scan() {
 	// ask the reducer to die
 	close(out)
 	<-reducerQuit
-}
-
-// SessionNames returns the session names for this story
-func (s *story) SessionNames() []string {
-	var res []string
-	for _, project := range s.projects {
-		res = append(res, project.SessionName())
-	}
-
-	return res
 }
 
 func (s *story) scanReducer(out chan *project, quit chan struct{}) {

@@ -20,14 +20,24 @@ type profile struct {
 	stories map[string]*story
 }
 
-// BaseStory returns the base workspace
-func (p *profile) BaseStory() *story {
-	return p.stories[baseStoryName]
-}
+// Coder returns the coder under which this exists
+func (p *profile) Coder() Coder { return p.code }
 
-// Path returns the absolute path of the profile
-func (p *profile) Path() string {
-	return path.Join(p.code.Path(), p.name)
+// Base returns the base story
+func (p *profile) Base() Story { return p.stories[baseStoryName] }
+
+// Path returns the absolute path to this profile
+func (p *profile) Path() string { return path.Join(p.code.Path(), p.name) }
+
+// Story returns the story given it's name or an error if no story with this
+// name was found
+func (p *profile) Story(name string) (Story, error) {
+	s, ok := p.stories[name]
+	if !ok {
+		return nil, ErrStoryNoFound
+	}
+
+	return s, nil
 }
 
 // Scan scans the entire profile to build the workspaces
@@ -69,16 +79,4 @@ func (p *profile) Scan() {
 		}
 	}
 	wg.Wait()
-}
-
-// SessionNames returns the session names for projects in all workspaces of this profile
-func (p *profile) SessionNames() []string {
-	var res []string
-	for _, story := range p.stories {
-		for _, project := range story.projects {
-			res = append(res, project.SessionName())
-		}
-	}
-
-	return res
 }

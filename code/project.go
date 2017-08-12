@@ -1,16 +1,11 @@
 package code
 
 import (
-	"fmt"
+	"errors"
 	"path"
-	"strings"
 )
 
-const (
-	srcDir    = "src"
-	dotChar   = "\u2022"
-	colonChar = "\uFF1A"
-)
+const srcDir = "src"
 
 type project struct {
 	// story returns the parent story
@@ -20,20 +15,15 @@ type project struct {
 	importPath string
 }
 
-// Base returns true if this project is under the base workspace
-func (p *project) Base() bool { return p.story.Base() }
+// Story returns the story to which this project belongs to
+func (p *project) Story() Story { return p.story }
 
 // Path returns the absolute path of the project
-func (p *project) Path() string {
-	return path.Join(p.story.GoPath(), srcDir, p.importPath)
-}
+func (p *project) Path() string { return path.Join(p.story.GoPath(), srcDir, p.importPath) }
 
-// SessionName returns the session name to be used for TMUX. The format is:
-// profile@workspace=ImportPath the ImportPath does not include dots or columns
-func (p *project) SessionName() string {
-	return fmt.Sprintf("%s@%s=%s", p.story.profile.name, p.story.name, p.tmuxSafeName())
-}
+// Ensure ensures the project exists on disk, by creating a new worktree from
+// the base project or noop if the worktree already exists on disk.
+func (p *project) Ensure() error { return errors.New("no implemented yet") }
 
-func (p *project) tmuxSafeName() string {
-	return strings.Replace(strings.Replace(p.importPath, ".", dotChar, -1), ":", colonChar, -1)
-}
+// ImportPath returns the path under which this project can be imported in Go
+func (p *project) ImportPath() string { return p.importPath }

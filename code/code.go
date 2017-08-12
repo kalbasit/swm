@@ -53,7 +53,7 @@ func (c *code) Path() string { return c.path }
 
 // Profile returns the profile given it's name or an error if no profile with
 // this name was found
-func (c *code) Profile(name string) (*profile, error) {
+func (c *code) Profile(name string) (Profile, error) {
 	p, ok := c.profiles[name]
 	if !ok {
 		return nil, ErrProfileNoFound
