@@ -1,7 +1,45 @@
 package code
 
-/*
+import (
+	"regexp"
+	"testing"
 
+	"github.com/spf13/afero"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestProfileCoder(t *testing.T) {
+	// create a new story
+	p := &profile{
+		name: "TestStoryGoPath",
+		code: &code{
+			path: "/code",
+		},
+	}
+	assert.Equal(t, Coder(p.code), p.Coder())
+}
+
+func TestProfileBase(t *testing.T) {
+	// swap the filesystem
+	oldAppFS := AppFs
+	AppFs = afero.NewMemMapFs()
+	defer func() { AppFs = oldAppFS }()
+	// create the filesystem we want to scan
+	prepareFilesystem(t)
+	// create a new code
+	c := New("/code", regexp.MustCompile("^.snapshots$"))
+	// scan now
+	if err := c.Scan(); err != nil {
+		t.Fatalf("code scan failed: %s", err)
+	}
+	// get a profile
+	p, err := c.Profile(t.Name())
+	if assert.NoError(t, err) {
+		assert.Equal(t, Story(p.(*profile).stories[baseStoryName]), p.Base())
+	}
+}
+
+/*
 func TestProfilePath(t *testing.T) {
 	// create a new project
 	p := &profile{
