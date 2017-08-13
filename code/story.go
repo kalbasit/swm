@@ -1,7 +1,6 @@
 package code
 
 import (
-	"errors"
 	"log"
 	"os"
 	"path"
@@ -59,7 +58,19 @@ func (s *story) Projects() []Project {
 // Ensure() on the project to make sure it exists (as a worktree) before
 // using it.
 func (s *story) Project(importPath string) (Project, error) {
-	return nil, errors.New("not implemented yet")
+	// get the project for the story
+	prj, ok := s.projects[importPath]
+	if !ok {
+		basePrj, ok := s.profile.Base().(*story).projects[importPath]
+		if !ok {
+			return nil, ErrProjectNotFound
+		}
+		prj = &project{}
+		*prj = *basePrj
+		prj.story = s
+	}
+
+	return prj, nil
 }
 
 // scan scans the entire story to build projects

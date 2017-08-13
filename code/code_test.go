@@ -14,7 +14,7 @@ func TestCodeScan(t *testing.T) {
 	AppFs = afero.NewMemMapFs()
 	defer func() { AppFs = oldAppFS }()
 	// create the filesystem we want to scan
-	prepareFilesystem(t.Name())
+	prepareFilesystem(t)
 	// create a code
 	c := &code{
 		path:           "/code",
@@ -46,11 +46,19 @@ func TestCodeScan(t *testing.T) {
 				story:      p.stories["base"],
 				importPath: "github.com/kalbasit/dotfiles",
 			},
+			"github.com/kalbasit/workflow": &project{
+				story:      p.stories["base"],
+				importPath: "github.com/kalbasit/workflow",
+			},
 		}
 		p.stories["STORY-123"].projects = map[string]*project{
 			"github.com/kalbasit/dotfiles": &project{
 				story:      p.stories["STORY-123"],
 				importPath: "github.com/kalbasit/dotfiles",
+			},
+			"github.com/kalbasit/swm": &project{
+				story:      p.stories["STORY-123"],
+				importPath: "github.com/kalbasit/swm",
 			},
 		}
 		expected := map[string]*profile{"TestCodeScan": p}
@@ -59,9 +67,11 @@ func TestCodeScan(t *testing.T) {
 		assert.Equal(t, expected["TestCodeScan"].stories["base"].profile, c.profiles["TestCodeScan"].stories["base"].profile)
 		assert.Equal(t, expected["TestCodeScan"].stories["base"].projects["github.com/kalbasit/swm"], c.profiles["TestCodeScan"].stories["base"].projects["github.com/kalbasit/swm"])
 		assert.Equal(t, expected["TestCodeScan"].stories["base"].projects["github.com/kalbasit/dotfiles"], c.profiles["TestCodeScan"].stories["base"].projects["github.com/kalbasit/dotfiles"])
+		assert.Equal(t, expected["TestCodeScan"].stories["base"].projects["github.com/kalbasit/workflow"], c.profiles["TestCodeScan"].stories["base"].projects["github.com/kalbasit/workflow"])
 		assert.Equal(t, expected["TestCodeScan"].stories["STORY-123"].name, c.profiles["TestCodeScan"].stories["STORY-123"].name)
 		assert.Equal(t, expected["TestCodeScan"].stories["STORY-123"].profile, c.profiles["TestCodeScan"].stories["STORY-123"].profile)
 		assert.Equal(t, expected["TestCodeScan"].stories["STORY-123"].projects["github.com/kalbasit/dotfiles"], c.profiles["TestCodeScan"].stories["STORY-123"].projects["github.com/kalbasit/dotfiles"])
+		assert.Equal(t, expected["TestCodeScan"].stories["STORY-123"].projects["github.com/kalbasit/swm"], c.profiles["TestCodeScan"].stories["STORY-123"].projects["github.com/kalbasit/swm"])
 	}
 	// scan now
 	c.scan()
