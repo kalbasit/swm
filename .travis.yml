@@ -8,13 +8,16 @@ addons:
 cache:
   directories:
     - vendor
+env:
+  global:
+    - FZF_VERSION=0.16.11
 before_install:
   # install go dependencies
   - go get -u github.com/golang/dep/cmd/dep
   - go get -u golang.org/x/tools/cmd/cover
 
   # install fzf
-  - curl -L https://github.com/junegunn/fzf-bin/releases/download/0.16.11/fzf-0.16.11-linux_amd64.tgz | tar -C ~ -xf
+  - curl -L https://github.com/junegunn/fzf-bin/releases/download/$FZF_VERSION/fzf-$FZF_VERSION-linux_amd64.tgz | tar -C ~ -xf
   - export PATH=$PATH:~
 install:
   - dep ensure
