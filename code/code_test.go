@@ -17,10 +17,7 @@ func TestCodeScan(t *testing.T) {
 	// create the filesystem we want to scan
 	testhelper.CreateProjects(t, AppFS)
 	// create a code
-	c := &code{
-		path:           "/code",
-		excludePattern: regexp.MustCompile("^.snapshots$"),
-	}
+	c := New("/code", regexp.MustCompile("^.snapshots$"))
 	// define the assertion function
 	assertFn := func() {
 		// create the expected structs
