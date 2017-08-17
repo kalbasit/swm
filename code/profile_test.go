@@ -19,6 +19,17 @@ func TestProfileCoder(t *testing.T) {
 	assert.Equal(t, Coder(p.code), p.Coder())
 }
 
+func TestProfileName(t *testing.T) {
+	// create a new story
+	p := &profile{
+		name: "TestStoryGoPath",
+		code: &code{
+			path: "/code",
+		},
+	}
+	assert.Equal(t, p.name, p.Name())
+}
+
 func TestProfileBase(t *testing.T) {
 	// swap the filesystem
 	oldAppFS := AppFs

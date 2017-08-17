@@ -35,6 +35,9 @@ type Profile interface {
 	// Coder returns the coder under which this exists
 	Coder() Coder
 
+	// Name returns the name of the profile
+	Name() string
+
 	// Base returns the base Story
 	Base() Story
 
@@ -50,6 +53,9 @@ type Profile interface {
 type Story interface {
 	// Profile returns the profile under which this story exists
 	Profile() Profile
+
+	// Name returns the name of the profile
+	Name() string
 
 	// Base returns true if this story is the base story
 	Base() bool

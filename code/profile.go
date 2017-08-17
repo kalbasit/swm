@@ -23,6 +23,9 @@ type profile struct {
 // Coder returns the coder under which this exists
 func (p *profile) Coder() Coder { return p.code }
 
+// Name returns the name of the profile
+func (p *profile) Name() string { return p.name }
+
 // Base returns the base story
 func (p *profile) Base() Story { return p.stories[baseStoryName] }
 

@@ -27,6 +27,9 @@ type story struct {
 // Profile returns the profile under which this story exists
 func (s *story) Profile() Profile { return s.profile }
 
+// Name returns the name of the story
+func (s *story) Name() string { return s.name }
+
 // Base returns true if this story is the base story
 func (s *story) Base() bool { return s.name == baseStoryName }
 

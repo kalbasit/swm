@@ -23,6 +23,20 @@ func TestStoryProfile(t *testing.T) {
 	assert.Equal(t, s.profile, s.Profile())
 }
 
+func TestStoryName(t *testing.T) {
+	// create a new story
+	s := &story{
+		name: "base",
+		profile: &profile{
+			name: "TestStoryGoPath",
+			code: &code{
+				path: "/code",
+			},
+		},
+	}
+	assert.Equal(t, s.name, s.Name())
+}
+
 func TestStoryBase(t *testing.T) {
 	// test with a base story
 
