@@ -86,6 +86,7 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 	expectedKeys := []string{
 		t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/swm",
 		t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/dotfiles",
+		t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/workflow",
 	}
 	sort.Strings(keys)
 	sort.Strings(expectedKeys)
@@ -97,6 +98,8 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 			assert.Equal(t, "github.com/kalbasit/swm", prj.ImportPath())
 		case t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/dotfiles":
 			assert.Equal(t, "github.com/kalbasit/dotfiles", prj.ImportPath())
+		case t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/workflow":
+			assert.Equal(t, "github.com/kalbasit/workflow", prj.ImportPath())
 		}
 	}
 }

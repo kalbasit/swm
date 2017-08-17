@@ -126,6 +126,8 @@ func (t *tmux) SwitchClient() error {
 
 // getSessionNameProjects returns a map of a project session name to the project
 func (t *tmux) getSessionNameProjects() (map[string]code.Project, error) {
+	sessionNameProjects := make(map[string]code.Project)
+
 	// get the profile
 	profile, err := t.options.Coder.Profile(t.options.Profile)
 	if err != nil {
@@ -133,12 +135,32 @@ func (t *tmux) getSessionNameProjects() (map[string]code.Project, error) {
 	}
 	// get the story
 	story, err := profile.Story(t.options.Story)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		// loop over all projects and get the session name
+		for _, prj := range story.Projects() {
+			// generate the session name
+			k := fmt.Sprintf("%s@%s=%s",
+				profile.Name(),
+				story.Name(),
+				strings.Replace(strings.Replace(prj.ImportPath(), ".", dotChar, -1), ":", colonChar, -1))
+			// assign it to the map
+			sessionNameProjects[k] = prj
+		}
 	}
-	// loop over all projects and get the session name
-	sessionNameProjects := make(map[string]code.Project)
-	for _, prj := range story.Projects() {
+
+	// get the base story
+	baseStory := profile.Base()
+	// loop over all base projects and get the session name
+	for _, basePrj := range baseStory.Projects() {
+		// if we already know about the project, skip it
+		if _, ok := sessionNameProjects[basePrj.ImportPath()]; ok {
+			continue
+		}
+		// get the project for base project from the story
+		prj, err := story.Project(basePrj.ImportPath())
+		if err != nil {
+			return nil, err
+		}
 		// generate the session name
 		k := fmt.Sprintf("%s@%s=%s",
 			profile.Name(),
