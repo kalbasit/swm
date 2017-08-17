@@ -29,17 +29,17 @@
   branch = "master"
   name = "golang.org/x/text"
   packages = ["internal/gen","internal/triegen","internal/ucd","transform","unicode/cldr","unicode/norm"]
-  revision = "b19bf474d317b857955b12035d2c5acb57ce8b01"
+  revision = "e56139fd9c5bc7244c76116c68e500765bb6db6b"
 
 [[projects]]
   branch = "v2"
   name = "gopkg.in/urfave/cli.v2"
   packages = ["."]
-  revision = "61c3eb6ba1da1df17cd50f1456a9252d92bf5edd"
+  revision = "50a0fdeea6330854c7b05371cce1fac8c7e636d2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "03fd4781c934a5ed461fcc11230ffb2775762a890e0bcbbaa29e5b255a79dd30"
+  inputs-digest = "ace7337ee8d01e6d824bf1507263b00dda9af4880b17bd626964f05fa7d166d8"
   solver-name = "gps-cdcl"
   solver-version = 1
