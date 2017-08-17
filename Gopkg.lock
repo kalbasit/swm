@@ -21,7 +21,7 @@
 
 [[projects]]
   name = "github.com/stretchr/testify"
-  packages = ["assert"]
+  packages = ["assert","require"]
   revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
   version = "v1.1.4"
 
@@ -29,11 +29,17 @@
   branch = "master"
   name = "golang.org/x/text"
   packages = ["internal/gen","internal/triegen","internal/ucd","transform","unicode/cldr","unicode/norm"]
-  revision = "b19bf474d317b857955b12035d2c5acb57ce8b01"
+  revision = "e56139fd9c5bc7244c76116c68e500765bb6db6b"
+
+[[projects]]
+  branch = "v2"
+  name = "gopkg.in/urfave/cli.v2"
+  packages = ["."]
+  revision = "50a0fdeea6330854c7b05371cce1fac8c7e636d2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c31cbd9842769490f3d0698308829a525db1b2f74adba405e399117fe4e49ee8"
+  inputs-digest = "ace7337ee8d01e6d824bf1507263b00dda9af4880b17bd626964f05fa7d166d8"
   solver-name = "gps-cdcl"
   solver-version = 1
