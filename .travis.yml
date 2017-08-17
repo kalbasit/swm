@@ -17,7 +17,7 @@ before_install:
   - go get -u golang.org/x/tools/cmd/cover
 
   # install fzf
-  - curl -L https://github.com/junegunn/fzf-bin/releases/download/$FZF_VERSION/fzf-$FZF_VERSION-linux_amd64.tgz | tar -C ~ -xf
+  - curl -L https://github.com/junegunn/fzf-bin/releases/download/$FZF_VERSION/fzf-$FZF_VERSION-linux_amd64.tgz | tar -C ~ -xz
   - export PATH=$PATH:~
 install:
   - dep ensure
