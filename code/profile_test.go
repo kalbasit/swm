@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/kalbasit/swm/testhelper"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,7 +37,7 @@ func TestProfileBase(t *testing.T) {
 	AppFs = afero.NewMemMapFs()
 	defer func() { AppFs = oldAppFS }()
 	// create the filesystem we want to scan
-	prepareFilesystem(t)
+	testhelper.CreateProjects(t, AppFs)
 	// create a new code
 	c := New("/code", regexp.MustCompile("^.snapshots$"))
 	// scan now
