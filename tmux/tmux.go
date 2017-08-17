@@ -2,8 +2,6 @@ package tmux
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"strings"
 
 	"github.com/kalbasit/swm/code"
@@ -33,30 +31,29 @@ func New(opts *Options) Manager {
 }
 
 // SwitchClient switches the TMUX to a different client
-func (t *tmux) SwitchClient() error {
-	// get all the sessions
-	sessions, err := t.getSessionNames()
-	if err != nil {
-		return err
-	}
-	// select the session using fzf
-	sessionName, err := t.withFilter(func(stdin io.WriteCloser) {
-		for _, sess := range sessions {
-			io.WriteString(stdin, sess)
-			io.WriteString(stdin, "\n")
-		}
-	})
-	if err != nil {
-		log.Fatalf("error filtering the session: %s", err)
-	}
+func (t *tmux) SwitchClient() error { return nil }
 
-	return nil
-}
+// 	// get all the sessions
+// 	sessions, err := t.getSessionNames()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	// select the session using fzf
+// 	sessionName, err := t.withFilter(func(stdin io.WriteCloser) {
+// 		for _, sess := range sessions {
+// 			io.WriteString(stdin, sess)
+// 			io.WriteString(stdin, "\n")
+// 		}
+// 	})
+// 	if err != nil {
+// 		log.Fatalf("error filtering the session: %s", err)
+// 	}
+//
+// 	return nil
+// }
 
 // getSessionNameProjects returns a map of a project session name to the project
 func (t *tmux) getSessionNameProjects() (map[string]code.Project, error) {
-	var sessions []string
-
 	// get the profile
 	profile, err := t.options.Coder.Profile(t.options.Profile)
 	if err != nil {
@@ -68,14 +65,16 @@ func (t *tmux) getSessionNameProjects() (map[string]code.Project, error) {
 		return nil, err
 	}
 	// loop over all projects and get the session name
+	sessionNameProjects := make(map[string]code.Project)
 	for _, prj := range story.Projects() {
-		sessions = append(sessions, t.sessionNameForProject(profile.Name(), story.Name(), prj))
+		// generate the session name
+		k := fmt.Sprintf("%s@%s=%s",
+			profile.Name(),
+			story.Name(),
+			strings.Replace(strings.Replace(prj.ImportPath(), ".", dotChar, -1), ":", colonChar, -1))
+		// assign it to the map
+		sessionNameProjects[k] = prj
 	}
 
-	return sessions, nil
-}
-
-func (t *tmux) sessionNameForProject(profileName, storyName string, prj code.Project) string {
-	safeProjectName := strings.Replace(strings.Replace(prj.ImportPath(), ".", dotChar, -1), ":", colonChar, -1)
-	return fmt.Sprintf("%s@%s=%s", profileName, storyName, safeProjectName)
+	return sessionNameProjects, nil
 }
