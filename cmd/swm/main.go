@@ -19,14 +19,6 @@ func main() {
 			},
 		},
 		Commands: []*cli.Command{
-			// server starts the server
-			{
-				Name:   "serve",
-				Usage:  "start the gRPC server",
-				Action: serve,
-				Flags:  []cli.Flag{},
-			},
-
 			// tmux for switch client
 			{
 				Name: "tmux",
