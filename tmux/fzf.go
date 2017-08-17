@@ -29,7 +29,7 @@ func init() {
 }
 
 // withFilter filters input using fzf
-func (t *tmux) withFilter(input func(in io.WriteCloser)) ([]string, error) {
+func (t *tmux) withFilter(input func(in io.WriteCloser)) (string, error) {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "sh"
@@ -43,11 +43,11 @@ func (t *tmux) withFilter(input func(in io.WriteCloser)) ([]string, error) {
 	}()
 	result, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	res := strings.Split(string(result), "\n")
 	if res[len(res)-1] == "" {
 		res = res[0 : len(res)-1]
 	}
-	return res, nil
+	return res[0], nil
 }
