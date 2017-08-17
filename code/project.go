@@ -53,6 +53,7 @@ func (p *project) Ensure() error {
 			return err
 		}
 		// create a new worktree for this project based on the base project
+		// TODO(kalbasit): switch to using [go-git](https://github.com/src-d/go-git)
 		cmd := exec.Command(gitPath, "worktree", "add", "-b", p.story.name, p.Path(), "master")
 		cmd.Dir = baseProject.Path()
 		out, err := cmd.CombinedOutput()
