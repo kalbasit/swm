@@ -33,11 +33,11 @@ func TestProfileName(t *testing.T) {
 
 func TestProfileBase(t *testing.T) {
 	// swap the filesystem
-	oldAppFS := AppFs
-	AppFs = afero.NewMemMapFs()
-	defer func() { AppFs = oldAppFS }()
+	oldAppFS := AppFS
+	AppFS = afero.NewMemMapFs()
+	defer func() { AppFS = oldAppFS }()
 	// create the filesystem we want to scan
-	testhelper.CreateProjects(t, AppFs)
+	testhelper.CreateProjects(t, AppFS)
 	// create a new code
 	c := New("/code", regexp.MustCompile("^.snapshots$"))
 	// scan now

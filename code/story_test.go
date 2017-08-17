@@ -102,11 +102,11 @@ func TestStoryGoPath(t *testing.T) {
 
 func TestStoryProjects(t *testing.T) {
 	// swap the filesystem
-	oldAppFS := AppFs
-	AppFs = afero.NewMemMapFs()
-	defer func() { AppFs = oldAppFS }()
+	oldAppFS := AppFS
+	AppFS = afero.NewMemMapFs()
+	defer func() { AppFS = oldAppFS }()
 	// create the filesystem we want to scan
-	testhelper.CreateProjects(t, AppFs)
+	testhelper.CreateProjects(t, AppFS)
 	// create a new code
 	c := New("/code", regexp.MustCompile("^.snapshots$"))
 	// scan now
@@ -129,11 +129,11 @@ func TestStoryProjects(t *testing.T) {
 
 func TestStoryProject(t *testing.T) {
 	// swap the filesystem
-	oldAppFS := AppFs
-	AppFs = afero.NewMemMapFs()
-	defer func() { AppFs = oldAppFS }()
+	oldAppFS := AppFS
+	AppFS = afero.NewMemMapFs()
+	defer func() { AppFS = oldAppFS }()
 	// create the filesystem we want to scan
-	testhelper.CreateProjects(t, AppFs)
+	testhelper.CreateProjects(t, AppFS)
 	// create a new code
 	c := New("/code", regexp.MustCompile("^.snapshots$"))
 	// scan now
@@ -151,7 +151,7 @@ func TestStoryProject(t *testing.T) {
 			prj, err := s.Project(importPath)
 			if assert.NoError(t, err) {
 				assert.Equal(t, Project(expectedPrj), prj)
-				_, err := AppFs.Stat(prj.Path())
+				_, err := AppFS.Stat(prj.Path())
 				assert.NoError(t, err)
 			}
 		}
@@ -164,7 +164,7 @@ func TestStoryProject(t *testing.T) {
 				prj, err := s.Project(importPath)
 				if assert.NoError(t, err) {
 					assert.Equal(t, Project(expectedPrj), prj)
-					_, err := AppFs.Stat(prj.Path())
+					_, err := AppFS.Stat(prj.Path())
 					assert.NoError(t, err)
 				}
 			}
@@ -181,7 +181,7 @@ func TestStoryProject(t *testing.T) {
 				prj, err := s.Project("github.com/kalbasit/workflow")
 				if assert.NoError(t, err) {
 					assert.Equal(t, Project(expectedPrj), prj)
-					_, err := AppFs.Stat(prj.Path())
+					_, err := AppFS.Stat(prj.Path())
 					assert.True(t, os.IsNotExist(err))
 				}
 			}

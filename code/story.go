@@ -112,7 +112,7 @@ func (s *story) scanWorker(wg *sync.WaitGroup, out chan *project, ipath string) 
 	defer wg.Done()
 
 	// do we have a .git folder here?
-	if _, err := AppFs.Stat(path.Join(s.projectPath(ipath), ".git")); err == nil {
+	if _, err := AppFS.Stat(path.Join(s.projectPath(ipath), ".git")); err == nil {
 		// return this project
 		out <- &project{
 			story:      s,
@@ -123,7 +123,7 @@ func (s *story) scanWorker(wg *sync.WaitGroup, out chan *project, ipath string) 
 	}
 
 	// scan the folder
-	entries, err := afero.ReadDir(AppFs, s.projectPath(ipath))
+	entries, err := afero.ReadDir(AppFS, s.projectPath(ipath))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return

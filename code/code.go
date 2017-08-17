@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	// AppFs represents the filesystem of the app. It is exported to be used as a
+	// AppFS represents the filesystem of the app. It is exported to be used as a
 	// test helper.
-	AppFs afero.Fs
+	AppFS afero.Fs
 
 	// ErrCodePathEmpty is returned if Code.Path is empty or invalid
 	ErrCodePathEmpty = errors.New("code path is empty or does not exist")
@@ -30,7 +30,7 @@ var (
 
 func init() {
 	// initialize AppFs to use the OS filesystem
-	AppFs = afero.NewOsFs()
+	AppFS = afero.NewOsFs()
 }
 
 // code implements the coder interface
@@ -79,7 +79,7 @@ func (c *code) scan() {
 	var wg sync.WaitGroup
 	c.profiles = make(map[string]*profile)
 	// read the profile and scan all profiles
-	entries, err := afero.ReadDir(AppFs, c.path)
+	entries, err := afero.ReadDir(AppFS, c.path)
 	if err != nil {
 		log.Printf("error reading the directory %q: %s", c.path, err)
 		return
@@ -112,7 +112,7 @@ func (c *code) validate() error {
 	if c.path == "" {
 		return ErrCodePathEmpty
 	}
-	if _, err := AppFs.Stat(c.path); err != nil {
+	if _, err := AppFS.Stat(c.path); err != nil {
 		return ErrCodePathEmpty
 	}
 

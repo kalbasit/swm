@@ -59,7 +59,7 @@ func (p *profile) scan() {
 		p.stories[baseStoryName].scan()
 	}()
 	// read the profile and scan all workspaces
-	entries, err := afero.ReadDir(AppFs, path.Join(p.Path(), "stories"))
+	entries, err := afero.ReadDir(AppFS, path.Join(p.Path(), "stories"))
 	if err != nil {
 		log.Printf("error reading the directory %q: %s", path.Join(p.Path(), "stories"), err)
 		return
