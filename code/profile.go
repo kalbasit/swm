@@ -20,6 +20,14 @@ type profile struct {
 	stories map[string]*story
 }
 
+func newProfile(c *code, name string) *profile {
+	return &profile{
+		name:    name,
+		code:    c,
+		stories: make(map[string]*story),
+	}
+}
+
 // Coder returns the coder under which this exists
 func (p *profile) Coder() Coder { return p.code }
 
@@ -47,12 +55,8 @@ func (p *profile) Story(name string) (Story, error) {
 func (p *profile) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
-	p.stories = make(map[string]*story)
 	// create the base story
-	p.stories[baseStoryName] = &story{
-		name:    baseStoryName,
-		profile: p,
-	}
+	p.stories[baseStoryName] = newStory(p, baseStoryName)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -66,11 +70,8 @@ func (p *profile) scan() {
 	}
 	for _, entry := range entries {
 		if entry.IsDir() {
-			// create the workspace
-			s := &story{
-				name:    entry.Name(),
-				profile: p,
-			}
+			// create the story
+			s := newStory(p, entry.Name())
 			// start scanning it
 			wg.Add(1)
 			go func() {

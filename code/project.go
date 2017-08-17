@@ -29,6 +29,13 @@ func init() {
 	}
 }
 
+func newProject(s *story, importPath string) *project {
+	return &project{
+		story:      s,
+		importPath: importPath,
+	}
+}
+
 // Story returns the story to which this project belongs to
 func (p *project) Story() Story { return p.story }
 

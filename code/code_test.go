@@ -7,6 +7,7 @@ import (
 	"github.com/kalbasit/swm/testhelper"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCodeScan(t *testing.T) {
@@ -21,58 +22,34 @@ func TestCodeScan(t *testing.T) {
 	// define the assertion function
 	assertFn := func() {
 		// create the expected structs
-		p := &profile{
-			code: c,
-			name: "TestCodeScan",
-		}
+		p := newProfile(c, t.Name())
 		p.stories = map[string]*story{
-			"base": &story{
-				profile: p,
-				name:    "base",
-			},
-			"STORY-123": &story{
-				profile: p,
-				name:    "STORY-123",
-			},
+			"base":      newStory(p, "base"),
+			"STORY-123": newStory(p, "STORY-123"),
 		}
 		p.stories["base"].projects = map[string]*project{
-			"github.com/kalbasit/swm": &project{
-				story:      p.stories["base"],
-				importPath: "github.com/kalbasit/swm",
-			},
-			"github.com/kalbasit/dotfiles": &project{
-				story:      p.stories["base"],
-				importPath: "github.com/kalbasit/dotfiles",
-			},
-			"github.com/kalbasit/workflow": &project{
-				story:      p.stories["base"],
-				importPath: "github.com/kalbasit/workflow",
-			},
+			"github.com/kalbasit/swm":      newProject(p.stories["base"], "github.com/kalbasit/swm"),
+			"github.com/kalbasit/dotfiles": newProject(p.stories["base"], "github.com/kalbasit/dotfiles"),
+			"github.com/kalbasit/workflow": newProject(p.stories["base"], "github.com/kalbasit/workflow"),
 		}
 		p.stories["STORY-123"].projects = map[string]*project{
-			"github.com/kalbasit/dotfiles": &project{
-				story:      p.stories["STORY-123"],
-				importPath: "github.com/kalbasit/dotfiles",
-			},
-			"github.com/kalbasit/swm": &project{
-				story:      p.stories["STORY-123"],
-				importPath: "github.com/kalbasit/swm",
-			},
+			"github.com/kalbasit/swm":      newProject(p.stories["STORY-123"], "github.com/kalbasit/swm"),
+			"github.com/kalbasit/dotfiles": newProject(p.stories["STORY-123"], "github.com/kalbasit/dotfiles"),
 		}
-		expected := map[string]*profile{"TestCodeScan": p}
+		expected := map[string]*profile{t.Name(): p}
 
-		assert.Equal(t, expected["TestCodeScan"].stories["base"].name, c.profiles["TestCodeScan"].stories["base"].name)
-		assert.Equal(t, expected["TestCodeScan"].stories["base"].profile, c.profiles["TestCodeScan"].stories["base"].profile)
-		assert.Equal(t, expected["TestCodeScan"].stories["base"].projects["github.com/kalbasit/swm"], c.profiles["TestCodeScan"].stories["base"].projects["github.com/kalbasit/swm"])
-		assert.Equal(t, expected["TestCodeScan"].stories["base"].projects["github.com/kalbasit/dotfiles"], c.profiles["TestCodeScan"].stories["base"].projects["github.com/kalbasit/dotfiles"])
-		assert.Equal(t, expected["TestCodeScan"].stories["base"].projects["github.com/kalbasit/workflow"], c.profiles["TestCodeScan"].stories["base"].projects["github.com/kalbasit/workflow"])
-		assert.Equal(t, expected["TestCodeScan"].stories["STORY-123"].name, c.profiles["TestCodeScan"].stories["STORY-123"].name)
-		assert.Equal(t, expected["TestCodeScan"].stories["STORY-123"].profile, c.profiles["TestCodeScan"].stories["STORY-123"].profile)
-		assert.Equal(t, expected["TestCodeScan"].stories["STORY-123"].projects["github.com/kalbasit/dotfiles"], c.profiles["TestCodeScan"].stories["STORY-123"].projects["github.com/kalbasit/dotfiles"])
-		assert.Equal(t, expected["TestCodeScan"].stories["STORY-123"].projects["github.com/kalbasit/swm"], c.profiles["TestCodeScan"].stories["STORY-123"].projects["github.com/kalbasit/swm"])
+		assert.Equal(t, expected[t.Name()].stories["base"].name, c.profiles[t.Name()].stories["base"].name)
+		assert.Equal(t, expected[t.Name()].stories["base"].profile, c.profiles[t.Name()].stories["base"].profile)
+		assert.Equal(t, expected[t.Name()].stories["base"].projects["github.com/kalbasit/swm"], c.profiles[t.Name()].stories["base"].projects["github.com/kalbasit/swm"])
+		assert.Equal(t, expected[t.Name()].stories["base"].projects["github.com/kalbasit/dotfiles"], c.profiles[t.Name()].stories["base"].projects["github.com/kalbasit/dotfiles"])
+		assert.Equal(t, expected[t.Name()].stories["base"].projects["github.com/kalbasit/workflow"], c.profiles[t.Name()].stories["base"].projects["github.com/kalbasit/workflow"])
+		assert.Equal(t, expected[t.Name()].stories["STORY-123"].name, c.profiles[t.Name()].stories["STORY-123"].name)
+		assert.Equal(t, expected[t.Name()].stories["STORY-123"].profile, c.profiles[t.Name()].stories["STORY-123"].profile)
+		assert.Equal(t, expected[t.Name()].stories["STORY-123"].projects["github.com/kalbasit/dotfiles"], c.profiles[t.Name()].stories["STORY-123"].projects["github.com/kalbasit/dotfiles"])
+		assert.Equal(t, expected[t.Name()].stories["STORY-123"].projects["github.com/kalbasit/swm"], c.profiles[t.Name()].stories["STORY-123"].projects["github.com/kalbasit/swm"])
 	}
 	// scan now
-	c.scan()
+	require.NoError(t, c.Scan())
 	assertFn()
 }
 

@@ -158,32 +158,28 @@ func TestStoryProject(t *testing.T) {
 
 		// testing with story that does exist
 
-		s, err = p.Story("STORY-123")
-		if assert.NoError(t, err) {
-			for importPath, expectedPrj := range s.(*story).projects {
-				prj, err := s.Project(importPath)
-				if assert.NoError(t, err) {
-					assert.Equal(t, Project(expectedPrj), prj)
-					_, err := AppFS.Stat(prj.Path())
-					assert.NoError(t, err)
-				}
+		s = p.Story("STORY-123")
+		for importPath, expectedPrj := range s.(*story).projects {
+			prj, err := s.Project(importPath)
+			if assert.NoError(t, err) {
+				assert.Equal(t, Project(expectedPrj), prj)
+				_, err := AppFS.Stat(prj.Path())
+				assert.NoError(t, err)
 			}
 		}
 
 		// testing with a story that does not exist (no test for ensure here)
 
-		s, err = p.Story("STORY-123")
+		s = p.Story("STORY-123")
+		// prepare the expected
+		expectedPrj, err := p.Base().Project("github.com/kalbasit/workflow")
 		if assert.NoError(t, err) {
-			// prepare the expected
-			expectedPrj, err := p.Base().Project("github.com/kalbasit/workflow")
+			expectedPrj.(*project).story = s.(*story)
+			prj, err := s.Project("github.com/kalbasit/workflow")
 			if assert.NoError(t, err) {
-				expectedPrj.(*project).story = s.(*story)
-				prj, err := s.Project("github.com/kalbasit/workflow")
-				if assert.NoError(t, err) {
-					assert.Equal(t, Project(expectedPrj), prj)
-					_, err := AppFS.Stat(prj.Path())
-					assert.True(t, os.IsNotExist(err))
-				}
+				assert.Equal(t, Project(expectedPrj), prj)
+				_, err := AppFS.Stat(prj.Path())
+				assert.True(t, os.IsNotExist(err))
 			}
 		}
 	}

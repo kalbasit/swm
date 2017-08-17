@@ -46,7 +46,13 @@ type code struct {
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
-func New(p string, ignore *regexp.Regexp) *code { return &code{path: p, excludePattern: ignore} }
+func New(p string, ignore *regexp.Regexp) *code {
+	return &code{
+		path:           p,
+		excludePattern: ignore,
+		profiles:       make(map[string]*profile),
+	}
+}
 
 // Path returns the absolute path of this coder
 func (c *code) Path() string { return c.path }
@@ -77,7 +83,6 @@ func (c *code) Scan() error {
 func (c *code) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
-	c.profiles = make(map[string]*profile)
 	// read the profile and scan all profiles
 	entries, err := afero.ReadDir(AppFS, c.path)
 	if err != nil {
@@ -91,10 +96,7 @@ func (c *code) scan() {
 				continue
 			}
 			// create the workspace
-			p := &profile{
-				name: entry.Name(),
-				code: c,
-			}
+			p := newProfile(c, entry.Name())
 			// start scanning it
 			wg.Add(1)
 			go func() {

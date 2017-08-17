@@ -24,6 +24,14 @@ type story struct {
 	projects map[string]*project
 }
 
+func newStory(p *profile, name string) *story {
+	return &story{
+		name:     name,
+		profile:  p,
+		projects: make(map[string]*project),
+	}
+}
+
 // Profile returns the profile under which this story exists
 func (s *story) Profile() Profile { return s.profile }
 
@@ -80,7 +88,6 @@ func (s *story) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
 	out := make(chan *project, 1000)
-	s.projects = make(map[string]*project)
 	// start the workers
 	wg.Add(1)
 	go s.scanWorker(&wg, out, "")
