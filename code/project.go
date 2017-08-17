@@ -1,11 +1,17 @@
 package code
 
 import (
-	"errors"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
 	"path"
 )
 
 const srcDir = "src"
+
+// gitPath is the PATH to the git binary
+var gitPath string
 
 type project struct {
 	// story returns the parent story
@@ -13,6 +19,14 @@ type project struct {
 
 	// importPath is the path of the project relative to the GOPATH/src of the profile/workspace
 	importPath string
+}
+
+func init() {
+	var err error
+	gitPath, err = exec.LookPath("git")
+	if err != nil {
+		log.Fatalf("error looking up the git executable, is it installed? %s", err)
+	}
 }
 
 // Story returns the story to which this project belongs to
@@ -23,7 +37,28 @@ func (p *project) Path() string { return path.Join(p.story.GoPath(), srcDir, p.i
 
 // Ensure ensures the project exists on disk, by creating a new worktree from
 // the base project or noop if the worktree already exists on disk.
-func (p *project) Ensure() error { return errors.New("no implemented yet") }
+func (p *project) Ensure() error {
+	if _, err := AppFS.Stat(p.Path()); os.IsNotExist(err) {
+		// get the base project
+		baseStory := p.story.Profile().Base()
+		if baseStory == nil {
+			return ErrStoryNoFound
+		}
+		baseProject, err := baseStory.Project(p.importPath)
+		if err != nil {
+			return err
+		}
+		// create a new worktree for this project based on the base project
+		cmd := exec.Command(gitPath, "worktree", "add", "-b", p.story.name, p.Path(), "master")
+		cmd.Dir = baseProject.Path()
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error creating a new worktree: %s\nOutput:\n%s", err, string(out))
+		}
+	}
+
+	return nil
+}
 
 // ImportPath returns the path under which this project can be imported in Go
 func (p *project) ImportPath() string { return p.importPath }

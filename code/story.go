@@ -55,11 +55,10 @@ func (s *story) Projects() []Project {
 	return res
 }
 
-// Project returns the project given the importPath or an error if no project
-// exists. If the project does not exist for this story but does exist in the
-// Base story, it will be copied and story changed. The caller must call
-// Ensure() on the project to make sure it exists (as a worktree) before
-// using it.
+// Project returns the project given the importPath. If the project does not
+// exist for this story but does exist in the Base story, it will be copied and
+// story changed. The caller must call Ensure() on the project to make sure it
+// exists (as a worktree) before using it.
 func (s *story) Project(importPath string) (Project, error) {
 	// get the project for the story
 	prj, ok := s.projects[importPath]
