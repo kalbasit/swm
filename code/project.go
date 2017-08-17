@@ -48,9 +48,6 @@ func (p *project) Ensure() error {
 	if _, err := AppFS.Stat(p.Path()); os.IsNotExist(err) {
 		// get the base project
 		baseStory := p.story.Profile().Base()
-		if baseStory == nil {
-			return ErrStoryNoFound
-		}
 		baseProject, err := baseStory.Project(p.importPath)
 		if err != nil {
 			return err

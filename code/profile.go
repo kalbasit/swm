@@ -42,13 +42,14 @@ func (p *profile) Path() string { return path.Join(p.code.Path(), p.name) }
 
 // Story returns the story given it's name or an error if no story with this
 // name was found
-func (p *profile) Story(name string) (Story, error) {
+func (p *profile) Story(name string) Story {
 	s, ok := p.stories[name]
 	if !ok {
-		return nil, ErrStoryNoFound
+		s = newStory(p, name)
+		p.stories[s.name] = s
 	}
 
-	return s, nil
+	return s
 }
 
 // scan scans the entire profile to build the workspaces

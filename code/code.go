@@ -20,9 +20,6 @@ var (
 	// ErrProfileNoFound is returned if the profile was not found
 	ErrProfileNoFound = errors.New("profile not found")
 
-	// ErrStoryNoFound is returned if the story was not found
-	ErrStoryNoFound = errors.New("story not found")
-
 	// ErrProjectNotFound is returned if the session name did not yield a project
 	// we know about
 	ErrProjectNotFound = errors.New("project not found")

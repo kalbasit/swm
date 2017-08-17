@@ -46,7 +46,7 @@ type Profile interface {
 
 	// Story returns the story given it's name or an error if no story with this
 	// name was found
-	Story(name string) (Story, error)
+	Story(name string) Story
 }
 
 // Story defines the story interface

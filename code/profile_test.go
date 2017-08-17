@@ -83,7 +83,14 @@ func TestProfileStory(t *testing.T) {
 
 	// test with a story that does exist
 
-	s, err := p.Story("STORY-123")
-	require.NoError(t, err)
+	s := p.Story("STORY-123")
 	assert.Equal(t, p.(*profile).stories["STORY-123"], s)
+
+	// test with a story that does not exist
+
+	s = p.Story("STORY-456")
+	assert.Equal(t, "STORY-456", s.(*story).name)
+	assert.NotNil(t, s.(*story).projects)
+	assert.Empty(t, s.(*story).projects)
+	assert.Equal(t, p.(*profile).stories["STORY-456"], s)
 }
