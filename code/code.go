@@ -5,6 +5,8 @@ import (
 	"log"
 	"regexp"
 	"sync"
+	"sync/atomic"
+	"unsafe"
 
 	"github.com/spf13/afero"
 )
@@ -38,16 +40,17 @@ type code struct {
 	// excludePattern is a list of patterns to ignore
 	excludePattern *regexp.Regexp
 
-	profiles map[string]*profile
+	profiles unsafe.Pointer // type = *map[string]*profile
 }
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
 func New(p string, ignore *regexp.Regexp) *code {
+	profiles := make(map[string]*profile)
 	return &code{
 		path:           p,
 		excludePattern: ignore,
-		profiles:       make(map[string]*profile),
+		profiles:       unsafe.Pointer(&profiles),
 	}
 }
 
@@ -77,10 +80,14 @@ func (c *code) Scan() error {
 }
 
 // getProfiles return the map of profiles
-func (c *code) getProfiles() map[string]*profile { return c.profiles }
+func (c *code) getProfiles() map[string]*profile {
+	return *(*map[string]*profile)(atomic.LoadPointer(&c.profiles))
+}
 
 // setProfiles sets the map of profiles
-func (c *code) setProfiles(profiles map[string]*profile) { c.profiles = profiles }
+func (c *code) setProfiles(profiles map[string]*profile) {
+	atomic.StorePointer(&c.profiles, unsafe.Pointer(&profiles))
+}
 
 // scan scans the entire profile to build the workspaces
 func (c *code) scan() {
