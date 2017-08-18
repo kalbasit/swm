@@ -15,7 +15,7 @@ func TestStoryProfile(t *testing.T) {
 	s := &story{
 		name: "base",
 		profile: &profile{
-			name: "TestStoryGoPath",
+			name: t.Name(),
 			code: &code{
 				path: "/code",
 			},
@@ -29,7 +29,7 @@ func TestStoryName(t *testing.T) {
 	s := &story{
 		name: "base",
 		profile: &profile{
-			name: "TestStoryGoPath",
+			name: t.Name(),
 			code: &code{
 				path: "/code",
 			},
@@ -45,7 +45,7 @@ func TestStoryBase(t *testing.T) {
 	s := &story{
 		name: "base",
 		profile: &profile{
-			name: "TestStoryGoPath",
+			name: t.Name(),
 			code: &code{
 				path: "/code",
 			},
@@ -59,7 +59,7 @@ func TestStoryBase(t *testing.T) {
 	s = &story{
 		name: "STORY-123",
 		profile: &profile{
-			name: "TestStoryGoPath",
+			name: t.Name(),
 			code: &code{
 				path: "/code",
 			},
@@ -75,14 +75,14 @@ func TestStoryGoPath(t *testing.T) {
 	s := &story{
 		name: "base",
 		profile: &profile{
-			name: "TestStoryGoPath",
+			name: t.Name(),
 			code: &code{
 				path: "/code",
 			},
 		},
 	}
 	// assert the Path
-	assert.Equal(t, "/code/TestStoryGoPath/base", s.GoPath())
+	assert.Equal(t, "/code/"+t.Name()+"/base", s.GoPath())
 
 	// testing the case of a story
 
@@ -90,14 +90,14 @@ func TestStoryGoPath(t *testing.T) {
 	s = &story{
 		name: "STORY-123",
 		profile: &profile{
-			name: "TestStoryGoPath",
+			name: t.Name(),
 			code: &code{
 				path: "/code",
 			},
 		},
 	}
 	// assert the Path
-	assert.Equal(t, "/code/TestStoryGoPath/stories/STORY-123", s.GoPath())
+	assert.Equal(t, "/code/"+t.Name()+"/stories/STORY-123", s.GoPath())
 }
 
 func TestStoryProjects(t *testing.T) {
@@ -121,7 +121,7 @@ func TestStoryProjects(t *testing.T) {
 		// get the projects
 		prjs := s.Projects()
 		// assert they are the same as the projects
-		for _, prj2 := range s.(*story).projects {
+		for _, prj2 := range s.(*story).getProjects() {
 			assert.Contains(t, prjs, Project(prj2))
 		}
 	}
@@ -147,7 +147,7 @@ func TestStoryProject(t *testing.T) {
 		// testing with a base story
 
 		s := p.Base()
-		for importPath, expectedPrj := range s.(*story).projects {
+		for importPath, expectedPrj := range s.(*story).getProjects() {
 			prj, err := s.Project(importPath)
 			if assert.NoError(t, err) {
 				assert.Equal(t, Project(expectedPrj), prj)
@@ -159,7 +159,7 @@ func TestStoryProject(t *testing.T) {
 		// testing with story that does exist
 
 		s = p.Story("STORY-123")
-		for importPath, expectedPrj := range s.(*story).projects {
+		for importPath, expectedPrj := range s.(*story).getProjects() {
 			prj, err := s.Project(importPath)
 			if assert.NoError(t, err) {
 				assert.Equal(t, Project(expectedPrj), prj)

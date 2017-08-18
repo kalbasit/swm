@@ -4,6 +4,8 @@ import (
 	"log"
 	"path"
 	"sync"
+	"sync/atomic"
+	"unsafe"
 
 	"github.com/spf13/afero"
 )
@@ -17,14 +19,15 @@ type profile struct {
 	name string
 
 	// stories is a list of workspaces
-	stories map[string]*story
+	stories unsafe.Pointer // type *map[string]*story
 }
 
 func newProfile(c *code, name string) *profile {
+	stories := make(map[string]*story)
 	return &profile{
 		name:    name,
 		code:    c,
-		stories: make(map[string]*story),
+		stories: unsafe.Pointer(&stories),
 	}
 }
 
@@ -35,7 +38,7 @@ func (p *profile) Coder() Coder { return p.code }
 func (p *profile) Name() string { return p.name }
 
 // Base returns the base story
-func (p *profile) Base() Story { return p.stories[baseStoryName] }
+func (p *profile) Base() Story { return p.Story(baseStoryName) }
 
 // Path returns the absolute path to this profile
 func (p *profile) Path() string { return path.Join(p.code.Path(), p.name) }
@@ -43,25 +46,41 @@ func (p *profile) Path() string { return path.Join(p.code.Path(), p.name) }
 // Story returns the story given it's name or an error if no story with this
 // name was found
 func (p *profile) Story(name string) Story {
-	s, ok := p.stories[name]
+	// get the stories out of profiles
+	stories := p.getStories()
+	// fetch the story out
+	s, ok := stories[name]
 	if !ok {
+		// no story found, create one
 		s = newStory(p, name)
-		p.stories[s.name] = s
+		stories[name] = s
+		p.setStories(stories)
 	}
 
 	return s
+}
+
+// getStories return the map of stories
+func (p *profile) getStories() map[string]*story {
+	return *(*map[string]*story)(atomic.LoadPointer(&p.stories))
+}
+
+// setStories sets the map of stories
+func (p *profile) setStories(stories map[string]*story) {
+	atomic.StorePointer(&p.stories, unsafe.Pointer(&stories))
 }
 
 // scan scans the entire profile to build the workspaces
 func (p *profile) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
+	stories := make(map[string]*story)
 	// create the base story
-	p.stories[baseStoryName] = newStory(p, baseStoryName)
+	stories[baseStoryName] = newStory(p, baseStoryName)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		p.stories[baseStoryName].scan()
+		stories[baseStoryName].scan()
 	}()
 	// read the profile and scan all workspaces
 	entries, err := afero.ReadDir(AppFS, path.Join(p.Path(), "stories"))
@@ -80,8 +99,11 @@ func (p *profile) scan() {
 				s.scan()
 			}()
 			// add it to the profile
-			p.stories[entry.Name()] = s
+			stories[entry.Name()] = s
 		}
 	}
 	wg.Wait()
+
+	// set the stories to p now
+	p.setStories(stories)
 }

@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 	"sync"
+	"sync/atomic"
+	"unsafe"
 
 	"github.com/spf13/afero"
 )
@@ -21,14 +23,15 @@ type story struct {
 	name string
 
 	// projects is a list of projects
-	projects map[string]*project
+	projects unsafe.Pointer // type *map[string]*project
 }
 
 func newStory(p *profile, name string) *story {
+	projects := make(map[string]*project)
 	return &story{
 		name:     name,
 		profile:  p,
-		projects: make(map[string]*project),
+		projects: unsafe.Pointer(&projects),
 	}
 }
 
@@ -57,7 +60,7 @@ func (s *story) GoPath() string {
 // a project to make sure it exists (as a worktree) before using it.
 func (s *story) Projects() []Project {
 	var res []Project
-	for _, prj := range s.projects {
+	for _, prj := range s.getProjects() {
 		res = append(res, prj)
 	}
 	return res
@@ -69,9 +72,9 @@ func (s *story) Projects() []Project {
 // exists (as a worktree) before using it.
 func (s *story) Project(importPath string) (Project, error) {
 	// get the project for the story
-	prj, ok := s.projects[importPath]
+	prj, ok := s.getProjects()[importPath]
 	if !ok {
-		basePrj, ok := s.profile.Base().(*story).projects[importPath]
+		basePrj, ok := s.profile.Base().(*story).getProjects()[importPath]
 		if !ok {
 			return nil, ErrProjectNotFound
 		}
@@ -81,6 +84,16 @@ func (s *story) Project(importPath string) (Project, error) {
 	}
 
 	return prj, nil
+}
+
+// getProjects return the map of projects
+func (s *story) getProjects() map[string]*project {
+	return *(*map[string]*project)(atomic.LoadPointer(&s.projects))
+}
+
+// setProjects sets the map of projects
+func (s *story) setProjects(projects map[string]*project) {
+	atomic.StorePointer(&s.projects, unsafe.Pointer(&projects))
 }
 
 // scan scans the entire story to build projects
@@ -102,14 +115,20 @@ func (s *story) scan() {
 }
 
 func (s *story) scanReducer(out chan *project, quit chan struct{}) {
+	// initialize the variables
+	projects := make(map[string]*project)
+
+	// iterate over the channel
 	for {
 		select {
 		case project, ok := <-out:
 			if !ok {
 				close(quit)
+				// set the projects to s now
+				s.setProjects(projects)
 				return
 			}
-			s.projects[project.importPath] = project
+			projects[project.importPath] = project
 		}
 	}
 }
