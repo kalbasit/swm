@@ -1,9 +1,7 @@
 package main
 
 import (
-	"path"
 	"regexp"
-	"strings"
 
 	"github.com/kalbasit/swm/code"
 	"github.com/kalbasit/swm/tmux"
@@ -22,16 +20,11 @@ func tmuxSwitchClient(ctx *cli.Context) error {
 	if err := c.Scan(); err != nil {
 		return err
 	}
-	// compute the story
-	story := ctx.String("story")
-	if story == "" && ctx.String("socket-path") != "" {
-		story = strings.Split(path.Base(ctx.String("socket-path")), ",")[0]
-	}
 	// create a new TMUX manager
 	tmuxManager := tmux.New(&tmux.Options{
 		Coder:    c,
 		Profile:  ctx.String("profile"),
-		Story:    story,
+		Story:    ctx.String("story"),
 		KillPane: ctx.Bool("kill-pane"),
 	})
 

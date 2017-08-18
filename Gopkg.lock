@@ -8,6 +8,12 @@
   version = "v1.1.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/mdirkse/i3ipc-go"
+  packages = ["."]
+  revision = "f40913f28b3b8fbdb5d5ded578630beea7a924eb"
+
+[[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
@@ -40,6 +46,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ace7337ee8d01e6d824bf1507263b00dda9af4880b17bd626964f05fa7d166d8"
+  inputs-digest = "6c1997efcadea8503921f377ae597b8be3e997b4728c2cfc138bba33af76df21"
   solver-name = "gps-cdcl"
   solver-version = 1
