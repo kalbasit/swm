@@ -7,13 +7,13 @@ REQUIRED_GO_VERSION=8
 
 all: install
 
-adctrl: prerequisites
-	go build -ldflags "-X $(PROJECT_PATH)/main.version=$(VERSION)" -o adctrl-bin *.go
+swm: prerequisites
+	go build -ldflags "-X $(PROJECT_PATH)/main.version=$(VERSION)" -o swm ./cmd/swm/*.go
 
-build: adctrl
+build: swm
 
 install: prerequisites
-	go install -ldflags "-X $(PROJECT_PATH)/main.version=$(VERSION)"
+	go install -ldflags "-X $(PROJECT_PATH)/main.version=$(VERSION)" ./cmd/swm
 
 test: prerequisites
 	go test -v -cover -bench=. $(shell go list ./... | grep -v /vendor/)
