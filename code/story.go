@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 	"sync"
+	"sync/atomic"
+	"unsafe"
 
 	"github.com/spf13/afero"
 )
@@ -21,14 +23,15 @@ type story struct {
 	name string
 
 	// projects is a list of projects
-	projects map[string]*project
+	projects unsafe.Pointer // type *map[string]*project
 }
 
 func newStory(p *profile, name string) *story {
+	projects := make(map[string]*project)
 	return &story{
 		name:     name,
 		profile:  p,
-		projects: make(map[string]*project),
+		projects: unsafe.Pointer(&projects),
 	}
 }
 
@@ -84,10 +87,14 @@ func (s *story) Project(importPath string) (Project, error) {
 }
 
 // getProjects return the map of projects
-func (s *story) getProjects() map[string]*project { return s.projects }
+func (s *story) getProjects() map[string]*project {
+	return *(*map[string]*project)(atomic.LoadPointer(&s.projects))
+}
 
 // setProjects sets the map of projects
-func (s *story) setProjects(projects map[string]*project) { s.projects = projects }
+func (s *story) setProjects(projects map[string]*project) {
+	atomic.StorePointer(&s.projects, unsafe.Pointer(&projects))
+}
 
 // scan scans the entire story to build projects
 func (s *story) scan() {
