@@ -12,8 +12,11 @@ swm: prerequisites
 
 build: swm
 
-install: prerequisites
-	go install -ldflags "-X main.version=$(VERSION)" ./cmd/swm
+vendor:
+	dep ensure -v
+
+install: prerequisites vendor
+	go install -v -ldflags "-X main.version=$(VERSION)" ./cmd/swm
 
 test: prerequisites
 	go test -v -cover -bench=. $(shell go list ./... | grep -v /vendor/)
