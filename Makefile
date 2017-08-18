@@ -2,18 +2,18 @@
 
 # project and version
 PROJECT_PATH=github.com/kalbasit/swm
-VERSION=_GIT_
+VERSION=$(shell git describe --always HEAD)
 REQUIRED_GO_VERSION=8
 
 all: install
 
 swm: prerequisites
-	go build -ldflags "-X $(PROJECT_PATH)/main.version=$(VERSION)" -o swm ./cmd/swm/*.go
+	go build -ldflags "-X main.version=$(VERSION)" -o swm ./cmd/swm/*.go
 
 build: swm
 
 install: prerequisites
-	go install -ldflags "-X $(PROJECT_PATH)/main.version=$(VERSION)" ./cmd/swm
+	go install -ldflags "-X main.version=$(VERSION)" ./cmd/swm
 
 test: prerequisites
 	go test -v -cover -bench=. $(shell go list ./... | grep -v /vendor/)

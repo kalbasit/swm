@@ -7,10 +7,12 @@ import (
 	"gopkg.in/urfave/cli.v2"
 )
 
+var version = ""
+
 func main() {
 	app := &cli.App{
 		Name:    "swm",
-		Version: "0.0.1",
+		Version: version,
 		Usage:   "swm <command>",
 		Authors: []*cli.Author{
 			{
