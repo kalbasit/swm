@@ -40,7 +40,7 @@ type code struct {
 	// excludePattern is a list of patterns to ignore
 	excludePattern *regexp.Regexp
 
-	profiles unsafe.Pointer // type = *map[string]*profile
+	profiles unsafe.Pointer // type *map[string]*profile
 }
 
 // New returns a new empty Code, caller must call Load to load from cache or

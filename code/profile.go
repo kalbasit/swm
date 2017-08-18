@@ -4,6 +4,8 @@ import (
 	"log"
 	"path"
 	"sync"
+	"sync/atomic"
+	"unsafe"
 
 	"github.com/spf13/afero"
 )
@@ -17,14 +19,15 @@ type profile struct {
 	name string
 
 	// stories is a list of workspaces
-	stories map[string]*story
+	stories unsafe.Pointer // type *map[string]*story
 }
 
 func newProfile(c *code, name string) *profile {
+	stories := make(map[string]*story)
 	return &profile{
 		name:    name,
 		code:    c,
-		stories: make(map[string]*story),
+		stories: unsafe.Pointer(&stories),
 	}
 }
 
@@ -58,10 +61,14 @@ func (p *profile) Story(name string) Story {
 }
 
 // getStories return the map of stories
-func (p *profile) getStories() map[string]*story { return p.stories }
+func (p *profile) getStories() map[string]*story {
+	return *(*map[string]*story)(atomic.LoadPointer(&p.stories))
+}
 
 // setStories sets the map of stories
-func (p *profile) setStories(stories map[string]*story) { p.stories = stories }
+func (p *profile) setStories(stories map[string]*story) {
+	atomic.StorePointer(&p.stories, unsafe.Pointer(&stories))
+}
 
 // scan scans the entire profile to build the workspaces
 func (p *profile) scan() {
