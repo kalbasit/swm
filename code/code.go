@@ -57,7 +57,7 @@ func (c *code) Path() string { return c.path }
 // Profile returns the profile given it's name or an error if no profile with
 // this name was found
 func (c *code) Profile(name string) (Profile, error) {
-	p, ok := c.profiles[name]
+	p, ok := c.getProfiles()[name]
 	if !ok {
 		return nil, ErrProfileNoFound
 	}
@@ -76,10 +76,17 @@ func (c *code) Scan() error {
 	return nil
 }
 
+// getProfiles return the map of profiles
+func (c *code) getProfiles() map[string]*profile { return c.profiles }
+
+// setProfiles sets the map of profiles
+func (c *code) setProfiles(profiles map[string]*profile) { c.profiles = profiles }
+
 // scan scans the entire profile to build the workspaces
 func (c *code) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
+	profiles := make(map[string]*profile)
 	// read the profile and scan all profiles
 	entries, err := afero.ReadDir(AppFS, c.path)
 	if err != nil {
@@ -101,10 +108,13 @@ func (c *code) scan() {
 				p.scan()
 			}()
 			// add it to the profile
-			c.profiles[entry.Name()] = p
+			profiles[entry.Name()] = p
 		}
 	}
 	wg.Wait()
+
+	// set the profiles to c now
+	c.setProfiles(profiles)
 }
 
 func (c *code) validate() error {
