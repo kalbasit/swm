@@ -21,4 +21,4 @@ before_install:
   - export PATH=$PATH:~
 install:
   - dep ensure
-script: go test -v -cover -bench=. $(go list ./... | grep -v /vendor/)
+script: make ci
