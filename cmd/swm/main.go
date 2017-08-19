@@ -49,6 +49,15 @@ func main() {
 						Usage:  "TODO",
 						Action: tmuxVimExit,
 					},
+					// kill-server will kill the server
+					{
+						Name:   "kill-server",
+						Usage:  "TODO",
+						Action: tmuxKillServer,
+						Flags: []cli.Flag{
+							&cli.BoolFlag{Name: "vim-exit", Usage: "if vim is found running, kill it"},
+						},
+					},
 				},
 			},
 		},
@@ -61,9 +70,9 @@ func main() {
 func getDefaultProfile() string {
 	p := os.Getenv("ACTIVE_PROFILE")
 	if p == "" {
-		i3_workspace, err := getActiveI3WorkspaceName()
-		if err == nil && strings.Contains(i3_workspace, "@") {
-			p = strings.Split(i3_workspace, "@")[0]
+		i3Workspace, err := getActiveI3WorkspaceName()
+		if err == nil && strings.Contains(i3Workspace, "@") {
+			p = strings.Split(i3Workspace, "@")[0]
 		}
 	}
 
@@ -78,9 +87,9 @@ func getDefaultStory() string {
 		s = strings.Split(path.Base(tmuxSocketPath), ",")[0]
 	}
 	if s == "" {
-		i3_workspace, err := getActiveI3WorkspaceName()
-		if err == nil && strings.Contains(i3_workspace, "@") {
-			s = strings.Split(i3_workspace, "@")[1]
+		i3Workspace, err := getActiveI3WorkspaceName()
+		if err == nil && strings.Contains(i3Workspace, "@") {
+			s = strings.Split(i3Workspace, "@")[1]
 		}
 	}
 
