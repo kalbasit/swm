@@ -32,16 +32,14 @@ func (t *tmux) VimExit() error {
 	for _, target := range targets {
 		// Send the escape key, in the case we are in a vim like program. This is
 		// repeated because the send-key command is not waiting for vim to complete
-		// its action... also sending a sleep 1 command seems to fuck up the loop.
+		// its action.
 		// Credit: https://gist.github.com/debugish/2773454
 		for i := 0; i < 25; i++ {
-			// tmux -f "${TMUXDOTDIR:-$HOME}/.tmux.conf" -L "${tmux_socket_name}" send-keys -t "${session}:0" 'C-['
 			if err := exec.Command(tmuxPath, "-L", t.options.Story, "send-keys", "-t", target, "C-[").Run(); err != nil {
 				return err
 			}
 		}
 		// ask Vim to exit
-		// tmux -f "${TMUXDOTDIR:-$HOME}/.tmux.conf" -L "${tmux_socket_name}" send-keys -t "${session}:0" : x a C-m
 		if err := exec.Command(tmuxPath, "-L", t.options.Story, "send-keys", "-t", target, ":", "x", "a", "C-m").Run(); err != nil {
 			return err
 		}
