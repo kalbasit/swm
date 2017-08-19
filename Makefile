@@ -7,18 +7,18 @@ REQUIRED_GO_VERSION=8
 
 all: install
 
-swm: prerequisites
+swm:
 	go build -ldflags "-X main.version=$(VERSION)" -o swm ./cmd/swm/*.go
 
-build: swm
+build: prerequisites vendor swm
 
-vendor:
+vendor: Gopkg.toml Gopkg.lock
 	dep ensure -v
 
 install: prerequisites vendor
 	go install -v -ldflags "-X main.version=$(VERSION)" ./cmd/swm
 
-test: prerequisites
+test: prerequisites vendor
 	go test -v -cover -bench=. $(shell go list ./... | grep -v /vendor/)
 
 ci: test
