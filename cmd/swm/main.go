@@ -27,18 +27,27 @@ func main() {
 			// tmux for switch client
 			{
 				Name: "tmux",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "profile", Usage: "The profile for the TMUX session", Value: getDefaultProfile()},
+					&cli.StringFlag{Name: "story", Usage: "The story for the TMUX session", Value: getDefaultStory()},
+					&cli.StringFlag{Name: "code-path", Usage: "The absolute path to the code path", Value: path.Join(os.Getenv("HOME"), "code")},
+					&cli.StringFlag{Name: "ignore-pattern", Usage: "The Regex pattern to ignore", Value: "^.snapshots$"},
+				},
 				Subcommands: []*cli.Command{
+					// switch client switches tmux client
 					{
 						Name:   "switch-client",
-						Usage:  "tmux switch client",
+						Usage:  "TODO",
 						Action: tmuxSwitchClient,
 						Flags: []cli.Flag{
-							&cli.StringFlag{Name: "profile", Usage: "The profile for the TMUX session", Value: getDefaultProfile()},
-							&cli.StringFlag{Name: "story", Usage: "The story for the TMUX session", Value: getDefaultStory()},
-							&cli.StringFlag{Name: "code-path", Usage: "The absolute path to the code path", Value: path.Join(os.Getenv("HOME"), "code")},
-							&cli.StringFlag{Name: "ignore-pattern", Usage: "The Regex pattern to ignore", Value: "^.snapshots$"},
 							&cli.BoolFlag{Name: "kill-pane", Usage: "kill the TMUX pane after switch client"},
 						},
+					},
+					// vim exit will save/exit any open vim
+					{
+						Name:   "vim-exit",
+						Usage:  "TODO",
+						Action: tmuxVimExit,
 					},
 				},
 			},
