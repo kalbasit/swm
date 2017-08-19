@@ -1,14 +1,22 @@
 package code
 
 import (
+	"io/ioutil"
 	"regexp"
 	"testing"
 
 	"github.com/kalbasit/swm/testhelper"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	// discard logs
+	log.Logger = zerolog.New(ioutil.Discard)
+}
 
 func TestCodeScan(t *testing.T) {
 	// swap the filesystem

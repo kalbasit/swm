@@ -2,12 +2,12 @@ package code
 
 import (
 	"errors"
-	"log"
 	"regexp"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
 )
 
@@ -97,7 +97,7 @@ func (c *code) scan() {
 	// read the profile and scan all profiles
 	entries, err := afero.ReadDir(AppFS, c.path)
 	if err != nil {
-		log.Printf("error reading the directory %q: %s", c.path, err)
+		log.Error().Str("path", c.path).Msgf("error reading the directory: %s", err)
 		return
 	}
 	for _, entry := range entries {
@@ -106,7 +106,8 @@ func (c *code) scan() {
 			if c.excludePattern != nil && c.excludePattern.MatchString(entry.Name()) {
 				continue
 			}
-			// create the workspace
+			// create the profile
+			log.Debug().Msgf("found profile: %s", entry.Name())
 			p := newProfile(c, entry.Name())
 			// start scanning it
 			wg.Add(1)
