@@ -1,7 +1,6 @@
 package tmux
 
 import (
-	"errors"
 	"log"
 	"os/exec"
 
@@ -14,11 +13,6 @@ const (
 )
 
 var (
-	// ErrProjectNotFoundForGivenSessionName is returned by SwitchClient if the
-	// selected session (via fzf currently) was not found. This usually means
-	// that fzf output was not one of the input.
-	ErrProjectNotFoundForGivenSessionName = errors.New("project not found for the given session name")
-
 	// tmuxPath is the PATH to the tmux executable
 	tmuxPath string
 )
