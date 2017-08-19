@@ -70,7 +70,7 @@ func (t *tmux) SwitchClient(killPane bool) error {
 			}()
 			// run the command now
 			if err := cmd.Run(); err != nil {
-				log.Fatal().Msgf("error running tmux with args %v: %s", args, err)
+				log.Fatal().Strs("args", args).Err(err).Msg("error running the tmux comand")
 			}
 		}
 	}
