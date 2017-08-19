@@ -15,7 +15,7 @@ func tmuxSwitchClient(ctx *cli.Context) error {
 		return err
 	}
 
-	return tmuxManager.SwitchClient()
+	return tmuxManager.SwitchClient(ctx.Bool("kill-pane"))
 }
 
 func tmuxVimExit(ctx *cli.Context) error {
@@ -41,10 +41,9 @@ func newTmuxManager(ctx *cli.Context) (tmux.Manager, error) {
 	}
 	// create a new TMUX manager
 	tmuxManager := tmux.New(&tmux.Options{
-		Coder:    c,
-		Profile:  ctx.String("profile"),
-		Story:    ctx.String("story"),
-		KillPane: ctx.Bool("kill-pane"),
+		Coder:   c,
+		Profile: ctx.String("profile"),
+		Story:   ctx.String("story"),
 	})
 
 	return tmuxManager, nil

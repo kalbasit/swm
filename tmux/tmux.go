@@ -43,9 +43,6 @@ type Options struct {
 	// Story represents the story we are going to use to compute the list of
 	// available projects.
 	Story string
-
-	// KiilPane when set, will close the TMUX pane running swm
-	KillPane bool
 }
 
 // tmux implements the Manager interface
