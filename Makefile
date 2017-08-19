@@ -6,8 +6,6 @@ VERSION=$(shell git describe --always HEAD)
 REQUIRED_GO_VERSION=8
 SOURCES := $(shell find . -name "*.go")
 
-#$(wildcard */*.go) $(wildcard */*/*.go)
-
 all: install
 
 swm: $(SOURCES)
