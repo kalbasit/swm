@@ -28,15 +28,12 @@ func main() {
 			&cli.BoolFlag{Name: "debug", Usage: "enable debug mode"},
 		},
 		Before: func(ctx *cli.Context) error {
+			// create the logger that pretty prints to the ctx.Writer
+			log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: ctx.App.Writer}).With().Timestamp().Logger()
 			// handle debug
 			if ctx.Bool("debug") {
-				zerolog.SetGlobalLevel(zerolog.DebugLevel)
-			} else {
-				zerolog.SetGlobalLevel(zerolog.InfoLevel)
+				log.Logger = log.Logger.Level(zerolog.DebugLevel)
 			}
-			// pretty print on the console
-			log.Logger = log.Output(zerolog.ConsoleWriter{Out: ctx.App.Writer})
-			// make sure a story is set
 
 			return nil
 		},
