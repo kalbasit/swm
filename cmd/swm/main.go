@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -55,7 +56,9 @@ func main() {
 	}
 
 	// run the app
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		log.Fatalf("error running the app: %s", err)
+	}
 }
 
 func getDefaultProfile() string {
