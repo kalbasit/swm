@@ -4,10 +4,13 @@
 PROJECT_PATH=github.com/kalbasit/swm
 VERSION=$(shell git describe --always HEAD)
 REQUIRED_GO_VERSION=8
+SOURCES := $(shell find . -name "*.go")
+
+#$(wildcard */*.go) $(wildcard */*/*.go)
 
 all: install
 
-swm:
+swm: $(SOURCES)
 	go build -ldflags "-X main.version=$(VERSION)" -o swm ./cmd/swm/*.go
 
 build: prerequisites vendor swm
