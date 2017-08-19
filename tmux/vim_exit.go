@@ -29,6 +29,7 @@ func (t *tmux) VimExit() error {
 	if err != nil {
 		return err
 	}
+	log.Debug().Msgf("found the following tmux targets running vim: %v", targets)
 	// iterate over all the panes that has vim, and ask it to close itself
 	for _, target := range targets {
 		// Send the escape key, in the case we are in a vim like program. This is
@@ -66,7 +67,7 @@ func (t *tmux) getTargetsRunningVim() ([]string, error) {
 			}
 		}
 	}
-	log.Debug().Msgf("found the following sessions: %v", sessionNames)
+	log.Debug().Msgf("found the following tmux sessions: %v", sessionNames)
 	// iterate over the list of sessions, and for each session iterate over the
 	// list of windows, then over the panes and check what they are running
 	for _, sessionName := range sessionNames {
