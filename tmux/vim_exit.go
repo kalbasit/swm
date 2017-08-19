@@ -11,7 +11,7 @@ import (
 var (
 	psPath string
 
-	psGrepRegexp = regexp.MustCompile(`^(?:[^TXZ ])+ +(?:((?:\S)+/))?g?(n?vim?x?)$`)
+	psGrepRegexp = regexp.MustCompile(`(?m)^(?:[^TXZ ])+ +(?:((?:\S)+/))?g?(n?vim?x?)$`)
 )
 
 func init() {
@@ -61,7 +61,11 @@ func (t *tmux) getTargetsRunningVim() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		sessionNames = strings.Split(string(out), "\n")
+		for _, line := range strings.Split(string(out), "\n") {
+			if line != "" {
+				sessionNames = append(sessionNames, line)
+			}
+		}
 	}
 	// iterate over the list of sessions, and for each session iterate over the
 	// list of windows, then over the panes and check what they are running
@@ -74,7 +78,11 @@ func (t *tmux) getTargetsRunningVim() ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			windowIDs = strings.Split(string(out), "\n")
+			for _, line := range strings.Split(string(out), "\n") {
+				if line != "" {
+					windowIDs = append(windowIDs, line)
+				}
+			}
 		}
 		// iterate over the list of windows, get the list of panes, and for each pane
 		// find out if it is running vim, nvim then will build targets
@@ -82,7 +90,7 @@ func (t *tmux) getTargetsRunningVim() ([]string, error) {
 			// build the map of pane to tty
 			paneTTY := make(map[string]string)
 			{
-				cmd := exec.Command(tmuxPath, "-L", t.options.Story, "list-panes", "-t", "sessionName:"+windowID, "-F", "#P@#{pane_tty}")
+				cmd := exec.Command(tmuxPath, "-L", t.options.Story, "list-panes", "-t", sessionName+":"+windowID, "-F", "#P@#{pane_tty}")
 				out, err := cmd.Output()
 				if err != nil {
 					return nil, err
@@ -105,6 +113,7 @@ func (t *tmux) getTargetsRunningVim() ([]string, error) {
 				if err != nil {
 					return nil, err
 				}
+				// test the output against the psGrepRegexp
 				if psGrepRegexp.Match(out) {
 					targets = append(targets, fmt.Sprintf("%s:%s.%s", sessionName, windowID, paneID))
 				}
