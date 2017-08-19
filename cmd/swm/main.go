@@ -29,7 +29,14 @@ func main() {
 		},
 		Before: func(ctx *cli.Context) error {
 			// create the logger that pretty prints to the ctx.Writer
-			log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: ctx.App.Writer}).With().Timestamp().Logger()
+			log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: ctx.App.Writer}).
+				With().
+				Timestamp().
+				Str("ignore-pattern", ctx.String("ignore-pattern")).
+				Str("code-path", ctx.String("code-path")).
+				Str("profile", ctx.String("profile")).
+				Str("story", ctx.String("story")).
+				Logger()
 			// handle debug
 			if ctx.Bool("debug") {
 				log.Logger = log.Logger.Level(zerolog.DebugLevel)
