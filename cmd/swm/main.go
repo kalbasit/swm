@@ -2,13 +2,14 @@ package main
 
 import (
 	"errors"
-	"log"
 	"os"
 	"path"
 	"sort"
 	"strings"
 
 	"github.com/mdirkse/i3ipc-go"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/urfave/cli.v2"
 )
 
@@ -25,6 +26,19 @@ func main() {
 			&cli.StringFlag{Name: "code-path", Usage: "The absolute path to the code path", Value: path.Join(os.Getenv("HOME"), "code")},
 			&cli.StringFlag{Name: "ignore-pattern", Usage: "The Regex pattern to ignore", Value: "^.snapshots$"},
 			&cli.BoolFlag{Name: "debug", Usage: "enable debug mode"},
+		},
+		Before: func(ctx *cli.Context) error {
+			// handle debug
+			if ctx.Bool("debug") {
+				zerolog.SetGlobalLevel(zerolog.DebugLevel)
+			} else {
+				zerolog.SetGlobalLevel(zerolog.InfoLevel)
+			}
+			// pretty print on the console
+			log.Logger = log.Output(zerolog.ConsoleWriter{Out: ctx.App.Writer})
+			// make sure a story is set
+
+			return nil
 		},
 		Authors: []*cli.Author{
 			{
@@ -83,7 +97,7 @@ func main() {
 
 	// run the app
 	if err := app.Run(os.Args); err != nil {
-		log.Fatalf("error running the app: %s", err)
+		log.Fatal().Err(err).Msg("error occurred")
 	}
 }
 
