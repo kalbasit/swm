@@ -1,12 +1,12 @@
 package code
 
 import (
-	"log"
 	"path"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
 )
 
@@ -85,12 +85,13 @@ func (p *profile) scan() {
 	// read the profile and scan all workspaces
 	entries, err := afero.ReadDir(AppFS, path.Join(p.Path(), "stories"))
 	if err != nil {
-		log.Printf("error reading the directory %q: %s", path.Join(p.Path(), "stories"), err)
+		log.Error().Str("path", path.Join(p.Path(), "stories")).Msgf("error reading the directory: %s", err)
 		return
 	}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			// create the story
+			log.Debug().Str("profile", p.name).Msgf("found story: %s", entry.Name())
 			s := newStory(p, entry.Name())
 			// start scanning it
 			wg.Add(1)

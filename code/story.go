@@ -138,6 +138,7 @@ func (s *story) scanWorker(wg *sync.WaitGroup, out chan *project, ipath string) 
 
 	// do we have a .git folder here?
 	if _, err := AppFS.Stat(path.Join(s.projectPath(ipath), ".git")); err == nil {
+		log.Debug().Str("path", s.projectPath(ipath)).Msg("found a Git repository")
 		// return this project
 		out <- &project{
 			story:      s,
@@ -153,7 +154,7 @@ func (s *story) scanWorker(wg *sync.WaitGroup, out chan *project, ipath string) 
 		if os.IsNotExist(err) {
 			return
 		}
-		log.Fatal().Msgf("error reading the directory %q: %s", s.projectPath(ipath), err)
+		log.Fatal().Str("path", s.projectPath(ipath)).Msgf("error reading the directory: %s", err)
 	}
 	for _, entry := range entries {
 		// scan the entry if it's a directory
