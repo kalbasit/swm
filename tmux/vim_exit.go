@@ -2,10 +2,11 @@ package tmux
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -18,7 +19,7 @@ func init() {
 	var err error
 	psPath, err = exec.LookPath("ps")
 	if err != nil {
-		log.Fatalf("error looking up the ps executable, is it installed? %s", err)
+		log.Fatal().Msgf("error looking up the ps executable, is it installed? %s", err)
 	}
 }
 
@@ -65,6 +66,7 @@ func (t *tmux) getTargetsRunningVim() ([]string, error) {
 			}
 		}
 	}
+	log.Debug().Msgf("found the following sessions: %v", sessionNames)
 	// iterate over the list of sessions, and for each session iterate over the
 	// list of windows, then over the panes and check what they are running
 	for _, sessionName := range sessionNames {

@@ -1,10 +1,10 @@
 package tmux
 
 import (
-	"log"
 	"os/exec"
 
 	"github.com/kalbasit/swm/code"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -21,7 +21,7 @@ func init() {
 	var err error
 	tmuxPath, err = exec.LookPath("tmux")
 	if err != nil {
-		log.Fatalf("error looking up the tmux executable, is it installed? %s", err)
+		log.Fatal().Msgf("error looking up the tmux executable, is it installed? %s", err)
 	}
 }
 

@@ -1,13 +1,13 @@
 package code
 
 import (
-	"log"
 	"os"
 	"path"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
 )
 
@@ -153,7 +153,7 @@ func (s *story) scanWorker(wg *sync.WaitGroup, out chan *project, ipath string) 
 		if os.IsNotExist(err) {
 			return
 		}
-		log.Fatalf("error reading the directory %q: %s", s.projectPath(ipath), err)
+		log.Fatal().Msgf("error reading the directory %q: %s", s.projectPath(ipath), err)
 	}
 	for _, entry := range entries {
 		// scan the entry if it's a directory
