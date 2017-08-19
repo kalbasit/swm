@@ -27,6 +27,15 @@ func tmuxVimExit(ctx *cli.Context) error {
 	return tmuxManager.VimExit()
 }
 
+func tmuxKillServer(ctx *cli.Context) error {
+	tmuxManager, err := newTmuxManager(ctx)
+	if err != nil {
+		return err
+	}
+
+	return tmuxManager.KillServer(ctx.Bool("vim-exit"))
+}
+
 func newTmuxManager(ctx *cli.Context) (tmux.Manager, error) {
 	// parse the regex
 	ignorePattern, err := regexp.Compile(ctx.String("ignore-pattern"))
