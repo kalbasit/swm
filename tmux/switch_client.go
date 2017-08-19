@@ -12,7 +12,7 @@ import (
 )
 
 // SwitchClient switches the TMUX to a different client
-func (t *tmux) SwitchClient() error {
+func (t *tmux) SwitchClient(killPane bool) error {
 	// get all the sessions
 	sessionNameProjects, err := t.getSessionNameProjects()
 	if err != nil {
@@ -77,11 +77,11 @@ func (t *tmux) SwitchClient() error {
 	// attach the session now
 	if os.Getenv("TMUX") != "" {
 		// kill the pane once attached
-		defer func() {
-			if t.options.KillPane {
+		if killPane {
+			defer func() {
 				exec.Command(tmuxPath, "-L", t.options.Story, "kill-pane").Run()
-			}
-		}()
+			}()
+		}
 		return exec.Command(tmuxPath, "-L", project.Story().Name(), "switch-client", "-t", sessionName).Run()
 	}
 	cmd := exec.Command(tmuxPath, "-L", project.Story().Name(), "attach", "-t", sessionName)
