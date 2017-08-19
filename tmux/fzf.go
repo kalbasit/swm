@@ -11,9 +11,6 @@ import (
 var (
 	// fzfPath is the PATH to the fzf executable
 	fzfPath string
-
-	// tmuxPath is the PATH to the tmux executable
-	tmuxPath string
 )
 
 func init() {
@@ -21,10 +18,6 @@ func init() {
 	fzfPath, err = exec.LookPath("fzf")
 	if err != nil {
 		log.Fatalf("error looking up the fzf executable, is it installed? %s", err)
-	}
-	tmuxPath, err = exec.LookPath("tmux")
-	if err != nil {
-		log.Fatalf("error looking up the tmux executable, is it installed? %s", err)
 	}
 }
 

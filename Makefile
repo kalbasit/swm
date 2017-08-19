@@ -4,21 +4,22 @@
 PROJECT_PATH=github.com/kalbasit/swm
 VERSION=$(shell git describe --always HEAD)
 REQUIRED_GO_VERSION=8
+SOURCES := $(shell find . -name "*.go")
 
 all: install
 
-swm: prerequisites
+swm: $(SOURCES)
 	go build -ldflags "-X main.version=$(VERSION)" -o swm ./cmd/swm/*.go
 
-build: swm
+build: prerequisites vendor swm
 
-vendor:
+vendor: Gopkg.toml Gopkg.lock
 	dep ensure -v
 
 install: prerequisites vendor
 	go install -v -ldflags "-X main.version=$(VERSION)" ./cmd/swm
 
-test: prerequisites
+test: prerequisites vendor
 	go test -v -cover -bench=. $(shell go list ./... | grep -v /vendor/)
 
 ci: test
