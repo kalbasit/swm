@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/mdirkse/i3ipc-go"
@@ -62,6 +63,21 @@ func main() {
 				},
 			},
 		},
+	}
+
+	// sort the commands/flags
+	sort.Sort(cli.FlagsByName(app.Flags))
+	sort.Sort(cli.CommandsByName(app.Commands))
+	for _, subCmds := range app.Commands {
+		sort.Sort(cli.FlagsByName(subCmds.Flags))
+		sort.Sort(cli.CommandsByName(subCmds.Subcommands))
+		for _, subCmds := range subCmds.Subcommands {
+			sort.Sort(cli.FlagsByName(subCmds.Flags))
+			if len(subCmds.Subcommands) > 0 {
+				// TODO: refactor this to walk the tree rather than manually doing so
+				panic("another subcommand level was added, must add another loop")
+			}
+		}
 	}
 
 	// run the app
