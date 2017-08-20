@@ -37,7 +37,7 @@ func main() {
 				Str("profile", ctx.String("profile")).
 				Str("story", ctx.String("story")).
 				Logger().
-				Level(zerolog.ErrorLevel)
+				Level(zerolog.InfoLevel)
 			// handle debug
 			if ctx.Bool("debug") {
 				log.Logger = log.Logger.Level(zerolog.DebugLevel)
@@ -52,6 +52,19 @@ func main() {
 			},
 		},
 		Commands: []*cli.Command{
+			// coder for code management
+			{
+				Name: "coder",
+				Subcommands: []*cli.Command{
+					// add project
+					{
+						Name:      "add-project",
+						Usage:     "TODO",
+						Action:    coderAddProject,
+						ArgsUsage: "<url>",
+					},
+				},
+			},
 			// tmux for switch client
 			{
 				Name: "tmux",
@@ -107,7 +120,14 @@ func main() {
 }
 
 func getDefaultProfile() string {
-	p := os.Getenv("ACTIVE_PROFILE")
+	var p string
+
+	tmuxSocketPath := os.Getenv("TMUX")
+	if tmuxSocketPath != "" {
+		profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
+		p = strings.Split(profileStory, "@")[0]
+	}
+
 	if p == "" {
 		i3Workspace, err := getActiveI3WorkspaceName()
 		if err == nil && strings.Contains(i3Workspace, "@") {
@@ -123,7 +143,8 @@ func getDefaultStory() string {
 
 	tmuxSocketPath := os.Getenv("TMUX")
 	if tmuxSocketPath != "" {
-		s = strings.Split(path.Base(tmuxSocketPath), ",")[0]
+		profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
+		s = strings.Split(profileStory, "@")[1]
 	}
 	if s == "" {
 		i3Workspace, err := getActiveI3WorkspaceName()
