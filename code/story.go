@@ -112,7 +112,10 @@ func (s *story) AddProject(url string) error {
 		// the existance of the project might be due to the project existing in the
 		// Base story, so we must really check the filename
 		if _, err := AppFS.Stat(prj.Path()); err == nil {
-			log.Debug().Str("import-path", importPath).Msg(ErrProjectAlreadyExits.Error())
+			log.Debug().
+				Str("import-path", importPath).
+				Str("path", prj.Path()).
+				Msg(ErrProjectAlreadyExits.Error())
 			return ErrProjectAlreadyExits
 		}
 	}
