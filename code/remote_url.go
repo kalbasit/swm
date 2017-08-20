@@ -47,7 +47,3 @@ func parseRemoteURL(url string) *remoteURL {
 		extension:     res["extension"],
 	}
 }
-
-func (c *code) CloneRepo(url string) error {
-	return nil
-}
