@@ -119,7 +119,14 @@ func main() {
 }
 
 func getDefaultProfile() string {
-	p := os.Getenv("ACTIVE_PROFILE")
+	var p string
+
+	tmuxSocketPath := os.Getenv("TMUX")
+	if tmuxSocketPath != "" {
+		profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
+		p = strings.Split(profileStory, "@")[0]
+	}
+
 	if p == "" {
 		i3Workspace, err := getActiveI3WorkspaceName()
 		if err == nil && strings.Contains(i3Workspace, "@") {
@@ -135,7 +142,8 @@ func getDefaultStory() string {
 
 	tmuxSocketPath := os.Getenv("TMUX")
 	if tmuxSocketPath != "" {
-		s = strings.Split(path.Base(tmuxSocketPath), ",")[0]
+		profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
+		s = strings.Split(profileStory, "@")[1]
 	}
 	if s == "" {
 		i3Workspace, err := getActiveI3WorkspaceName()
