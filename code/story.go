@@ -2,6 +2,7 @@ package code
 
 import (
 	"os"
+	"os/exec"
 	"path"
 	"sync"
 	"sync/atomic"
@@ -86,6 +87,30 @@ func (s *story) Project(importPath string) (Project, error) {
 	return prj, nil
 }
 
+// AddProject clones url as the new project. Will automatically compute the
+// import path from the given URL.
+func (s *story) AddProject(url string) error {
+	// compute the import path of this URL
+	var importPath string
+	{
+		r := parseRemoteURL(url)
+		importPath = r.hostname + "/" + r.path
+		if importPath == "" {
+			return ErrInvalidURL
+		}
+	}
+	// run a git clone on the absolute path of the project
+	if err := exec.Command(gitPath, "clone", url, s.projectPath(importPath)).Run(); err != nil {
+		return err
+	}
+	// add this project to the projects
+	projects := s.getProjects()
+	projects[importPath] = newProject(s, importPath)
+	s.setProjects(projects)
+
+	return nil
+}
+
 // getProjects return the map of projects
 func (s *story) getProjects() map[string]*project {
 	return *(*map[string]*project)(atomic.LoadPointer(&s.projects))
@@ -165,6 +190,6 @@ func (s *story) scanWorker(wg *sync.WaitGroup, out chan *project, ipath string) 
 	}
 }
 
-func (s *story) projectPath(ipath string) string {
-	return path.Join(s.GoPath(), srcDir, ipath)
+func (s *story) projectPath(importPath string) string {
+	return path.Join(s.GoPath(), srcDir, importPath)
 }

@@ -25,6 +25,9 @@ var (
 	// ErrProjectNotFound is returned if the session name did not yield a project
 	// we know about
 	ErrProjectNotFound = errors.New("project not found")
+
+	// ErrInvalidURL is returned by AddProject if the URL given is not valid
+	ErrInvalidURL = errors.New("invalid URL given")
 )
 
 func init() {

@@ -52,6 +52,18 @@ func main() {
 			},
 		},
 		Commands: []*cli.Command{
+			// coder for code management
+			{
+				Name: "coder",
+				Subcommands: []*cli.Command{
+					// add project
+					{
+						Name:   "add-project",
+						Usage:  "TODO",
+						Action: coderAddProject,
+					},
+				},
+			},
 			// tmux for switch client
 			{
 				Name: "tmux",

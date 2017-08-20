@@ -76,6 +76,10 @@ type Story interface {
 	// Ensure() on the project to make sure it exists (as a worktree) before
 	// using it.
 	Project(importPath string) (Project, error)
+
+	// AddProject clones url as the new project. Will automatically compute the
+	// import path from the given URL.
+	AddProject(url string) error
 }
 
 // Project defines the project interface
