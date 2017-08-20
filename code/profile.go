@@ -71,33 +71,68 @@ func (p *profile) setStories(stories map[string]*story) {
 }
 
 // addStory adds the story to the list of stories
-func (p *profile) addStory(s *story) error {
-	if _, ok := p.getStories()[s.name]; ok {
-		return ErrStoryAlreadyExists
+func (p *profile) addStory(name string) (*story, error) {
+	if s, ok := p.getStories()[name]; ok {
+		return s, ErrStoryAlreadyExists
 	}
+	s := newStory(p, name)
 	for {
 		storiesPtr := atomic.LoadPointer(&p.stories)
 		stories := *(*map[string]*story)(storiesPtr)
-		stories[s.name] = s
+		stories[name] = s
 		if atomic.CompareAndSwapPointer(&p.stories, storiesPtr, unsafe.Pointer(&stories)) {
-			break
+			return s, nil
+		}
+	}
+}
+
+func (p *profile) scan() {
+	// initialize the variables
+	var wg sync.WaitGroup
+	out := make(chan string, 1000)
+	// start the workers
+	wg.Add(1)
+	go p.scanWorker(&wg, out)
+	// start the reducer
+	reducerQuit := make(chan struct{})
+	go p.scanReducer(&wg, out, reducerQuit)
+	// wait for the workers to return
+	wg.Wait()
+	// ask the reducer to die
+	close(out)
+	<-reducerQuit
+}
+
+func (p *profile) scanReducer(wg *sync.WaitGroup, out chan string, quit chan struct{}) {
+	// iterate over the channel
+	for {
+		select {
+		case name, ok := <-out:
+			if !ok {
+				close(quit)
+				return
+			}
+			s, err := p.addStory(name)
+			if err != nil && err != ErrStoryAlreadyExists {
+				log.Error().Err(err).Str("story-name", name).Msg("error occurred adding the story")
+				continue
+			}
+			if s != nil {
+				wg.Add(1)
+				go func() {
+					s.scan()
+					wg.Done()
+				}()
+			}
 		}
 	}
 }
 
 // scan scans the entire profile to build the workspaces
-func (p *profile) scan() {
-	// initialize the variables
-	var wg sync.WaitGroup
-	stories := make(map[string]*story)
+func (p *profile) scanWorker(wg *sync.WaitGroup, out chan string) {
 	// create the base story
-	stories[baseStoryName] = newStory(p, baseStoryName)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		stories[baseStoryName].scan()
-	}()
-	// read the profile and scan all workspaces
+	out <- baseStoryName
+	// read the profile and scan all stories
 	entries, err := afero.ReadDir(AppFS, path.Join(p.Path(), "stories"))
 	if err != nil {
 		log.Error().Str("path", path.Join(p.Path(), "stories")).Msgf("error reading the directory: %s", err)
@@ -107,19 +142,7 @@ func (p *profile) scan() {
 		if entry.IsDir() {
 			// create the story
 			log.Debug().Str("profile", p.name).Msgf("found story: %s", entry.Name())
-			s := newStory(p, entry.Name())
-			// start scanning it
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				s.scan()
-			}()
-			// add it to the profile
-			stories[entry.Name()] = s
+			out <- entry.Name()
 		}
 	}
-	wg.Wait()
-
-	// set the stories to p now
-	p.setStories(stories)
 }

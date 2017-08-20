@@ -29,8 +29,8 @@ var (
 	// ErrInvalidURL is returned by AddProject if the URL given is not valid
 	ErrInvalidURL = errors.New("invalid URL given")
 
-	// ErrStoryAlreadyExits is returned if the story already exits
-	ErrStoryAlreadyExits = errors.New("story already exits")
+	// ErrStoryAlreadyExists is returned if the story already exits
+	ErrStoryAlreadyExists = errors.New("story already exits")
 
 	// ErrProjectAlreadyExits is returned if the project already exits
 	ErrProjectAlreadyExits = errors.New("project already exits")
