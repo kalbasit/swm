@@ -20,7 +20,7 @@ install: prerequisites vendor
 	go install -v -ldflags "-X main.version=$(VERSION)" ./cmd/swm
 
 test: prerequisites vendor
-	go test -v -race -cover -bench=. $(shell go list ./... | grep -v /vendor/)
+	go test -v -cover -bench=. $(shell go list ./... | grep -v /vendor/)
 
 ci: test
 
