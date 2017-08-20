@@ -97,18 +97,21 @@ func (s *story) AddProject(url string) error {
 		importPath = r.hostname + "/" + r.path
 		if importPath == "" {
 			log.Error().
-				Str("importPath", importPath).
-				Interface("remoteURL", r).
+				Str("import-path", importPath).
+				Interface("remote-url", r).
 				Msg("parsing failed")
 			return ErrInvalidURL
 		}
 		log.Debug().
-			Str("importPath", importPath).
-			Interface("remoteURL", r).
+			Str("import-path", importPath).
+			Interface("remote-url", r).
 			Msg("parsing succeded")
 	}
 	// run a git clone on the absolute path of the project
-	if err := exec.Command(gitPath, "clone", url, s.projectPath(importPath)).Run(); err != nil {
+	cmd := exec.Command(gitPath, "clone", url, s.projectPath(importPath))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
 		return err
 	}
 	// add this project to the projects

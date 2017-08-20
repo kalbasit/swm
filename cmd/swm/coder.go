@@ -4,6 +4,7 @@ import (
 	"regexp"
 
 	"github.com/kalbasit/swm/code"
+	"github.com/rs/zerolog/log"
 	cli "gopkg.in/urfave/cli.v2"
 )
 
@@ -13,9 +14,13 @@ func coderAddProject(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := c.Scan(); err != nil {
+		return err
+	}
 	// get the profile
 	profile, err := c.Profile(ctx.String("profile"))
 	if err != nil {
+		log.Debug().Str("profile", ctx.String("profile")).Msg("profile not found")
 		return err
 	}
 	// get the story
