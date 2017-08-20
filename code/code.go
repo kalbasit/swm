@@ -103,11 +103,6 @@ func (c *code) getProfiles() map[string]*profile {
 	return *(*map[string]*profile)(atomic.LoadPointer(&c.profiles))
 }
 
-// setProfiles sets the map of profiles
-func (c *code) setProfiles(profiles map[string]*profile) {
-	atomic.StorePointer(&c.profiles, unsafe.Pointer(&profiles))
-}
-
 // addProfile adds the profile to the list of profiles
 func (c *code) addProfile(name string) *profile {
 	if p, ok := c.getProfiles()[name]; ok {

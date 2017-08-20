@@ -51,10 +51,7 @@ func (p *profile) Story(name string) Story {
 	// fetch the story out
 	s, ok := stories[name]
 	if !ok {
-		// no story found, create one
-		s = newStory(p, name)
-		stories[name] = s
-		p.setStories(stories)
+		return p.addStory(name)
 	}
 
 	return s
@@ -63,11 +60,6 @@ func (p *profile) Story(name string) Story {
 // getStories return the map of stories
 func (p *profile) getStories() map[string]*story {
 	return *(*map[string]*story)(atomic.LoadPointer(&p.stories))
-}
-
-// setStories sets the map of stories
-func (p *profile) setStories(stories map[string]*story) {
-	atomic.StorePointer(&p.stories, unsafe.Pointer(&stories))
 }
 
 // addStory adds the story to the list of stories

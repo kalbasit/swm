@@ -147,11 +147,6 @@ func (s *story) getProjects() map[string]*project {
 	return *(*map[string]*project)(atomic.LoadPointer(&s.projects))
 }
 
-// setProjects sets the map of projects
-func (s *story) setProjects(projects map[string]*project) {
-	atomic.StorePointer(&s.projects, unsafe.Pointer(&projects))
-}
-
 // addProject add the project by the import path
 func (s *story) addProject(importPath string) {
 	for {

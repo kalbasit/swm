@@ -31,19 +31,13 @@ func TestCodeScan(t *testing.T) {
 	assertFn := func() {
 		// create the expected structs
 		p := newProfile(c.(*code), t.Name())
-		p.setStories(map[string]*story{
-			"base":      newStory(p, "base"),
-			"STORY-123": newStory(p, "STORY-123"),
-		})
-		p.getStories()["base"].setProjects(map[string]*project{
-			"github.com/kalbasit/swm":      newProject(p.getStories()["base"], "github.com/kalbasit/swm"),
-			"github.com/kalbasit/dotfiles": newProject(p.getStories()["base"], "github.com/kalbasit/dotfiles"),
-			"github.com/kalbasit/workflow": newProject(p.getStories()["base"], "github.com/kalbasit/workflow"),
-		})
-		p.getStories()["STORY-123"].setProjects(map[string]*project{
-			"github.com/kalbasit/swm":      newProject(p.getStories()["STORY-123"], "github.com/kalbasit/swm"),
-			"github.com/kalbasit/dotfiles": newProject(p.getStories()["STORY-123"], "github.com/kalbasit/dotfiles"),
-		})
+		s := p.addStory(baseStoryName)
+		s.addProject("github.com/kalbasit/swm")
+		s.addProject("github.com/kalbasit/dotfiles")
+		s.addProject("github.com/kalbasit/workflow")
+		s = p.addStory("STORY-123")
+		s.addProject("github.com/kalbasit/swm")
+		s.addProject("github.com/kalbasit/dotfiles")
 		expected := map[string]*profile{t.Name(): p}
 
 		// get the profile
@@ -79,20 +73,15 @@ func TestCodeProfile(t *testing.T) {
 	// define the assertion function
 	assertFn := func(pTest *profile) {
 		// create the expected structs
+		// create the expected structs
 		p := newProfile(c.(*code), t.Name())
-		p.setStories(map[string]*story{
-			"base":      newStory(p, "base"),
-			"STORY-123": newStory(p, "STORY-123"),
-		})
-		p.getStories()["base"].setProjects(map[string]*project{
-			"github.com/kalbasit/swm":      newProject(p.getStories()["base"], "github.com/kalbasit/swm"),
-			"github.com/kalbasit/dotfiles": newProject(p.getStories()["base"], "github.com/kalbasit/dotfiles"),
-			"github.com/kalbasit/workflow": newProject(p.getStories()["base"], "github.com/kalbasit/workflow"),
-		})
-		p.getStories()["STORY-123"].setProjects(map[string]*project{
-			"github.com/kalbasit/swm":      newProject(p.getStories()["STORY-123"], "github.com/kalbasit/swm"),
-			"github.com/kalbasit/dotfiles": newProject(p.getStories()["STORY-123"], "github.com/kalbasit/dotfiles"),
-		})
+		s := p.addStory(baseStoryName)
+		s.addProject("github.com/kalbasit/swm")
+		s.addProject("github.com/kalbasit/dotfiles")
+		s.addProject("github.com/kalbasit/workflow")
+		s = p.addStory("STORY-123")
+		s.addProject("github.com/kalbasit/swm")
+		s.addProject("github.com/kalbasit/dotfiles")
 		expected := map[string]*profile{t.Name(): p}
 
 		// assert the base story
