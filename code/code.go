@@ -54,7 +54,7 @@ type code struct {
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
-func New(p string, ignore *regexp.Regexp) *code {
+func New(p string, ignore *regexp.Regexp) Coder {
 	profiles := make(map[string]*profile)
 	return &code{
 		path:           p,

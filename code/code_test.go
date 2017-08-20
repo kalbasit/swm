@@ -30,7 +30,7 @@ func TestCodeScan(t *testing.T) {
 	// define the assertion function
 	assertFn := func() {
 		// create the expected structs
-		p := newProfile(c, t.Name())
+		p := newProfile(c.(*code), t.Name())
 		p.setStories(map[string]*story{
 			"base":      newStory(p, "base"),
 			"STORY-123": newStory(p, "STORY-123"),
@@ -46,18 +46,21 @@ func TestCodeScan(t *testing.T) {
 		})
 		expected := map[string]*profile{t.Name(): p}
 
+		// get the profile
+		profile := c.(*code).getProfiles()[t.Name()]
+
 		// assert the base story
-		assert.Equal(t, expected[t.Name()].getStories()["base"].name, c.getProfiles()[t.Name()].getStories()["base"].name)
-		assert.Equal(t, expected[t.Name()].getStories()["base"].profile.name, c.getProfiles()[t.Name()].getStories()["base"].profile.name)
-		assert.Equal(t, expected[t.Name()].getStories()["base"].getProjects()["github.com/kalbasit/swm"].importPath, c.getProfiles()[t.Name()].getStories()["base"].getProjects()["github.com/kalbasit/swm"].importPath)
-		assert.Equal(t, expected[t.Name()].getStories()["base"].getProjects()["github.com/kalbasit/dotfiles"].importPath, c.getProfiles()[t.Name()].getStories()["base"].getProjects()["github.com/kalbasit/dotfiles"].importPath)
-		assert.Equal(t, expected[t.Name()].getStories()["base"].getProjects()["github.com/kalbasit/workflow"].importPath, c.getProfiles()[t.Name()].getStories()["base"].getProjects()["github.com/kalbasit/workflow"].importPath)
+		assert.Equal(t, expected[t.Name()].getStories()["base"].name, profile.getStories()["base"].name)
+		assert.Equal(t, expected[t.Name()].getStories()["base"].profile.name, profile.getStories()["base"].profile.name)
+		assert.Equal(t, expected[t.Name()].getStories()["base"].getProjects()["github.com/kalbasit/swm"].importPath, profile.getStories()["base"].getProjects()["github.com/kalbasit/swm"].importPath)
+		assert.Equal(t, expected[t.Name()].getStories()["base"].getProjects()["github.com/kalbasit/dotfiles"].importPath, profile.getStories()["base"].getProjects()["github.com/kalbasit/dotfiles"].importPath)
+		assert.Equal(t, expected[t.Name()].getStories()["base"].getProjects()["github.com/kalbasit/workflow"].importPath, profile.getStories()["base"].getProjects()["github.com/kalbasit/workflow"].importPath)
 
 		// assert the STORY-123 story
-		assert.Equal(t, expected[t.Name()].getStories()["STORY-123"].name, c.getProfiles()[t.Name()].getStories()["STORY-123"].name)
-		assert.Equal(t, expected[t.Name()].getStories()["STORY-123"].profile.name, c.getProfiles()[t.Name()].getStories()["STORY-123"].profile.name)
-		assert.Equal(t, expected[t.Name()].getStories()["STORY-123"].getProjects()["github.com/kalbasit/dotfiles"].importPath, c.getProfiles()[t.Name()].getStories()["STORY-123"].getProjects()["github.com/kalbasit/dotfiles"].importPath)
-		assert.Equal(t, expected[t.Name()].getStories()["STORY-123"].getProjects()["github.com/kalbasit/swm"].importPath, c.getProfiles()[t.Name()].getStories()["STORY-123"].getProjects()["github.com/kalbasit/swm"].importPath)
+		assert.Equal(t, expected[t.Name()].getStories()["STORY-123"].name, profile.getStories()["STORY-123"].name)
+		assert.Equal(t, expected[t.Name()].getStories()["STORY-123"].profile.name, profile.getStories()["STORY-123"].profile.name)
+		assert.Equal(t, expected[t.Name()].getStories()["STORY-123"].getProjects()["github.com/kalbasit/dotfiles"].importPath, profile.getStories()["STORY-123"].getProjects()["github.com/kalbasit/dotfiles"].importPath)
+		assert.Equal(t, expected[t.Name()].getStories()["STORY-123"].getProjects()["github.com/kalbasit/swm"].importPath, profile.getStories()["STORY-123"].getProjects()["github.com/kalbasit/swm"].importPath)
 	}
 	// scan now
 	require.NoError(t, c.Scan())
@@ -76,7 +79,7 @@ func TestCodeProfile(t *testing.T) {
 	// define the assertion function
 	assertFn := func(pTest *profile) {
 		// create the expected structs
-		p := newProfile(c, t.Name())
+		p := newProfile(c.(*code), t.Name())
 		p.setStories(map[string]*story{
 			"base":      newStory(p, "base"),
 			"STORY-123": newStory(p, "STORY-123"),
