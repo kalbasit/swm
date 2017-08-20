@@ -70,6 +70,21 @@ func (p *profile) setStories(stories map[string]*story) {
 	atomic.StorePointer(&p.stories, unsafe.Pointer(&stories))
 }
 
+// addStory adds the story to the list of stories
+func (p *profile) addStory(s *story) error {
+	if _, ok := p.getStories()[s.name]; ok {
+		return ErrStoryAlreadyExists
+	}
+	for {
+		storiesPtr := atomic.LoadPointer(&p.stories)
+		stories := *(*map[string]*story)(storiesPtr)
+		stories[s.name] = s
+		if atomic.CompareAndSwapPointer(&p.stories, storiesPtr, unsafe.Pointer(&stories)) {
+			break
+		}
+	}
+}
+
 // scan scans the entire profile to build the workspaces
 func (p *profile) scan() {
 	// initialize the variables

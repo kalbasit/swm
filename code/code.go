@@ -29,7 +29,10 @@ var (
 	// ErrInvalidURL is returned by AddProject if the URL given is not valid
 	ErrInvalidURL = errors.New("invalid URL given")
 
-	// ErrProjectAlreadyExits is returned by AddProject if the project already exits
+	// ErrStoryAlreadyExits is returned if the story already exits
+	ErrStoryAlreadyExits = errors.New("story already exits")
+
+	// ErrProjectAlreadyExits is returned if the project already exits
 	ErrProjectAlreadyExits = errors.New("project already exits")
 
 	// ErrCoderNotScanned is returned if San() was never called
