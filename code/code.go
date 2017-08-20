@@ -28,6 +28,9 @@ var (
 
 	// ErrInvalidURL is returned by AddProject if the URL given is not valid
 	ErrInvalidURL = errors.New("invalid URL given")
+
+	// ErrProjectAlreadyExits is returned by AddProject if the project already exits
+	ErrProjectAlreadyExits = errors.New("project already exits")
 )
 
 func init() {
