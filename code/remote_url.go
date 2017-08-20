@@ -26,6 +26,9 @@ func (r *remoteURL) String() string {
 		res += r.username + "@"
 	}
 	res += r.hostname + r.pathSeparator + r.path
+	if r.extension != "" {
+		res += r.extension
+	}
 
 	return res
 }

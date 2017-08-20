@@ -113,3 +113,24 @@ func TestParseRemoteURL(t *testing.T) {
 		assert.Equal(t, expected, parseRemoteURL(url))
 	}
 }
+
+func TestRemoteURLString(t *testing.T) {
+	tests := []string{
+		"git@github.com:kalbasit/swm.git",
+		"git@github.com:kalbasit/swm",
+		"http://git@github.com/kalbasit/swm.git",
+		"http://git@github.com/kalbasit/swm",
+		"https://git@github.com/kalbasit/swm.git",
+		"https://git@github.com/kalbasit/swm",
+		"http://github.com/kalbasit/swm.git",
+		"http://github.com/kalbasit/swm",
+		"https://github.com/kalbasit/swm.git",
+		"https://github.com/kalbasit/swm",
+		"ssh://git@github.com/kalbasit/swm.git",
+		"ssh://git@github.com/kalbasit/swm",
+	}
+
+	for _, url := range tests {
+		assert.Equal(t, url, parseRemoteURL(url).String())
+	}
+}
