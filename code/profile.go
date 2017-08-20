@@ -51,10 +51,7 @@ func (p *profile) Story(name string) Story {
 	// fetch the story out
 	s, ok := stories[name]
 	if !ok {
-		// no story found, create one
-		s = newStory(p, name)
-		stories[name] = s
-		p.setStories(stories)
+		return p.addStory(name)
 	}
 
 	return s
@@ -65,24 +62,34 @@ func (p *profile) getStories() map[string]*story {
 	return *(*map[string]*story)(atomic.LoadPointer(&p.stories))
 }
 
-// setStories sets the map of stories
-func (p *profile) setStories(stories map[string]*story) {
-	atomic.StorePointer(&p.stories, unsafe.Pointer(&stories))
+// addStory adds the story to the list of stories
+func (p *profile) addStory(name string) *story {
+	if s, ok := p.getStories()[name]; ok {
+		return s
+	}
+	s := newStory(p, name)
+	for {
+		storiesPtr := atomic.LoadPointer(&p.stories)
+		stories := *(*map[string]*story)(storiesPtr)
+		stories[name] = s
+		if atomic.CompareAndSwapPointer(&p.stories, storiesPtr, unsafe.Pointer(&stories)) {
+			return s
+		}
+	}
 }
 
 // scan scans the entire profile to build the workspaces
 func (p *profile) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
-	stories := make(map[string]*story)
-	// create the base story
-	stories[baseStoryName] = newStory(p, baseStoryName)
+	// add the base story
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		stories[baseStoryName].scan()
+		s := p.addStory(baseStoryName)
+		s.scan()
+		wg.Done()
 	}()
-	// read the profile and scan all workspaces
+	// read the profile and scan all stories
 	entries, err := afero.ReadDir(AppFS, path.Join(p.Path(), "stories"))
 	if err != nil {
 		log.Error().Str("path", path.Join(p.Path(), "stories")).Msgf("error reading the directory: %s", err)
@@ -92,19 +99,14 @@ func (p *profile) scan() {
 		if entry.IsDir() {
 			// create the story
 			log.Debug().Str("profile", p.name).Msgf("found story: %s", entry.Name())
-			s := newStory(p, entry.Name())
-			// start scanning it
 			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			go func(name string) {
+				s := p.addStory(name)
 				s.scan()
-			}()
-			// add it to the profile
-			stories[entry.Name()] = s
+				wg.Done()
+			}(entry.Name())
 		}
 	}
-	wg.Wait()
 
-	// set the stories to p now
-	p.setStories(stories)
+	wg.Wait()
 }
