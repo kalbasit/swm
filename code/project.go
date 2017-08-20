@@ -2,10 +2,11 @@ package code
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/rs/zerolog/log"
 )
 
 const srcDir = "src"
@@ -25,7 +26,7 @@ func init() {
 	var err error
 	gitPath, err = exec.LookPath("git")
 	if err != nil {
-		log.Fatalf("error looking up the git executable, is it installed? %s", err)
+		log.Fatal().Msgf("error looking up the git executable, is it installed? %s", err)
 	}
 }
 

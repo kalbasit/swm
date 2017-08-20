@@ -2,10 +2,11 @@ package tmux
 
 import (
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -17,7 +18,7 @@ func init() {
 	var err error
 	fzfPath, err = exec.LookPath("fzf")
 	if err != nil {
-		log.Fatalf("error looking up the fzf executable, is it installed? %s", err)
+		log.Fatal().Msgf("error looking up the fzf executable, is it installed? %s", err)
 	}
 }
 
