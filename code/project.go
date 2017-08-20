@@ -61,6 +61,10 @@ func (p *project) Ensure() error {
 		if err != nil {
 			return fmt.Errorf("error creating a new worktree: %s\nOutput:\n%s", err, string(out))
 		}
+		// add this project to the projects of the story above
+		projects := p.story.getProjects()
+		projects[p.importPath] = newProject(p.story, p.importPath)
+		p.story.setProjects(projects)
 	}
 
 	return nil
