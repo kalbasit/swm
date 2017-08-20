@@ -127,16 +127,10 @@ func (s *story) AddProject(url string) error {
 		return err
 	}
 	// add this project to the projects
-	s.addProject(importPath)
-
-	// get the project
-	prj, err := s.Project(importPath)
-	if err != nil {
-		return err
-	}
+	p := s.addProject(importPath)
 	log.Info().
 		Str("import-path", importPath).
-		Str("path", prj.Path()).
+		Str("path", p.Path()).
 		Msg("project successfully cloned")
 
 	return nil
@@ -148,13 +142,17 @@ func (s *story) getProjects() map[string]*project {
 }
 
 // addProject add the project by the import path
-func (s *story) addProject(importPath string) {
+func (s *story) addProject(importPath string) *project {
+	if p, ok := s.getProjects()[importPath]; ok {
+		return p
+	}
+	p := newProject(s, importPath)
 	for {
 		projectsPtr := atomic.LoadPointer(&s.projects)
 		projects := *(*map[string]*project)(projectsPtr)
-		projects[importPath] = newProject(s, importPath)
+		projects[importPath] = p
 		if atomic.CompareAndSwapPointer(&s.projects, projectsPtr, unsafe.Pointer(&projects)) {
-			break
+			return p
 		}
 	}
 }

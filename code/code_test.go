@@ -73,7 +73,6 @@ func TestCodeProfile(t *testing.T) {
 	// define the assertion function
 	assertFn := func(pTest *profile) {
 		// create the expected structs
-		// create the expected structs
 		p := newProfile(c.(*code), t.Name())
 		s := p.addStory(baseStoryName)
 		s.addProject("github.com/kalbasit/swm")
