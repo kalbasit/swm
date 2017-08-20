@@ -108,9 +108,13 @@ func (s *story) AddProject(url string) error {
 			Msg("parsing succeded")
 	}
 	// validate we don't have it already
-	if _, err := s.Project(importPath); err == nil {
-		log.Debug().Str("import-path", importPath).Msg(ErrProjectAlreadyExits.Error())
-		return ErrProjectAlreadyExits
+	if prj, err := s.Project(importPath); err == nil {
+		// the existance of the project might be due to the project existing in the
+		// Base story, so we must really check the filename
+		if _, err := AppFS.Stat(prj.Path()); err == nil {
+			log.Debug().Str("import-path", importPath).Msg(ErrProjectAlreadyExits.Error())
+			return ErrProjectAlreadyExits
+		}
 	}
 	// run a git clone on the absolute path of the project
 	cmd := exec.Command(gitPath, "clone", url, s.projectPath(importPath))
@@ -124,7 +128,10 @@ func (s *story) AddProject(url string) error {
 	projects[importPath] = newProject(s, importPath)
 	s.setProjects(projects)
 
-	log.Info().Str("importPath", importPath).Msgf("cloned at %s", projects[importPath].Path())
+	log.Info().
+		Str("import-path", importPath).
+		Str("path", projects[importPath].Path()).
+		Msg("project successfully cloned")
 
 	return nil
 }
