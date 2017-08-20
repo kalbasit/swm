@@ -31,6 +31,9 @@ var (
 
 	// ErrProjectAlreadyExits is returned by AddProject if the project already exits
 	ErrProjectAlreadyExits = errors.New("project already exits")
+
+	// ErrCoderNotScanned is returned if San() was never called
+	ErrCoderNotScanned = errors.New("code was not scanned")
 )
 
 func init() {
@@ -51,7 +54,7 @@ type code struct {
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
-func New(p string, ignore *regexp.Regexp) *code {
+func New(p string, ignore *regexp.Regexp) Coder {
 	profiles := make(map[string]*profile)
 	return &code{
 		path:           p,
@@ -66,7 +69,14 @@ func (c *code) Path() string { return c.path }
 // Profile returns the profile given it's name or an error if no profile with
 // this name was found
 func (c *code) Profile(name string) (Profile, error) {
-	p, ok := c.getProfiles()[name]
+	// get the profiles
+	ps := c.getProfiles()
+	// make sure we scanned already
+	if len(ps) == 0 {
+		return nil, ErrCoderNotScanned
+	}
+	// get the profile
+	p, ok := ps[name]
 	if !ok {
 		return nil, ErrProfileNoFound
 	}
