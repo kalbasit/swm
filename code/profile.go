@@ -71,9 +71,9 @@ func (p *profile) setStories(stories map[string]*story) {
 }
 
 // addStory adds the story to the list of stories
-func (p *profile) addStory(name string) (*story, error) {
+func (p *profile) addStory(name string) *story {
 	if s, ok := p.getStories()[name]; ok {
-		return s, ErrStoryAlreadyExists
+		return s
 	}
 	s := newStory(p, name)
 	for {
@@ -81,57 +81,22 @@ func (p *profile) addStory(name string) (*story, error) {
 		stories := *(*map[string]*story)(storiesPtr)
 		stories[name] = s
 		if atomic.CompareAndSwapPointer(&p.stories, storiesPtr, unsafe.Pointer(&stories)) {
-			return s, nil
-		}
-	}
-}
-
-func (p *profile) scan() {
-	// initialize the variables
-	var wg sync.WaitGroup
-	out := make(chan string, 1000)
-	// start the workers
-	wg.Add(1)
-	go p.scanWorker(&wg, out)
-	// start the reducer
-	reducerQuit := make(chan struct{})
-	go p.scanReducer(&wg, out, reducerQuit)
-	// wait for the workers to return
-	wg.Wait()
-	// ask the reducer to die
-	close(out)
-	<-reducerQuit
-}
-
-func (p *profile) scanReducer(wg *sync.WaitGroup, out chan string, quit chan struct{}) {
-	// iterate over the channel
-	for {
-		select {
-		case name, ok := <-out:
-			if !ok {
-				close(quit)
-				return
-			}
-			s, err := p.addStory(name)
-			if err != nil && err != ErrStoryAlreadyExists {
-				log.Error().Err(err).Str("story-name", name).Msg("error occurred adding the story")
-				continue
-			}
-			if s != nil {
-				wg.Add(1)
-				go func() {
-					s.scan()
-					wg.Done()
-				}()
-			}
+			return s
 		}
 	}
 }
 
 // scan scans the entire profile to build the workspaces
-func (p *profile) scanWorker(wg *sync.WaitGroup, out chan string) {
-	// create the base story
-	out <- baseStoryName
+func (p *profile) scan() {
+	// initialize the variables
+	var wg sync.WaitGroup
+	// add the base story
+	wg.Add(1)
+	go func() {
+		s := p.addStory(baseStoryName)
+		s.scan()
+		wg.Done()
+	}()
 	// read the profile and scan all stories
 	entries, err := afero.ReadDir(AppFS, path.Join(p.Path(), "stories"))
 	if err != nil {
@@ -142,7 +107,14 @@ func (p *profile) scanWorker(wg *sync.WaitGroup, out chan string) {
 		if entry.IsDir() {
 			// create the story
 			log.Debug().Str("profile", p.name).Msgf("found story: %s", entry.Name())
-			out <- entry.Name()
+			wg.Add(1)
+			go func(name string) {
+				s := p.addStory(name)
+				s.scan()
+				wg.Done()
+			}(entry.Name())
 		}
 	}
+
+	wg.Wait()
 }
