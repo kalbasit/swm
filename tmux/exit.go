@@ -18,5 +18,5 @@ func (t *tmux) KillServer(closeVim bool) error {
 		}
 	}
 
-	return exec.Command(tmuxPath, "-L", t.options.Story, "kill-server").Run()
+	return exec.Command(tmuxPath, "-L", t.socketName(), "kill-server").Run()
 }

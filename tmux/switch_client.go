@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/kalbasit/swm/code"
@@ -38,19 +39,19 @@ func (t *tmux) SwitchClient(killPane bool) error {
 		return err
 	}
 	// run tmux has-session -t sessionName to check if session already exists
-	if err := exec.Command(tmuxPath, "-L", project.Story().Name(), "has-session", "-t", sessionName).Run(); err != nil {
+	if err := exec.Command(tmuxPath, "-L", t.socketName(), "has-session", "-t", sessionName).Run(); err != nil {
 		// session does not exist, we should start it
 		for _, args := range [][]string{
 			// start the session
-			{"-L", project.Story().Name(), "new-session", "-d", "-s", sessionName},
+			{"-L", t.socketName(), "new-session", "-d", "-s", sessionName},
 			// set the active profile
-			{"-L", project.Story().Name(), "set-environment", "-t", sessionName, "ACTIVE_PROFILE", project.Story().Profile().Name()},
+			{"-L", t.socketName(), "set-environment", "-t", sessionName, "ACTIVE_PROFILE", project.Story().Profile().Name()},
 			// set the new GOPATH
-			{"-L", project.Story().Name(), "set-environment", "-t", sessionName, "GOPATH", project.Story().GoPath()},
+			{"-L", t.socketName(), "set-environment", "-t", sessionName, "GOPATH", project.Story().GoPath()},
 			// start a new shell on window 1
-			{"-L", project.Story().Name(), "new-window", "-t", sessionName + ":1"},
+			{"-L", t.socketName(), "new-window", "-t", sessionName + ":1"},
 			// start vim in the first window
-			{"-L", project.Story().Name(), "send-keys", "-t", sessionName + ":0", "clear; vim", "Enter"},
+			{"-L", t.socketName(), "send-keys", "-t", sessionName + ":0", "clear; vim", "Enter"},
 		} {
 			cmd := exec.Command(tmuxPath, args...)
 			cmd.Dir = project.Path()
@@ -75,16 +76,16 @@ func (t *tmux) SwitchClient(killPane bool) error {
 		}
 	}
 	// attach the session now
-	if os.Getenv("TMUX") != "" {
+	if tmuxSocketPath := os.Getenv("TMUX"); tmuxSocketPath != "" {
 		// kill the pane once attached
 		if killPane {
 			defer func() {
-				exec.Command(tmuxPath, "-L", t.options.Story, "kill-pane").Run()
+				exec.Command(tmuxPath, "-L", strings.Split(path.Base(tmuxSocketPath), ",")[0], "kill-pane").Run()
 			}()
 		}
-		return exec.Command(tmuxPath, "-L", project.Story().Name(), "switch-client", "-t", sessionName).Run()
+		return exec.Command(tmuxPath, "-L", t.socketName(), "switch-client", "-t", sessionName).Run()
 	}
-	cmd := exec.Command(tmuxPath, "-L", project.Story().Name(), "attach", "-t", sessionName)
+	cmd := exec.Command(tmuxPath, "-L", t.socketName(), "attach", "-t", sessionName)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

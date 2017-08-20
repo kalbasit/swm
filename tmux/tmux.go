@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"fmt"
 	"os/exec"
 
 	"github.com/kalbasit/swm/code"
@@ -41,6 +42,9 @@ type Options struct {
 
 // tmux implements the Manager interface
 type tmux struct{ options *Options }
+
+// socketName returns the session name
+func (t *tmux) socketName() string { return fmt.Sprintf("%s@%s", t.options.Profile, t.options.Story) }
 
 // New returns a new tmux manager
 func New(opts *Options) Manager {
