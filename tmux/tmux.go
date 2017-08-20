@@ -44,13 +44,7 @@ type Options struct {
 type tmux struct{ options *Options }
 
 // socketName returns the session name
-func (t *tmux) socketName(story string) string {
-	return fmt.Sprintf("%s@%s", t.options.Profile, t.options.Story)
-}
-
-func (t *tmux) projectSocketName(prj code.Project) string {
-	return fmt.Sprintf("%s@%s", prj.Story().Profile().Name(), prj.Story().Name())
-}
+func (t *tmux) socketName() string { return fmt.Sprintf("%s@%s", t.options.Profile, t.options.Story) }
 
 // New returns a new tmux manager
 func New(opts *Options) Manager {

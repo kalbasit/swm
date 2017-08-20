@@ -37,12 +37,12 @@ func (t *tmux) VimExit() error {
 		// its action.
 		// Credit: https://gist.github.com/debugish/2773454
 		for i := 0; i < 25; i++ {
-			if err := exec.Command(tmuxPath, "-L", t.options.Story, "send-keys", "-t", target, "C-[").Run(); err != nil {
+			if err := exec.Command(tmuxPath, "-L", t.socketName(), "send-keys", "-t", target, "C-[").Run(); err != nil {
 				return err
 			}
 		}
 		// ask Vim to exit
-		if err := exec.Command(tmuxPath, "-L", t.options.Story, "send-keys", "-t", target, ":", "x", "a", "C-m").Run(); err != nil {
+		if err := exec.Command(tmuxPath, "-L", t.socketName(), "send-keys", "-t", target, ":", "x", "a", "C-m").Run(); err != nil {
 			return err
 		}
 	}
@@ -56,7 +56,7 @@ func (t *tmux) getTargetsRunningVim() ([]string, error) {
 	// get the list of sessions
 	var sessionNames []string
 	{
-		cmd := exec.Command(tmuxPath, "-L", t.options.Story, "list-sessions", "-F", "#{session_name}")
+		cmd := exec.Command(tmuxPath, "-L", t.socketName(), "list-sessions", "-F", "#{session_name}")
 		out, err := cmd.Output()
 		if err != nil {
 			return nil, err
@@ -74,7 +74,7 @@ func (t *tmux) getTargetsRunningVim() ([]string, error) {
 		// get the list of windows for this session
 		var windowIDs []string
 		{
-			cmd := exec.Command(tmuxPath, "-L", t.options.Story, "list-windows", "-t", sessionName, "-F", "#I")
+			cmd := exec.Command(tmuxPath, "-L", t.socketName(), "list-windows", "-t", sessionName, "-F", "#I")
 			out, err := cmd.Output()
 			if err != nil {
 				return nil, err
@@ -91,7 +91,7 @@ func (t *tmux) getTargetsRunningVim() ([]string, error) {
 			// build the map of pane to tty
 			paneTTY := make(map[string]string)
 			{
-				cmd := exec.Command(tmuxPath, "-L", t.options.Story, "list-panes", "-t", sessionName+":"+windowID, "-F", "#P@#{pane_tty}")
+				cmd := exec.Command(tmuxPath, "-L", t.socketName(), "list-panes", "-t", sessionName+":"+windowID, "-F", "#P@#{pane_tty}")
 				out, err := cmd.Output()
 				if err != nil {
 					return nil, err
