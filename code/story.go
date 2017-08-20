@@ -115,8 +115,8 @@ func (s *story) AddProject(url string) error {
 			log.Debug().
 				Str("import-path", importPath).
 				Str("path", prj.Path()).
-				Msg(ErrProjectAlreadyExits.Error())
-			return ErrProjectAlreadyExits
+				Msg(ErrProjectAlreadyExists.Error())
+			return ErrProjectAlreadyExists
 		}
 	}
 	// run a git clone on the absolute path of the project
