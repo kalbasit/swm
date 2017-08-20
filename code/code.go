@@ -108,11 +108,26 @@ func (c *code) setProfiles(profiles map[string]*profile) {
 	atomic.StorePointer(&c.profiles, unsafe.Pointer(&profiles))
 }
 
+// addProfile adds the profile to the list of profiles
+func (c *code) addProfile(name string) *profile {
+	if p, ok := c.getProfiles()[name]; ok {
+		return p
+	}
+	p := newProfile(c, name)
+	for {
+		profilesPtr := atomic.LoadPointer(&c.profiles)
+		profiles := *(*map[string]*profile)(profilesPtr)
+		profiles[name] = p
+		if atomic.CompareAndSwapPointer(&c.profiles, profilesPtr, unsafe.Pointer(&profiles)) {
+			return p
+		}
+	}
+}
+
 // scan scans the entire profile to build the workspaces
 func (c *code) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
-	profiles := make(map[string]*profile)
 	// read the profile and scan all profiles
 	entries, err := afero.ReadDir(AppFS, c.path)
 	if err != nil {
@@ -127,21 +142,15 @@ func (c *code) scan() {
 			}
 			// create the profile
 			log.Debug().Msgf("found profile: %s", entry.Name())
-			p := newProfile(c, entry.Name())
-			// start scanning it
 			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			go func(name string) {
+				p := c.addProfile(name)
 				p.scan()
-			}()
-			// add it to the profile
-			profiles[entry.Name()] = p
+				wg.Done()
+			}(entry.Name())
 		}
 	}
 	wg.Wait()
-
-	// set the profiles to c now
-	c.setProfiles(profiles)
 }
 
 func (c *code) validate() error {
