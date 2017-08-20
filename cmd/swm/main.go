@@ -36,7 +36,8 @@ func main() {
 				Str("code-path", ctx.String("code-path")).
 				Str("profile", ctx.String("profile")).
 				Str("story", ctx.String("story")).
-				Logger()
+				Logger().
+				Level(zerolog.ErrorLevel)
 			// handle debug
 			if ctx.Bool("debug") {
 				log.Logger = log.Logger.Level(zerolog.DebugLevel)
