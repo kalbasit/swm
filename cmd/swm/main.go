@@ -58,9 +58,10 @@ func main() {
 				Subcommands: []*cli.Command{
 					// add project
 					{
-						Name:   "add-project",
-						Usage:  "TODO",
-						Action: coderAddProject,
+						Name:      "add-project",
+						Usage:     "TODO",
+						Action:    coderAddProject,
+						ArgsUsage: "<url>",
 					},
 				},
 			},

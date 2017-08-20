@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"regexp"
 
 	"github.com/kalbasit/swm/code"
@@ -9,6 +10,10 @@ import (
 )
 
 func coderAddProject(ctx *cli.Context) error {
+	if ctx.NArg() != 1 {
+		log.Debug().Msgf("expecting one argument, the URL to clone. Got %d arguments", ctx.Args())
+		return errors.New("expecting one argument as url, required")
+	}
 	// create a new coder
 	c, err := newCoder(ctx)
 	if err != nil {
