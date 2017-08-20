@@ -127,13 +127,16 @@ func (s *story) AddProject(url string) error {
 		return err
 	}
 	// add this project to the projects
-	projects := s.getProjects()
-	projects[importPath] = newProject(s, importPath)
-	s.setProjects(projects)
+	s.addProject(importPath)
 
+	// get the project
+	prj, err := s.Project(importPath)
+	if err != nil {
+		return err
+	}
 	log.Info().
 		Str("import-path", importPath).
-		Str("path", projects[importPath].Path()).
+		Str("path", prj.Path()).
 		Msg("project successfully cloned")
 
 	return nil
@@ -149,11 +152,23 @@ func (s *story) setProjects(projects map[string]*project) {
 	atomic.StorePointer(&s.projects, unsafe.Pointer(&projects))
 }
 
+// setProjects sets the map of projects
+func (s *story) addProject(importPath string) {
+	for {
+		projectsPtr := atomic.LoadPointer(&s.projects)
+		projects := *(*map[string]*project)(projectsPtr)
+		projects[importPath] = newProject(s, importPath)
+		if atomic.CompareAndSwapPointer(&s.projects, projectsPtr, unsafe.Pointer(&projects)) {
+			break
+		}
+	}
+}
+
 // scan scans the entire story to build projects
 func (s *story) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
-	out := make(chan *project, 1000)
+	out := make(chan string, 1000)
 	// start the workers
 	wg.Add(1)
 	go s.scanWorker(&wg, out, "")
@@ -167,36 +182,28 @@ func (s *story) scan() {
 	<-reducerQuit
 }
 
-func (s *story) scanReducer(out chan *project, quit chan struct{}) {
-	// initialize the variables
-	projects := make(map[string]*project)
-
+func (s *story) scanReducer(out chan string, quit chan struct{}) {
 	// iterate over the channel
 	for {
 		select {
-		case project, ok := <-out:
+		case importPath, ok := <-out:
 			if !ok {
 				close(quit)
-				// set the projects to s now
-				s.setProjects(projects)
 				return
 			}
-			projects[project.importPath] = project
+			s.addProject(importPath)
 		}
 	}
 }
 
-func (s *story) scanWorker(wg *sync.WaitGroup, out chan *project, ipath string) {
+func (s *story) scanWorker(wg *sync.WaitGroup, out chan string, ipath string) {
 	defer wg.Done()
 
 	// do we have a .git folder here?
 	if _, err := AppFS.Stat(path.Join(s.projectPath(ipath), ".git")); err == nil {
 		log.Debug().Str("path", s.projectPath(ipath)).Msg("found a Git repository")
-		// return this project
-		out <- &project{
-			story:      s,
-			importPath: ipath,
-		}
+		// return this import path
+		out <- ipath
 
 		return
 	}
