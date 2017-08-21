@@ -103,7 +103,7 @@ func (c *code) addProfile(name string) *profile {
 	if p, err := c.getProfile(name); err == nil {
 		return p
 	}
-	// otherwise add the profile to the map
+	// otherwise add it to the map
 	p := newProfile(c, name)
 	c.mu.Lock()
 	c.profiles[name] = p

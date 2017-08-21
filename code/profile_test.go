@@ -48,7 +48,7 @@ func TestProfileBase(t *testing.T) {
 	// get a profile
 	p, err := c.Profile(t.Name())
 	if assert.NoError(t, err) {
-		assert.Equal(t, Story(p.(*profile).getStories()[baseStoryName]), p.Base())
+		assert.Equal(t, Story(p.(*profile).getStory(baseStoryName)), p.Base())
 	}
 }
 
@@ -84,7 +84,7 @@ func TestProfileStory(t *testing.T) {
 	// test with a story that does exist
 
 	s := p.Story("STORY-123")
-	assert.Equal(t, p.(*profile).getStories()["STORY-123"], s)
+	assert.Equal(t, p.(*profile).getStory("STORY-123"), s)
 
 	// test with a story that does not exist
 
@@ -92,5 +92,5 @@ func TestProfileStory(t *testing.T) {
 	assert.Equal(t, "STORY-456", s.(*story).name)
 	assert.NotNil(t, s.(*story).getProjects())
 	assert.Empty(t, s.(*story).getProjects())
-	assert.Equal(t, p.(*profile).getStories()["STORY-456"], s)
+	assert.Equal(t, p.(*profile).getStory("STORY-456"), s)
 }

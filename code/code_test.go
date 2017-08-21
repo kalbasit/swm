@@ -44,17 +44,17 @@ func TestCodeScan(t *testing.T) {
 		require.NoError(t, err)
 
 		// assert the base story
-		assert.Equal(t, baseStory.name, profile.getStories()["base"].name)
-		assert.Equal(t, baseStory.profile.name, profile.getStories()["base"].profile.name)
-		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/swm"].importPath, profile.getStories()["base"].getProjects()["github.com/kalbasit/swm"].importPath)
-		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/dotfiles"].importPath, profile.getStories()["base"].getProjects()["github.com/kalbasit/dotfiles"].importPath)
-		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/workflow"].importPath, profile.getStories()["base"].getProjects()["github.com/kalbasit/workflow"].importPath)
+		assert.Equal(t, baseStory.name, profile.getStory("base").name)
+		assert.Equal(t, baseStory.profile.name, profile.getStory("base").profile.name)
+		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/swm"].importPath, profile.getStory("base").getProjects()["github.com/kalbasit/swm"].importPath)
+		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/dotfiles"].importPath, profile.getStory("base").getProjects()["github.com/kalbasit/dotfiles"].importPath)
+		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/workflow"].importPath, profile.getStory("base").getProjects()["github.com/kalbasit/workflow"].importPath)
 
 		// assert the STORY-123 story
-		assert.Equal(t, story123.name, profile.getStories()["STORY-123"].name)
-		assert.Equal(t, story123.profile.name, profile.getStories()["STORY-123"].profile.name)
-		assert.Equal(t, story123.getProjects()["github.com/kalbasit/dotfiles"].importPath, profile.getStories()["STORY-123"].getProjects()["github.com/kalbasit/dotfiles"].importPath)
-		assert.Equal(t, story123.getProjects()["github.com/kalbasit/swm"].importPath, profile.getStories()["STORY-123"].getProjects()["github.com/kalbasit/swm"].importPath)
+		assert.Equal(t, story123.name, profile.getStory("STORY-123").name)
+		assert.Equal(t, story123.profile.name, profile.getStory("STORY-123").profile.name)
+		assert.Equal(t, story123.getProjects()["github.com/kalbasit/dotfiles"].importPath, profile.getStory("STORY-123").getProjects()["github.com/kalbasit/dotfiles"].importPath)
+		assert.Equal(t, story123.getProjects()["github.com/kalbasit/swm"].importPath, profile.getStory("STORY-123").getProjects()["github.com/kalbasit/swm"].importPath)
 	}
 	// scan now
 	require.NoError(t, c.Scan())
@@ -83,17 +83,17 @@ func TestCodeProfile(t *testing.T) {
 		story123.addProject("github.com/kalbasit/dotfiles")
 
 		// assert the base story
-		assert.Equal(t, baseStory.name, pTest.getStories()["base"].name)
-		assert.Equal(t, baseStory.profile.name, pTest.getStories()["base"].profile.name)
-		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/swm"].importPath, pTest.getStories()["base"].getProjects()["github.com/kalbasit/swm"].importPath)
-		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/dotfiles"].importPath, pTest.getStories()["base"].getProjects()["github.com/kalbasit/dotfiles"].importPath)
-		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/workflow"].importPath, pTest.getStories()["base"].getProjects()["github.com/kalbasit/workflow"].importPath)
+		assert.Equal(t, baseStory.name, pTest.getStory("base").name)
+		assert.Equal(t, baseStory.profile.name, pTest.getStory("base").profile.name)
+		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/swm"].importPath, pTest.getStory("base").getProjects()["github.com/kalbasit/swm"].importPath)
+		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/dotfiles"].importPath, pTest.getStory("base").getProjects()["github.com/kalbasit/dotfiles"].importPath)
+		assert.Equal(t, baseStory.getProjects()["github.com/kalbasit/workflow"].importPath, pTest.getStory("base").getProjects()["github.com/kalbasit/workflow"].importPath)
 
 		// assert the STORY-123 story
-		assert.Equal(t, story123.name, pTest.getStories()["STORY-123"].name)
-		assert.Equal(t, story123.profile.name, pTest.getStories()["STORY-123"].profile.name)
-		assert.Equal(t, story123.getProjects()["github.com/kalbasit/dotfiles"].importPath, pTest.getStories()["STORY-123"].getProjects()["github.com/kalbasit/dotfiles"].importPath)
-		assert.Equal(t, story123.getProjects()["github.com/kalbasit/swm"].importPath, pTest.getStories()["STORY-123"].getProjects()["github.com/kalbasit/swm"].importPath)
+		assert.Equal(t, story123.name, pTest.getStory("STORY-123").name)
+		assert.Equal(t, story123.profile.name, pTest.getStory("STORY-123").profile.name)
+		assert.Equal(t, story123.getProjects()["github.com/kalbasit/dotfiles"].importPath, pTest.getStory("STORY-123").getProjects()["github.com/kalbasit/dotfiles"].importPath)
+		assert.Equal(t, story123.getProjects()["github.com/kalbasit/swm"].importPath, pTest.getStory("STORY-123").getProjects()["github.com/kalbasit/swm"].importPath)
 	}
 	// assert it throws an error before scanning
 	_, err := c.Profile(t.Name())
