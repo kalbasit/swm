@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/kalbasit/swm/code"
 	"github.com/rs/zerolog/log"
@@ -85,11 +86,7 @@ func (t *tmux) SwitchClient(killPane bool) error {
 		}
 		return exec.Command(tmuxPath, "-L", t.socketName(), "switch-client", "-t", sessionName).Run()
 	}
-	cmd := exec.Command(tmuxPath, "-L", t.socketName(), "attach", "-t", sessionName)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return syscall.Exec(tmuxPath, []string{"tmux", "-L" + t.socketName(), "attach", "-t" + sessionName}, os.Environ())
 }
 
 // getSessionNameProjects returns a map of a project session name to the project
