@@ -4,8 +4,6 @@ import (
 	"errors"
 	"regexp"
 	"sync"
-	"sync/atomic"
-	"unsafe"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
@@ -49,17 +47,17 @@ type code struct {
 	// excludePattern is a list of patterns to ignore
 	excludePattern *regexp.Regexp
 
-	profiles unsafe.Pointer // type *map[string]*profile
+	mu       sync.RWMutex
+	profiles map[string]*profile
 }
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
 func New(p string, ignore *regexp.Regexp) Coder {
-	profiles := make(map[string]*profile)
 	return &code{
 		path:           p,
 		excludePattern: ignore,
-		profiles:       unsafe.Pointer(&profiles),
+		profiles:       make(map[string]*profile),
 	}
 }
 
@@ -68,20 +66,7 @@ func (c *code) Path() string { return c.path }
 
 // Profile returns the profile given it's name or an error if no profile with
 // this name was found
-func (c *code) Profile(name string) (Profile, error) {
-	// get the profiles
-	ps := c.getProfiles()
-	// make sure we scanned already
-	if len(ps) == 0 {
-		return nil, ErrCoderNotScanned
-	}
-	// get the profile
-	p, ok := ps[name]
-	if !ok {
-		return nil, ErrProfileNoFound
-	}
-	return p, nil
-}
+func (c *code) Profile(name string) (Profile, error) { return c.getProfile(name) }
 
 // Scan loads the code from the cache (if it exists), otherwise it will
 // initiate a full scan and save it in cache.
@@ -95,25 +80,36 @@ func (c *code) Scan() error {
 	return nil
 }
 
-// getProfiles return the map of profiles
-func (c *code) getProfiles() map[string]*profile {
-	return *(*map[string]*profile)(atomic.LoadPointer(&c.profiles))
+// getProfile return the profile identified by name
+func (c *code) getProfile(name string) (*profile, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// make sure we scanned already
+	if len(c.profiles) == 0 {
+		return nil, ErrCoderNotScanned
+	}
+	// get the profile
+	p, ok := c.profiles[name]
+	if !ok {
+		return nil, ErrProfileNoFound
+	}
+	return p, nil
 }
 
 // addProfile adds the profile to the list of profiles
 func (c *code) addProfile(name string) *profile {
-	if p, ok := c.getProfiles()[name]; ok {
+	// if the profile already exists, return it
+	if p, err := c.getProfile(name); err == nil {
 		return p
 	}
+	// otherwise add it to the map
 	p := newProfile(c, name)
-	for {
-		profilesPtr := atomic.LoadPointer(&c.profiles)
-		profiles := *(*map[string]*profile)(profilesPtr)
-		profiles[name] = p
-		if atomic.CompareAndSwapPointer(&c.profiles, profilesPtr, unsafe.Pointer(&profiles)) {
-			return p
-		}
-	}
+	c.mu.Lock()
+	c.profiles[name] = p
+	c.mu.Unlock()
+
+	return p
 }
 
 // scan scans the entire profile to build the workspaces

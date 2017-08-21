@@ -3,8 +3,6 @@ package code
 import (
 	"path"
 	"sync"
-	"sync/atomic"
-	"unsafe"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
@@ -19,15 +17,15 @@ type profile struct {
 	name string
 
 	// stories is a list of workspaces
-	stories unsafe.Pointer // type *map[string]*story
+	mu      sync.RWMutex
+	stories map[string]*story
 }
 
 func newProfile(c *code, name string) *profile {
-	stories := make(map[string]*story)
 	return &profile{
 		name:    name,
 		code:    c,
-		stories: unsafe.Pointer(&stories),
+		stories: make(map[string]*story),
 	}
 }
 
@@ -45,37 +43,34 @@ func (p *profile) Path() string { return path.Join(p.code.Path(), p.name) }
 
 // Story returns the story given it's name or an error if no story with this
 // name was found
-func (p *profile) Story(name string) Story {
-	// get the stories out of profiles
-	stories := p.getStories()
-	// fetch the story out
-	s, ok := stories[name]
+func (p *profile) Story(name string) Story { return p.getStory(name) }
+
+func (p *profile) getStory(name string) *story {
+	p.mu.RLock()
+	s, ok := p.stories[name]
+	p.mu.RUnlock()
 	if !ok {
 		return p.addStory(name)
 	}
-
 	return s
-}
-
-// getStories return the map of stories
-func (p *profile) getStories() map[string]*story {
-	return *(*map[string]*story)(atomic.LoadPointer(&p.stories))
 }
 
 // addStory adds the story to the list of stories
 func (p *profile) addStory(name string) *story {
-	if s, ok := p.getStories()[name]; ok {
+	// if the story already exists, return it
+	p.mu.RLock()
+	s, ok := p.stories[name]
+	p.mu.RUnlock()
+	if ok {
 		return s
 	}
-	s := newStory(p, name)
-	for {
-		storiesPtr := atomic.LoadPointer(&p.stories)
-		stories := *(*map[string]*story)(storiesPtr)
-		stories[name] = s
-		if atomic.CompareAndSwapPointer(&p.stories, storiesPtr, unsafe.Pointer(&stories)) {
-			return s
-		}
-	}
+	// otherwise add it to the map
+	s = newStory(p, name)
+	p.mu.Lock()
+	p.stories[name] = s
+	p.mu.Unlock()
+
+	return s
 }
 
 // scan scans the entire profile to build the workspaces

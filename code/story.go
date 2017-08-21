@@ -5,8 +5,6 @@ import (
 	"os/exec"
 	"path"
 	"sync"
-	"sync/atomic"
-	"unsafe"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
@@ -24,15 +22,15 @@ type story struct {
 	name string
 
 	// projects is a list of projects
-	projects unsafe.Pointer // type *map[string]*project
+	mu       sync.RWMutex
+	projects map[string]*project
 }
 
 func newStory(p *profile, name string) *story {
-	projects := make(map[string]*project)
 	return &story{
 		name:     name,
 		profile:  p,
-		projects: unsafe.Pointer(&projects),
+		projects: make(map[string]*project),
 	}
 }
 
@@ -61,9 +59,12 @@ func (s *story) GoPath() string {
 // a project to make sure it exists (as a worktree) before using it.
 func (s *story) Projects() []Project {
 	var res []Project
-	for _, prj := range s.getProjects() {
+	s.mu.RLock()
+	for _, prj := range s.projects {
 		res = append(res, prj)
 	}
+	s.mu.RUnlock()
+
 	return res
 }
 
@@ -71,21 +72,7 @@ func (s *story) Projects() []Project {
 // exist for this story but does exist in the Base story, it will be copied and
 // story changed. The caller must call Ensure() on the project to make sure it
 // exists (as a worktree) before using it.
-func (s *story) Project(importPath string) (Project, error) {
-	// get the project for the story
-	prj, ok := s.getProjects()[importPath]
-	if !ok {
-		basePrj, ok := s.profile.Base().(*story).getProjects()[importPath]
-		if !ok {
-			return nil, ErrProjectNotFound
-		}
-		prj = &project{}
-		*prj = *basePrj
-		prj.story = s
-	}
-
-	return prj, nil
-}
+func (s *story) Project(importPath string) (Project, error) { return s.getProject(importPath) }
 
 // AddProject clones url as the new project. Will automatically compute the
 // import path from the given URL.
@@ -136,25 +123,45 @@ func (s *story) AddProject(url string) error {
 	return nil
 }
 
-// getProjects return the map of projects
-func (s *story) getProjects() map[string]*project {
-	return *(*map[string]*project)(atomic.LoadPointer(&s.projects))
+// getProject return the project for importPath from the map
+func (s *story) getProject(importPath string) (*project, error) {
+	// get the project out of the map
+	s.mu.RLock()
+	prj, ok := s.projects[importPath]
+	s.mu.RUnlock()
+	if !ok && !s.Base() {
+		// we were not able to find a project, do we have one in the base story?
+		basePrj, err := s.profile.getStory(baseStoryName).getProject(importPath)
+		if err == nil {
+			prj = &project{}
+			*prj = *basePrj
+			prj.story = s
+		}
+	}
+
+	if prj == nil {
+		return nil, ErrProjectNotFound
+	}
+
+	return prj, nil
 }
 
 // addProject add the project by the import path
 func (s *story) addProject(importPath string) *project {
-	if p, ok := s.getProjects()[importPath]; ok {
-		return p
+	// if the project already exists, return it
+	s.mu.RLock()
+	prj, ok := s.projects[importPath]
+	s.mu.RUnlock()
+	if ok {
+		return prj
 	}
-	p := newProject(s, importPath)
-	for {
-		projectsPtr := atomic.LoadPointer(&s.projects)
-		projects := *(*map[string]*project)(projectsPtr)
-		projects[importPath] = p
-		if atomic.CompareAndSwapPointer(&s.projects, projectsPtr, unsafe.Pointer(&projects)) {
-			return p
-		}
-	}
+	// otherwise add it to the map
+	prj = newProject(s, importPath)
+	s.mu.Lock()
+	s.projects[importPath] = prj
+	s.mu.Unlock()
+
+	return prj
 }
 
 // scan scans the entire story to build projects
