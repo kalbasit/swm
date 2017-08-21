@@ -89,7 +89,7 @@ func (t *tmux) SwitchClient(killPane bool) error {
 	// NOTE: the following Exec calls kernel's execve, which means that this will
 	// never return and the current swm binary will be replaced by tmux. This is
 	// precisely what we want as there is no sence in keeping swm running after
-	// attaching.
+	// attaching to a tmux session.
 	return syscall.Exec(tmuxPath, []string{"tmux", "-L" + t.socketName(), "attach", "-t" + sessionName}, os.Environ())
 }
 
