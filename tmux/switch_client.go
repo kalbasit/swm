@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/kalbasit/swm/code"
 	"github.com/rs/zerolog/log"
@@ -85,11 +86,11 @@ func (t *tmux) SwitchClient(killPane bool) error {
 		}
 		return exec.Command(tmuxPath, "-L", t.socketName(), "switch-client", "-t", sessionName).Run()
 	}
-	cmd := exec.Command(tmuxPath, "-L", t.socketName(), "attach", "-t", sessionName)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	// NOTE: the following Exec calls kernel's execve, which means that this will
+	// never return and the current swm binary will be replaced by tmux. This is
+	// precisely what we want as there is no sence in keeping swm running after
+	// attaching to a tmux session.
+	return syscall.Exec(tmuxPath, []string{"tmux", "-L" + t.socketName(), "attach", "-t" + sessionName}, os.Environ())
 }
 
 // getSessionNameProjects returns a map of a project session name to the project
