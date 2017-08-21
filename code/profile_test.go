@@ -90,7 +90,7 @@ func TestProfileStory(t *testing.T) {
 
 	s = p.Story("STORY-456")
 	assert.Equal(t, "STORY-456", s.(*story).name)
-	assert.NotNil(t, s.(*story).getProjects())
-	assert.Empty(t, s.(*story).getProjects())
+	assert.NotNil(t, s.(*story).projects)
+	assert.Empty(t, s.(*story).projects)
 	assert.Equal(t, p.(*profile).getStory("STORY-456"), s)
 }

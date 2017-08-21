@@ -121,7 +121,7 @@ func TestStoryProjects(t *testing.T) {
 		// get the projects
 		prjs := s.Projects()
 		// assert they are the same as the projects
-		for _, prj2 := range s.(*story).getProjects() {
+		for _, prj2 := range s.(*story).projects {
 			assert.Contains(t, prjs, Project(prj2))
 		}
 	}
@@ -147,7 +147,7 @@ func TestStoryProject(t *testing.T) {
 		// testing with a base story
 
 		s := p.Base()
-		for importPath, expectedPrj := range s.(*story).getProjects() {
+		for importPath, expectedPrj := range s.(*story).projects {
 			prj, err := s.Project(importPath)
 			if assert.NoError(t, err) {
 				assert.Equal(t, Project(expectedPrj), prj)
@@ -159,7 +159,7 @@ func TestStoryProject(t *testing.T) {
 		// testing with story that does exist
 
 		s = p.Story("STORY-123")
-		for importPath, expectedPrj := range s.(*story).getProjects() {
+		for importPath, expectedPrj := range s.(*story).projects {
 			prj, err := s.Project(importPath)
 			if assert.NoError(t, err) {
 				assert.Equal(t, Project(expectedPrj), prj)
