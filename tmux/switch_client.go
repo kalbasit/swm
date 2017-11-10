@@ -106,13 +106,8 @@ func (t *tmux) getSessionNameProjects() (map[string]code.Project, error) {
 	story := profile.Story(t.options.Story)
 	// loop over all projects and get the session name
 	for _, prj := range story.Projects() {
-		// generate the session name
-		k := fmt.Sprintf("%s@%s=%s",
-			profile.Name(),
-			story.Name(),
-			strings.Replace(strings.Replace(prj.ImportPath(), ".", dotChar, -1), ":", colonChar, -1))
 		// assign it to the map
-		sessionNameProjects[k] = prj
+		sessionNameProjects[strings.Replace(strings.Replace(prj.ImportPath(), ".", dotChar, -1), ":", colonChar, -1)] = prj
 	}
 
 	// get the base story
@@ -128,13 +123,8 @@ func (t *tmux) getSessionNameProjects() (map[string]code.Project, error) {
 		if err != nil {
 			return nil, err
 		}
-		// generate the session name
-		k := fmt.Sprintf("%s@%s=%s",
-			profile.Name(),
-			story.Name(),
-			strings.Replace(strings.Replace(prj.ImportPath(), ".", dotChar, -1), ":", colonChar, -1))
 		// assign it to the map
-		sessionNameProjects[k] = prj
+		sessionNameProjects[strings.Replace(strings.Replace(prj.ImportPath(), ".", dotChar, -1), ":", colonChar, -1)] = prj
 	}
 
 	return sessionNameProjects, nil

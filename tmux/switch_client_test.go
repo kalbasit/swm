@@ -38,9 +38,9 @@ func TestGetSessionProjectsBase(t *testing.T) {
 		keys = append(keys, k)
 	}
 	expectedKeys := []string{
-		t.Name() + "@base=github" + dotChar + "com/kalbasit/swm",
-		t.Name() + "@base=github" + dotChar + "com/kalbasit/dotfiles",
-		t.Name() + "@base=github" + dotChar + "com/kalbasit/workflow",
+		"github" + dotChar + "com/kalbasit/swm",
+		"github" + dotChar + "com/kalbasit/dotfiles",
+		"github" + dotChar + "com/kalbasit/workflow",
 	}
 	sort.Strings(keys)
 	sort.Strings(expectedKeys)
@@ -48,11 +48,11 @@ func TestGetSessionProjectsBase(t *testing.T) {
 	// assert the correct project
 	for name, prj := range sessionNameProjects {
 		switch name {
-		case t.Name() + "@base=github" + dotChar + "com/kalbasit/swm":
+		case "github" + dotChar + "com/kalbasit/swm":
 			assert.Equal(t, "github.com/kalbasit/swm", prj.ImportPath())
-		case t.Name() + "@base=github" + dotChar + "com/kalbasit/dotfiles":
+		case "github" + dotChar + "com/kalbasit/dotfiles":
 			assert.Equal(t, "github.com/kalbasit/dotfiles", prj.ImportPath())
-		case t.Name() + "@base=github" + dotChar + "com/kalbasit/workflow":
+		case "github" + dotChar + "com/kalbasit/workflow":
 			assert.Equal(t, "github.com/kalbasit/workflow", prj.ImportPath())
 		}
 	}
@@ -84,9 +84,9 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 		keys = append(keys, k)
 	}
 	expectedKeys := []string{
-		t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/swm",
-		t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/dotfiles",
-		t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/workflow",
+		"github" + dotChar + "com/kalbasit/swm",
+		"github" + dotChar + "com/kalbasit/dotfiles",
+		"github" + dotChar + "com/kalbasit/workflow",
 	}
 	sort.Strings(keys)
 	sort.Strings(expectedKeys)
@@ -94,11 +94,11 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 	// assert the correct project
 	for name, prj := range sessionNameProjects {
 		switch name {
-		case t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/swm":
+		case "github" + dotChar + "com/kalbasit/swm":
 			assert.Equal(t, "github.com/kalbasit/swm", prj.ImportPath())
-		case t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/dotfiles":
+		case "github" + dotChar + "com/kalbasit/dotfiles":
 			assert.Equal(t, "github.com/kalbasit/dotfiles", prj.ImportPath())
-		case t.Name() + "@STORY-123=github" + dotChar + "com/kalbasit/workflow":
+		case "github" + dotChar + "com/kalbasit/workflow":
 			assert.Equal(t, "github.com/kalbasit/workflow", prj.ImportPath())
 		}
 	}
