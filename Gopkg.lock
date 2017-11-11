@@ -2,16 +2,22 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "github.com/BurntSushi/xgb"
+  packages = [".","xinerama","xproto"]
+  revision = "27f122750802c950b2c869a5b63dafcf590ced95"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/BurntSushi/xgbutil"
+  packages = [".","xprop"]
+  revision = "f7c97cef3b4e6c88280a5a7091c3314e815ca243"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/mdirkse/i3ipc-go"
-  packages = ["."]
-  revision = "f40913f28b3b8fbdb5d5ded578630beea7a924eb"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -22,14 +28,14 @@
 [[projects]]
   name = "github.com/rs/zerolog"
   packages = [".","internal/json","log"]
-  revision = "2ed2f2c974489526d10329dae76d0f175684109a"
-  version = "v1.2.2"
+  revision = "3ac71fc58dbd43122668a912b755b0979ba9ce1f"
+  version = "v1.3.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/spf13/afero"
   packages = [".","mem"]
-  revision = "9be650865eab0c12963d8753212f4f9c66cdcf12"
+  revision = "5660eeed305fe5f69c8fc6cf899132a459a97064"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -38,20 +44,26 @@
   version = "v1.1.4"
 
 [[projects]]
+  name = "go.i3wm.org/i3"
+  packages = ["."]
+  revision = "890d407a1a6abb06738c7a960277e3e39d4cfc29"
+  version = "4.14.1"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/text"
   packages = ["internal/gen","internal/triegen","internal/ucd","transform","unicode/cldr","unicode/norm"]
-  revision = "e56139fd9c5bc7244c76116c68e500765bb6db6b"
+  revision = "88f656faf3f37f690df1a32515b479415e1a6769"
 
 [[projects]]
   branch = "v2"
   name = "gopkg.in/urfave/cli.v2"
   packages = ["."]
-  revision = "50a0fdeea6330854c7b05371cce1fac8c7e636d2"
+  revision = "b2bf3c5abeb90da407891aecd1df2c5a1f6170c1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fb94bd499f0425bcb826beb63ff30d754510d07d7702e99add00c9569587bc8f"
+  inputs-digest = "99afdd0878cbcd128fb796ada1089be950199365f4d95476a01fa0406cc8b284"
   solver-name = "gps-cdcl"
   solver-version = 1

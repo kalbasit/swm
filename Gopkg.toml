@@ -34,9 +34,9 @@
   name = "gopkg.in/urfave/cli.v2"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/mdirkse/i3ipc-go"
-
-[[constraint]]
   name = "github.com/rs/zerolog"
   version = "1.2.2"
+
+[[constraint]]
+  name = "go.i3wm.org/i3"
+  version = "4.14.1"
