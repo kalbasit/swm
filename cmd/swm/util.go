@@ -1,0 +1,67 @@
+package main
+
+import (
+	"errors"
+	"os"
+	"path"
+	"strings"
+
+	"go.i3wm.org/i3"
+)
+
+func getDefaultProfile() string {
+	var p string
+
+	tmuxSocketPath := os.Getenv("TMUX")
+	if tmuxSocketPath != "" {
+		profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
+		profileStoryArr := strings.Split(profileStory, "@")
+		if len(profileStoryArr) == 2 {
+			p = profileStoryArr[0]
+		}
+	}
+
+	if p == "" {
+		i3Workspace, err := getActiveI3WorkspaceName()
+		if err == nil && strings.Contains(i3Workspace, "@") {
+			p = strings.Split(i3Workspace, "@")[0]
+		}
+	}
+
+	return p
+}
+
+func getDefaultStory() string {
+	var s string
+
+	tmuxSocketPath := os.Getenv("TMUX")
+	if tmuxSocketPath != "" {
+		profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
+		profileStoryArr := strings.Split(profileStory, "@")
+		if len(profileStoryArr) == 2 {
+			s = profileStoryArr[1]
+		}
+	}
+	if s == "" {
+		i3Workspace, err := getActiveI3WorkspaceName()
+		if err == nil && strings.Contains(i3Workspace, "@") {
+			s = strings.Split(i3Workspace, "@")[1]
+		}
+	}
+
+	return s
+}
+
+func getActiveI3WorkspaceName() (string, error) {
+	// get the workspaces
+	workspaces, err := i3.GetWorkspaces()
+	if err != nil {
+		return "", err
+	}
+	for _, workspace := range workspaces {
+		if workspace.Focused {
+			return workspace.Name, nil
+		}
+	}
+	return "", errors.New("no active i3 workspace was found")
+}

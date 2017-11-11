@@ -6,6 +6,36 @@ import (
 	cli "gopkg.in/urfave/cli.v2"
 )
 
+var tmuxCmd = &cli.Command{
+	Name: "tmux",
+	Subcommands: []*cli.Command{
+		// switch client switches tmux client
+		{
+			Name:   "switch-client",
+			Usage:  "TODO",
+			Action: tmuxSwitchClient,
+			Flags: []cli.Flag{
+				&cli.BoolFlag{Name: "kill-pane", Usage: "kill the TMUX pane after switch client"},
+			},
+		},
+		// vim exit will save/exit any open vim
+		{
+			Name:   "vim-exit",
+			Usage:  "TODO",
+			Action: tmuxVimExit,
+		},
+		// kill-server will kill the server
+		{
+			Name:   "kill-server",
+			Usage:  "TODO",
+			Action: tmuxKillServer,
+			Flags: []cli.Flag{
+				&cli.BoolFlag{Name: "vim-exit", Usage: "if vim is found running, kill it"},
+			},
+		},
+	},
+}
+
 func tmuxSwitchClient(ctx *cli.Context) error {
 	tmuxManager, err := newTmuxManager(ctx)
 	if err != nil {

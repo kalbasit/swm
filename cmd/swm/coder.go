@@ -9,6 +9,19 @@ import (
 	cli "gopkg.in/urfave/cli.v2"
 )
 
+var coderCmd = &cli.Command{
+	Name: "coder",
+	Subcommands: []*cli.Command{
+		// add project
+		{
+			Name:      "add-project",
+			Usage:     "TODO",
+			Action:    coderAddProject,
+			ArgsUsage: "<url>",
+		},
+	},
+}
+
 func coderAddProject(ctx *cli.Context) error {
 	if ctx.NArg() != 1 {
 		log.Debug().Msgf("expecting one argument, the URL to clone. Got %d arguments", ctx.Args())
