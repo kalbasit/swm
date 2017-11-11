@@ -106,7 +106,7 @@ func (c *code) addProfile(name string) *profile {
 	}
 	// create a new profile and make sure it has a base story
 	p := newProfile(c, name)
-	_, err := os.Stat(p.Base().GoPath())
+	_, err := AppFS.Stat(p.Base().GoPath())
 	if err != nil && os.IsNotExist(err) {
 		return nil
 	}
