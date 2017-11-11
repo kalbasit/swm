@@ -2,16 +2,22 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "github.com/BurntSushi/xgb"
+  packages = [".","xinerama","xproto"]
+  revision = "27f122750802c950b2c869a5b63dafcf590ced95"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/BurntSushi/xgbutil"
+  packages = [".","xprop"]
+  revision = "f7c97cef3b4e6c88280a5a7091c3314e815ca243"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/mdirkse/i3ipc-go"
-  packages = ["."]
-  revision = "f40913f28b3b8fbdb5d5ded578630beea7a924eb"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -38,6 +44,12 @@
   version = "v1.1.4"
 
 [[projects]]
+  name = "go.i3wm.org/i3"
+  packages = ["."]
+  revision = "890d407a1a6abb06738c7a960277e3e39d4cfc29"
+  version = "4.14.1"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/text"
   packages = ["internal/gen","internal/triegen","internal/ucd","transform","unicode/cldr","unicode/norm"]
@@ -52,6 +64,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fb94bd499f0425bcb826beb63ff30d754510d07d7702e99add00c9569587bc8f"
+  inputs-digest = "99afdd0878cbcd128fb796ada1089be950199365f4d95476a01fa0406cc8b284"
   solver-name = "gps-cdcl"
   solver-version = 1

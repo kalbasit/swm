@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mdirkse/i3ipc-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"go.i3wm.org/i3"
 	"gopkg.in/urfave/cli.v2"
 )
 
@@ -163,13 +163,8 @@ func getDefaultStory() string {
 }
 
 func getActiveI3WorkspaceName() (string, error) {
-	// create an i3 IPC socket
-	ipcsocket, err := i3ipc.GetIPCSocket()
-	if err != nil {
-		return "", err
-	}
 	// get the workspaces
-	workspaces, err := ipcsocket.GetWorkspaces()
+	workspaces, err := i3.GetWorkspaces()
 	if err != nil {
 		return "", err
 	}
