@@ -77,13 +77,29 @@ func (p *profile) addStory(name string) *story {
 func (p *profile) scan() {
 	// initialize the variables
 	var wg sync.WaitGroup
-	// add the base story
+	// scan the base story
+	p.scanBaseStory(&wg)
+	// scan the stories
+	p.scanStories(&wg)
+
+	wg.Wait()
+}
+
+func (p *profile) scanBaseStory(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		s := p.addStory(baseStoryName)
 		s.scan()
 		wg.Done()
 	}()
+}
+
+func (p *profile) scanStories(wg *sync.WaitGroup) {
+	// make sure the stories folder exists
+	_, err := AppFS.Stat(path.Join(p.Path(), "stories"))
+	if err != nil {
+		return
+	}
 	// read the profile and scan all stories
 	entries, err := afero.ReadDir(AppFS, path.Join(p.Path(), "stories"))
 	if err != nil {
@@ -102,6 +118,4 @@ func (p *profile) scan() {
 			}(entry.Name())
 		}
 	}
-
-	wg.Wait()
 }
