@@ -2,6 +2,7 @@ package code
 
 import (
 	"errors"
+	"os"
 	"regexp"
 	"sync"
 
@@ -103,8 +104,13 @@ func (c *code) addProfile(name string) *profile {
 	if p, err := c.getProfile(name); err == nil {
 		return p
 	}
-	// otherwise add it to the map
+	// create a new profile and make sure it has a base story
 	p := newProfile(c, name)
+	_, err := os.Stat(p.Base().GoPath())
+	if err != nil && os.IsNotExist(err) {
+		return nil
+	}
+	// add it to the map and return it
 	c.mu.Lock()
 	c.profiles[name] = p
 	c.mu.Unlock()
@@ -132,8 +138,9 @@ func (c *code) scan() {
 			log.Debug().Msgf("found profile: %s", entry.Name())
 			wg.Add(1)
 			go func(name string) {
-				p := c.addProfile(name)
-				p.scan()
+				if p := c.addProfile(name); p != nil {
+					p.scan()
+				}
 				wg.Done()
 			}(entry.Name())
 		}
