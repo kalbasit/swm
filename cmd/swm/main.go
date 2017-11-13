@@ -137,6 +137,9 @@ func getDefaultProfile() string {
 			p = strings.Split(i3Workspace, "@")[0]
 		}
 	}
+	if p == "" {
+		p = os.Getenv("ACTIVE_PROFILE")
+	}
 
 	return p
 }
@@ -157,6 +160,9 @@ func getDefaultStory() string {
 		if err == nil && strings.Contains(i3Workspace, "@") {
 			s = strings.Split(i3Workspace, "@")[1]
 		}
+	}
+	if s == "" {
+		s = os.Getenv("ACTIVE_STORY")
 	}
 
 	return s

@@ -47,6 +47,8 @@ func (t *tmux) SwitchClient(killPane bool) error {
 			{"-L", t.socketName(), "new-session", "-d", "-s", sessionName},
 			// set the active profile
 			{"-L", t.socketName(), "set-environment", "-t", sessionName, "ACTIVE_PROFILE", project.Story().Profile().Name()},
+			// set the active story
+			{"-L", t.socketName(), "set-environment", "-t", sessionName, "ACTIVE_STORY", project.Story().Name()},
 			// set the new GOPATH
 			{"-L", t.socketName(), "set-environment", "-t", sessionName, "GOPATH", project.Story().GoPath()},
 			// start a new shell on window 1
@@ -56,14 +58,15 @@ func (t *tmux) SwitchClient(killPane bool) error {
 		} {
 			cmd := exec.Command(tmuxPath, args...)
 			cmd.Dir = project.Path()
-			// set the environment to current environment, change only ACTIVE_PROFILE and GOPATH
+			// set the environment to current environment, change only ACTIVE_PROFILE, ACTIVE_STORY  and GOPATH
 			cmd.Env = func() []string {
 				res := []string{
 					fmt.Sprintf("ACTIVE_PROFILE=%s", project.Story().Profile().Name()),
+					fmt.Sprintf("ACTIVE_STORY=%s", project.Story().Name()),
 					fmt.Sprintf("GOPATH=%s", project.Story().GoPath()),
 				}
 				for _, v := range os.Environ() {
-					if k := strings.Split(v, "=")[0]; k != "ACTIVE_PROFILE" && k != "GOPATH" && k != "TMUX" {
+					if k := strings.Split(v, "=")[0]; k != "ACTIVE_PROFILE" && k != "ACTIVE_STORY" && k != "GOPATH" && k != "TMUX" {
 						res = append(res, v)
 					}
 				}
