@@ -122,23 +122,25 @@ func main() {
 func getDefaultProfile() string {
 	var p string
 
-	tmuxSocketPath := os.Getenv("TMUX")
-	if tmuxSocketPath != "" {
-		profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
-		profileStoryArr := strings.Split(profileStory, "@")
-		if len(profileStoryArr) == 2 {
-			p = profileStoryArr[0]
+	// try parsing it from the ACTIVE_PROFILE environment variable.
+	p = os.Getenv("ACTIVE_PROFILE")
+	// try parsing it from the TMUX environment variable (the session path).
+	if p == "" {
+		tmuxSocketPath := os.Getenv("TMUX")
+		if tmuxSocketPath != "" {
+			profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
+			profileStoryArr := strings.Split(profileStory, "@")
+			if len(profileStoryArr) == 2 {
+				p = profileStoryArr[0]
+			}
 		}
 	}
-
+	// finally try parsing it from the i3 workspace
 	if p == "" {
 		i3Workspace, err := getActiveI3WorkspaceName()
 		if err == nil && strings.Contains(i3Workspace, "@") {
 			p = strings.Split(i3Workspace, "@")[0]
 		}
-	}
-	if p == "" {
-		p = os.Getenv("ACTIVE_PROFILE")
 	}
 
 	return p
@@ -147,22 +149,25 @@ func getDefaultProfile() string {
 func getDefaultStory() string {
 	var s string
 
-	tmuxSocketPath := os.Getenv("TMUX")
-	if tmuxSocketPath != "" {
-		profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
-		profileStoryArr := strings.Split(profileStory, "@")
-		if len(profileStoryArr) == 2 {
-			s = profileStoryArr[1]
+	// try parsing it from the ACTIVE_STORY environment variable.
+	s = os.Getenv("ACTIVE_STORY")
+	// try parsing it from the TMUX environment variable (the session path).
+	if s == "" {
+		tmuxSocketPath := os.Getenv("TMUX")
+		if tmuxSocketPath != "" {
+			profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
+			profileStoryArr := strings.Split(profileStory, "@")
+			if len(profileStoryArr) == 2 {
+				s = profileStoryArr[1]
+			}
 		}
 	}
+	// finally try parsing it from the i3 workspace
 	if s == "" {
 		i3Workspace, err := getActiveI3WorkspaceName()
 		if err == nil && strings.Contains(i3Workspace, "@") {
 			s = strings.Split(i3Workspace, "@")[1]
 		}
-	}
-	if s == "" {
-		s = os.Getenv("ACTIVE_STORY")
 	}
 
 	return s
