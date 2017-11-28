@@ -54,7 +54,7 @@ func (t *tmux) SwitchClient(killPane bool) error {
 			// start a new shell on window 1
 			{"-L", t.socketName(), "new-window", "-t", sessionName + ":1"},
 			// start vim in the first window
-			{"-L", t.socketName(), "send-keys", "-t", sessionName + ":0", "clear; vim", "Enter"},
+			{"-L", t.socketName(), "send-keys", "-t", sessionName + ":0", "type vim_ready &>/dev/null && vim_ready; clear; vim", "Enter"},
 		} {
 			cmd := exec.Command(tmuxPath, args...)
 			cmd.Dir = project.Path()
