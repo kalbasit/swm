@@ -55,7 +55,7 @@ func (p *project) Ensure() error {
 			return err
 		}
 		// run the pre-hooks
-		if err = p.runPreHooks(); err != nil {
+		if err = p.runPreHooks(baseProject); err != nil {
 			return err
 		}
 		// create a new worktree for this project based on the base project
@@ -67,7 +67,7 @@ func (p *project) Ensure() error {
 			return fmt.Errorf("error creating a new worktree: %s\nOutput:\n%s", err, string(out))
 		}
 		// run the post-hooks
-		if err = p.runPostHooks(); err != nil {
+		if err = p.runPostHooks(baseProject); err != nil {
 			return err
 		}
 		// add this project to the projects of the story above
@@ -80,7 +80,14 @@ func (p *project) Ensure() error {
 // ImportPath returns the path under which this project can be imported in Go
 func (p *project) ImportPath() string { return p.importPath }
 
-func (p *project) runPreHooks() error {
+// runPreHooks iterates over the executable files in
+// ~/.config/swm/hooks/coder/pre-hook and runs each with the following
+// arguments:
+// - The GOPATH of the base story
+// - The GOPATH of the story
+// - The path of the base story
+// - The path of the story
+func (p *project) runPreHooks(baseProject Project) error {
 	// get the hooks directory
 	preHooksDir := path.Join(p.hookPath(), "pre-hook")
 	// first get the list of the hooks
@@ -101,7 +108,7 @@ func (p *project) runPreHooks() error {
 			Msg("found a pre-hook")
 		// is this a file and is executable by the current user?
 		if !hook.IsDir() && hook.Mode().Perm()&0111 != 0 {
-			cmd := exec.Command(hookPath, p.story.Profile().Base().GoPath(), p.story.GoPath(), p.Path())
+			cmd := exec.Command(hookPath, p.story.Profile().Base().GoPath(), p.story.GoPath(), baseProject.Path(), p.Path())
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("error running the pre-hook: %s\nOutput:\n%s", err, string(out))
@@ -112,7 +119,14 @@ func (p *project) runPreHooks() error {
 	return nil
 }
 
-func (p *project) runPostHooks() error {
+// runPostHooks iterates over the executable files in
+// ~/.config/swm/hooks/coder/post-hook and runs each with the following
+// arguments:
+// - The GOPATH of the base story
+// - The GOPATH of the story
+// - The path of the base story
+// - The path of the story
+func (p *project) runPostHooks(baseProject Project) error {
 	// compute the absolute path of the hook
 	postHooksDir := path.Join(p.hookPath(), "post-hook")
 	// first get the list of the hooks
@@ -132,7 +146,7 @@ func (p *project) runPostHooks() error {
 			Msg("found a post-hook")
 		// is this a file and is executable by the current user?
 		if !hook.IsDir() && hook.Mode().Perm()&0111 != 0 {
-			cmd := exec.Command(hookPath, p.story.Profile().Base().GoPath(), p.story.GoPath(), p.Path())
+			cmd := exec.Command(hookPath, p.story.Profile().Base().GoPath(), p.story.GoPath(), baseProject.Path(), p.Path())
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("error running the post-hook: %s\nOutput:\n%s", err, string(out))
