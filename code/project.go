@@ -7,6 +7,7 @@ import (
 	"path"
 
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/afero"
 )
 
 const srcDir = "src"
@@ -53,6 +54,10 @@ func (p *project) Ensure() error {
 		if err != nil {
 			return err
 		}
+		// run the pre-hooks
+		if err = p.runPreHooks(); err != nil {
+			return err
+		}
 		// create a new worktree for this project based on the base project
 		// TODO(kalbasit): switch to using [go-git](https://github.com/src-d/go-git)
 		cmd := exec.Command(gitPath, "worktree", "add", "-b", p.story.name, p.Path(), "master")
@@ -60,6 +65,10 @@ func (p *project) Ensure() error {
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error creating a new worktree: %s\nOutput:\n%s", err, string(out))
+		}
+		// run the post-hooks
+		if err = p.runPostHooks(); err != nil {
+			return err
 		}
 		// add this project to the projects of the story above
 		p.story.addProject(p.importPath)
@@ -70,3 +79,70 @@ func (p *project) Ensure() error {
 
 // ImportPath returns the path under which this project can be imported in Go
 func (p *project) ImportPath() string { return p.importPath }
+
+func (p *project) runPreHooks() error {
+	// get the hooks directory
+	preHooksDir := path.Join(p.hookPath(), "pre-hook")
+	// first get the list of the hooks
+	hooks, err := afero.ReadDir(AppFS, preHooksDir)
+	if err != nil && !os.IsNotExist(err) {
+		log.Error().Err(err).Str("pre-hook-dir", preHooksDir).Msg("error reading the directory")
+		return err
+	} else if os.IsNotExist(err) {
+		return nil
+	}
+	// iterate over the list of hooks and run it
+	for _, hook := range hooks {
+		// compute the absolute path of the hook
+		hookPath := path.Join(preHooksDir, hook.Name())
+		log.Debug().
+			Str("hook_path", hookPath).
+			Bool("executable", hook.Mode().Perm()&0111 != 0).
+			Msg("found a pre-hook")
+		// is this a file and is executable by the current user?
+		if !hook.IsDir() && hook.Mode().Perm()&0111 != 0 {
+			cmd := exec.Command(hookPath, p.story.Profile().Base().GoPath(), p.story.GoPath(), p.Path())
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("error running the pre-hook: %s\nOutput:\n%s", err, string(out))
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *project) runPostHooks() error {
+	// compute the absolute path of the hook
+	postHooksDir := path.Join(p.hookPath(), "post-hook")
+	// first get the list of the hooks
+	hooks, err := afero.ReadDir(AppFS, postHooksDir)
+	if err != nil && !os.IsNotExist(err) {
+		log.Error().Err(err).Str("post-hook-dir", postHooksDir).Msgf("error reading the directory")
+		return err
+	} else if os.IsNotExist(err) {
+		return nil
+	}
+	// iterate over the list of hooks and run it
+	for _, hook := range hooks {
+		hookPath := path.Join(postHooksDir, hook.Name())
+		log.Debug().
+			Str("hook_path", hookPath).
+			Bool("executable", hook.Mode().Perm()&0111 != 0).
+			Msg("found a post-hook")
+		// is this a file and is executable by the current user?
+		if !hook.IsDir() && hook.Mode().Perm()&0111 != 0 {
+			cmd := exec.Command(hookPath, p.story.Profile().Base().GoPath(), p.story.GoPath(), p.Path())
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("error running the post-hook: %s\nOutput:\n%s", err, string(out))
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *project) hookPath() string {
+	return path.Join(os.Getenv("HOME"), ".config", "swm", "hooks", "coder")
+}
