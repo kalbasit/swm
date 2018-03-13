@@ -100,8 +100,7 @@ func (p *project) Repo() string {
 }
 
 func (p *project) ListPullRequests() ([]*github.PullRequest, error) {
-	prSvc := GithubClient.GetPullRequests()
-	prs, _, err := prSvc.List(context.Background(), p.Owner(), p.Repo(), nil)
+	prs, _, err := GithubClient.PullRequests.List(context.Background(), p.Owner(), p.Repo(), nil)
 	return prs, err
 }
 

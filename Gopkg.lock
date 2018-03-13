@@ -4,13 +4,20 @@
 [[projects]]
   branch = "master"
   name = "github.com/BurntSushi/xgb"
-  packages = [".","xinerama","xproto"]
+  packages = [
+    ".",
+    "xinerama",
+    "xproto"
+  ]
   revision = "27f122750802c950b2c869a5b63dafcf590ced95"
 
 [[projects]]
   branch = "master"
   name = "github.com/BurntSushi/xgbutil"
-  packages = [".","xprop"]
+  packages = [
+    ".",
+    "xprop"
+  ]
   revision = "f7c97cef3b4e6c88280a5a7091c3314e815ca243"
 
 [[projects]]
@@ -20,16 +27,16 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
-  revision = "1643683e1b54a9e88ad26d98f81400c8c9d9f4f9"
+  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/google/go-github"
   packages = ["github"]
-  revision = "8c08f4fba5e05e0fd2821a5f80cf0cf643bd5314"
+  revision = "8c26ef494543315e9dac52a0d03acdad21550c92"
 
 [[projects]]
   branch = "master"
@@ -45,21 +52,31 @@
 
 [[projects]]
   name = "github.com/rs/zerolog"
-  packages = [".","internal/json","log"]
-  revision = "3ac71fc58dbd43122668a912b755b0979ba9ce1f"
-  version = "v1.3.0"
+  packages = [
+    ".",
+    "internal/json",
+    "log"
+  ]
+  revision = "56a970de510213e50dbaa39ad73ac07c9ec75606"
+  version = "v1.5.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/spf13/afero"
-  packages = [".","mem"]
-  revision = "5660eeed305fe5f69c8fc6cf899132a459a97064"
+  packages = [
+    ".",
+    "mem"
+  ]
+  revision = "bbf41cb36dffe15dff5bf7e18c447801e7ffe163"
 
 [[projects]]
   name = "github.com/stretchr/testify"
-  packages = ["assert","require"]
-  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
-  version = "v1.1.4"
+  packages = [
+    "assert",
+    "require"
+  ]
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
 
 [[projects]]
   name = "go.i3wm.org/i3"
@@ -70,24 +87,45 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","context/ctxhttp"]
-  revision = "a337091b0525af65de94df2eb7e98bd9962dcbe2"
+  packages = [
+    "context",
+    "context/ctxhttp"
+  ]
+  revision = "ae89d30ce0c63142b652837da33d782e2b0a9b25"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/oauth2"
-  packages = [".","internal"]
-  revision = "9ff8ebcc8e241d46f52ecc5bff0e5a2f2dbef402"
+  packages = [
+    ".",
+    "internal"
+  ]
+  revision = "7af32f14d0a25aec7873e0683e8e48dcead159a8"
 
 [[projects]]
-  branch = "master"
   name = "golang.org/x/text"
-  packages = ["internal/gen","internal/triegen","internal/ucd","transform","unicode/cldr","unicode/norm"]
-  revision = "88f656faf3f37f690df1a32515b479415e1a6769"
+  packages = [
+    "internal/gen",
+    "internal/triegen",
+    "internal/ucd",
+    "transform",
+    "unicode/cldr",
+    "unicode/norm"
+  ]
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
 
 [[projects]]
   name = "google.golang.org/appengine"
-  packages = ["internal","internal/base","internal/datastore","internal/log","internal/remote_api","internal/urlfetch","urlfetch"]
+  packages = [
+    "internal",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch"
+  ]
   revision = "150dc57a1b433e64154302bdc40b6bb8aefa313a"
   version = "v1.0.0"
 
@@ -95,11 +133,11 @@
   branch = "v2"
   name = "gopkg.in/urfave/cli.v2"
   packages = ["."]
-  revision = "b2bf3c5abeb90da407891aecd1df2c5a1f6170c1"
+  revision = "d3ae77c26ac8db90639677e4831a728d33c36111"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9eb4e130958ced9794bfb22d9f9794ce1c5f4756a28672deba714041da38dcda"
+  inputs-digest = "ff951dfe8317226e6c248a0f06279badfc95fb64a9af54fdba86408b9294095f"
   solver-name = "gps-cdcl"
   solver-version = 1
