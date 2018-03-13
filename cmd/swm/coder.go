@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/kalbasit/swm/code"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/oauth2"
 
 	cli "gopkg.in/urfave/cli.v2"
 )
@@ -32,12 +30,7 @@ var coderCmd = &cli.Command{
 			Flags: []cli.Flag{
 				&cli.StringFlag{Name: "github.access_token", Usage: "The access token for accessing Github", EnvVars: []string{"GITHUB_ACCESS_TOKEN"}},
 			},
-			Before: func(ctx *cli.Context) error {
-				code.GithubClient = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
-					&oauth2.Token{AccessToken: ctx.String("github.access_token")},
-				)))
-				return nil
-			},
+			Before: createGithubClient,
 			Subcommands: []*cli.Command{
 				// list
 				{

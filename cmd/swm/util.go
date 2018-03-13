@@ -1,16 +1,48 @@
 package main
 
 import (
-	"errors"
+	"bytes"
+	"context"
+	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
 	"strings"
 
+	"github.com/google/go-github/github"
 	"github.com/kalbasit/swm/code"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"go.i3wm.org/i3"
+	"golang.org/x/oauth2"
+
 	cli "gopkg.in/urfave/cli.v2"
 )
+
+func createGithubClient(ctx *cli.Context) error {
+	githubAccessToken := ctx.String("github.access_token")
+	if githubAccessToken == "" {
+		var err error
+		githubTokenPath := path.Join(os.Getenv("HOME"), ".github_token")
+		if _, err = os.Stat(githubTokenPath); err == nil {
+			var con []byte
+			con, err = ioutil.ReadFile(githubTokenPath)
+			if err != nil {
+				return errors.Wrap(err, "error reading the Github token from ~/.github_token")
+			}
+			githubAccessToken = string(bytes.TrimSpace(con))
+		}
+	}
+	if githubAccessToken == "" {
+		return errors.New("no Github token were provided")
+	}
+	log.Debug().Str("github.access_token", githubAccessToken).Msg("creating the Github client")
+	code.GithubClient = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: githubAccessToken},
+	)))
+
+	return nil
+}
 
 func getDefaultProfile() string {
 	var p string
