@@ -1,11 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/google/go-github/github"
 	"github.com/kalbasit/swm/code"
+	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
@@ -95,9 +96,13 @@ func coderPullRequestList(ctx *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "error getting the list of the pull requests")
 	}
+	// prepare the tableau writer and write down the PRs
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Number", "Title", "URL", "Created at"})
 	for _, pr := range prs {
-		fmt.Printf("%d %s\n", pr.GetID(), pr.GetTitle())
+		table.Append([]string{strconv.Itoa(pr.GetNumber()), pr.GetTitle(), pr.GetHTMLURL(), pr.GetCreatedAt().String()})
 	}
+	table.Render()
 
 	return nil
 }
