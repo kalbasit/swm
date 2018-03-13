@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 
@@ -95,6 +96,10 @@ func coderPullRequestList(ctx *cli.Context) error {
 	prs, err = prj.ListPullRequests()
 	if err != nil {
 		return errors.Wrap(err, "error getting the list of the pull requests")
+	}
+	if len(prs) == 0 {
+		fmt.Println("No pull requests found for the project.")
+		return nil
 	}
 	// prepare the table writer and write down the PRs
 	table := tablewriter.NewWriter(os.Stdout)
