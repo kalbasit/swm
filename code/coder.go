@@ -1,5 +1,7 @@
 package code
 
+import "github.com/google/go-github/github"
+
 // Coder defines the coder interface
 // code/
 // |-- profile1
@@ -25,6 +27,10 @@ type Coder interface {
 	// Profile returns the profile given it's name or an error if no profile with
 	// this name was found
 	Profile(profile string) (Profile, error)
+
+	// ProjectByAbsolutePath returns the project corresponding to the absolute
+	// path.
+	ProjectByAbsolutePath(p string) (Project, error)
 
 	// Scan scans the code path
 	Scan() error
@@ -80,6 +86,9 @@ type Story interface {
 	// AddProject clones url as the new project. Will automatically compute the
 	// import path from the given URL.
 	AddProject(url string) error
+
+	// Exists returns true if the story does exist on disk
+	Exists() bool
 }
 
 // Project defines the project interface
@@ -96,4 +105,7 @@ type Project interface {
 
 	// ImportPath returns the path under which this project can be imported in Go
 	ImportPath() string
+
+	// ListPullRequests returns the list of pull requests
+	ListPullRequests() ([]*github.PullRequest, error)
 }

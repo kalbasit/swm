@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/afero"
 )
 
+const storiesDirName = "stories"
+
 // profile represents the profile
 type profile struct {
 	// code links back to parent coder
@@ -96,14 +98,14 @@ func (p *profile) scanBaseStory(wg *sync.WaitGroup) {
 
 func (p *profile) scanStories(wg *sync.WaitGroup) {
 	// make sure the stories folder exists
-	_, err := AppFS.Stat(path.Join(p.Path(), "stories"))
+	_, err := AppFS.Stat(path.Join(p.Path(), storiesDirName))
 	if err != nil {
 		return
 	}
 	// read the profile and scan all stories
-	entries, err := afero.ReadDir(AppFS, path.Join(p.Path(), "stories"))
+	entries, err := afero.ReadDir(AppFS, path.Join(p.Path(), storiesDirName))
 	if err != nil {
-		log.Error().Str("path", path.Join(p.Path(), "stories")).Msgf("error reading the directory: %s", err)
+		log.Error().Str("path", path.Join(p.Path(), storiesDirName)).Msgf("error reading the directory: %s", err)
 		return
 	}
 	for _, entry := range entries {

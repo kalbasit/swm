@@ -1,11 +1,14 @@
 package code
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
+	"github.com/google/go-github/github"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
 )
@@ -79,6 +82,27 @@ func (p *project) Ensure() error {
 
 // ImportPath returns the path under which this project can be imported in Go
 func (p *project) ImportPath() string { return p.importPath }
+
+func (p *project) Owner() string {
+	parts := strings.Split(p.importPath, "/")
+	if len(parts) != 3 {
+		return ""
+	}
+	return parts[1]
+}
+
+func (p *project) Repo() string {
+	parts := strings.Split(p.importPath, "/")
+	if len(parts) != 3 {
+		return ""
+	}
+	return parts[2]
+}
+
+func (p *project) ListPullRequests() ([]*github.PullRequest, error) {
+	prs, _, err := GithubClient.PullRequests.List(context.Background(), p.Owner(), p.Repo(), nil)
+	return prs, err
+}
 
 // runPreHooks iterates over the executable files in
 // ~/.config/swm/hooks/coder/pre-hook and runs each with the following

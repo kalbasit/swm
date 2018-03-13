@@ -132,3 +132,68 @@ func TestPath(t *testing.T) {
 	c := &code{path: "/code"}
 	assert.Equal(t, "/code", c.Path())
 }
+
+func TestProjectByAbsolutePath(t *testing.T) {
+	// compute the test name
+	testName := t.Name()
+	// swap the filesystem
+	oldAppFS := AppFS
+	AppFS = afero.NewMemMapFs()
+	defer func() { AppFS = oldAppFS }()
+	// create the filesystem we want to scan
+	testhelper.CreateProjects(t, AppFS)
+	// create a code
+	c := New("/code", regexp.MustCompile("^.snapshots$"))
+	// scan now
+	require.NoError(t, c.Scan())
+
+	type desc struct {
+		profile    string
+		story      string
+		importPath string
+	}
+	tests := map[string]desc{
+		"/code/" + testName + "/base/src/github.com/kalbasit/swm": desc{
+			profile:    testName,
+			story:      baseStoryName,
+			importPath: "github.com/kalbasit/swm",
+		},
+
+		"/code/" + testName + "/base/src/github.com/kalbasit/swm/cmd": desc{
+			profile:    testName,
+			story:      baseStoryName,
+			importPath: "github.com/kalbasit/swm",
+		},
+
+		"/code/" + testName + "/stories/STORY-123/src/github.com/kalbasit/swm": desc{
+			profile:    testName,
+			story:      "STORY-123",
+			importPath: "github.com/kalbasit/swm",
+		},
+
+		"/code/" + testName + "/stories/STORY-123/src/github.com/kalbasit/swm/cmd": desc{
+			profile:    testName,
+			story:      "STORY-123",
+			importPath: "github.com/kalbasit/swm",
+		},
+	}
+
+	for p, expdec := range tests {
+		prj, err := c.ProjectByAbsolutePath(p)
+		if assert.NoError(t, err) {
+			assert.Equal(t, expdec.profile, prj.Story().Profile().Name())
+			assert.Equal(t, expdec.story, prj.Story().Name())
+			assert.Equal(t, expdec.importPath, prj.ImportPath())
+		}
+	}
+
+	var err error
+	_, err = c.ProjectByAbsolutePath("/code/not-existing/base")
+	assert.EqualError(t, err, ErrPathIsInvalid.Error())
+	_, err = c.ProjectByAbsolutePath("/code/not-existing/base/src/github.com/kalbasit/swm")
+	assert.EqualError(t, err, ErrProfileNoFound.Error())
+	_, err = c.ProjectByAbsolutePath("/code/" + testName + "/stories/NOT_HERE/src/github.com/kalbasit/swm")
+	assert.EqualError(t, err, ErrStoryNotFound.Error())
+	_, err = c.ProjectByAbsolutePath("/code/" + testName + "/base/src/github.com/user/repo")
+	assert.EqualError(t, err, ErrProjectNotFound.Error())
+}
