@@ -9,7 +9,8 @@ import (
 	"gopkg.in/urfave/cli.v2"
 )
 
-var version = ""
+var version string
+
 var app = &cli.App{
 	Name:    "swm",
 	Version: version,
