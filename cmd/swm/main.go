@@ -64,8 +64,12 @@ func init() {
 		sort.Sort(cli.CommandsByName(subCmds.Subcommands))
 		for _, subCmds := range subCmds.Subcommands {
 			sort.Sort(cli.FlagsByName(subCmds.Flags))
-			if len(subCmds.Subcommands) > 0 {
-				panic("another subcommand level was added, must add another loop")
+			sort.Sort(cli.CommandsByName(subCmds.Subcommands))
+			for _, subCmds := range subCmds.Subcommands {
+				sort.Sort(cli.FlagsByName(subCmds.Flags))
+				if len(subCmds.Subcommands) > 0 {
+					panic("another subcommand level was added, must add another loop")
+				}
 			}
 		}
 	}
