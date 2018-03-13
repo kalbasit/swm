@@ -23,9 +23,11 @@ var (
 	// ErrProfileNoFound is returned if the profile was not found
 	ErrProfileNoFound = errors.New("profile not found")
 
-	// ErrProjectNotFound is returned if the session name did not yield a project
-	// we know about
+	// ErrProjectNotFound is returned if the project is not found
 	ErrProjectNotFound = errors.New("project not found")
+
+	// ErrStoryNotFound is returned if the story is not found
+	ErrStoryNotFound = errors.New("story not found")
 
 	// ErrInvalidURL is returned by AddProject if the URL given is not valid
 	ErrInvalidURL = errors.New("invalid URL given")
@@ -111,7 +113,9 @@ func (c *code) ProjectByAbsolutePath(p string) (Project, error) {
 		parts = parts[3:]
 	} else if parts[1] == storiesDirName {
 		story = profile.Story(parts[2])
-		// TODO: must verify the story exists!
+		if !story.Exists() {
+			return nil, ErrStoryNotFound
+		}
 		parts = parts[4:]
 	}
 

@@ -3,11 +3,13 @@ package code
 import (
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/kalbasit/swm/testhelper"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStoryProfile(t *testing.T) {
@@ -98,6 +100,37 @@ func TestStoryGoPath(t *testing.T) {
 	}
 	// assert the Path
 	assert.Equal(t, "/code/"+t.Name()+"/stories/STORY-123", s.GoPath())
+}
+
+func TestStoryExist(t *testing.T) {
+	// swap the filesystem
+	oldAppFS := AppFS
+	AppFS = afero.NewMemMapFs()
+	defer func() { AppFS = oldAppFS }()
+	// create the filesystem we want to scan
+	testhelper.CreateProjects(t, AppFS)
+	// create a new code
+	c := New("/code", regexp.MustCompile("^.snapshots$"))
+	// scan now
+	if err := c.Scan(); err != nil {
+		t.Fatalf("code scan failed: %s", err)
+	}
+
+	t.Run("testing the case of a story existing", func(t *testing.T) {
+		parts := strings.Split(t.Name(), "/")
+		p, err := c.Profile(parts[0])
+		require.NoError(t, err)
+		s := p.Story("STORY-123")
+		assert.True(t, s.Exists())
+	})
+
+	t.Run("testing the case of a story", func(t *testing.T) {
+		parts := strings.Split(t.Name(), "/")
+		p, err := c.Profile(parts[0])
+		require.NoError(t, err)
+		s := p.Story("not-existing")
+		assert.False(t, s.Exists())
+	})
 }
 
 func TestStoryProjects(t *testing.T) {

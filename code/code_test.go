@@ -186,4 +186,14 @@ func TestProjectByAbsolutePath(t *testing.T) {
 			assert.Equal(t, expdec.importPath, prj.ImportPath())
 		}
 	}
+
+	var err error
+	_, err = c.ProjectByAbsolutePath("/code/not-existing/base")
+	assert.EqualError(t, err, ErrPathIsInvalid.Error())
+	_, err = c.ProjectByAbsolutePath("/code/not-existing/base/src/github.com/kalbasit/swm")
+	assert.EqualError(t, err, ErrProfileNoFound.Error())
+	_, err = c.ProjectByAbsolutePath("/code/" + testName + "/stories/NOT_HERE/src/github.com/kalbasit/swm")
+	assert.EqualError(t, err, ErrStoryNotFound.Error())
+	_, err = c.ProjectByAbsolutePath("/code/" + testName + "/base/src/github.com/user/repo")
+	assert.EqualError(t, err, ErrProjectNotFound.Error())
 }

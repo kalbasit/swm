@@ -43,6 +43,12 @@ func (s *story) Name() string { return s.name }
 // Base returns true if this story is the base story
 func (s *story) Base() bool { return s.name == baseStoryName }
 
+// Exists returns true if the story does exist on disk
+func (s *story) Exists() bool {
+	_, err := AppFS.Stat(s.GoPath())
+	return err == nil
+}
+
 // GoPath returns the absolute GOPATH of this story.
 func (s *story) GoPath() string {
 	if s.name == baseStoryName {

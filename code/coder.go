@@ -86,6 +86,9 @@ type Story interface {
 	// AddProject clones url as the new project. Will automatically compute the
 	// import path from the given URL.
 	AddProject(url string) error
+
+	// Exists returns true if the story does exist on disk
+	Exists() bool
 }
 
 // Project defines the project interface
