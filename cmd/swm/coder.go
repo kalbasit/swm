@@ -103,6 +103,8 @@ func coderPullRequestList(ctx *cli.Context) error {
 	}
 	// prepare the table writer and write down the PRs
 	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetAutoFormatHeaders(false)
 	table.SetHeader([]string{"Number", "Title", "URL", "Created at"})
 	for _, pr := range prs {
 		table.Append([]string{strconv.Itoa(pr.GetNumber()), pr.GetTitle(), pr.GetHTMLURL(), pr.GetCreatedAt().String()})
