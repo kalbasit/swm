@@ -12,12 +12,32 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/kalbasit/swm/code"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.i3wm.org/i3"
 	"golang.org/x/oauth2"
 
 	cli "gopkg.in/urfave/cli.v2"
 )
+
+func createLogger(ctx *cli.Context) error {
+	// create the logger that pretty prints to the ctx.Writer
+	log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: ctx.App.Writer}).
+		With().
+		Timestamp().
+		Str("ignore-pattern", ctx.String("ignore-pattern")).
+		Str("code-path", ctx.String("code-path")).
+		Str("profile", ctx.String("profile")).
+		Str("story", ctx.String("story")).
+		Logger().
+		Level(zerolog.InfoLevel)
+	// handle debug
+	if ctx.Bool("debug") {
+		log.Logger = log.Logger.Level(zerolog.DebugLevel)
+	}
+
+	return nil
+}
 
 func createGithubClient(ctx *cli.Context) error {
 	githubAccessToken := ctx.String("github.access_token")
