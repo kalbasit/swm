@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/google/go-github/github"
@@ -37,6 +38,16 @@ func createLogger(ctx *cli.Context) error {
 	}
 
 	return nil
+}
+
+func sortCommands(subCmds []*cli.Command) {
+	for _, subCmd := range subCmds {
+		sort.Sort(cli.FlagsByName(subCmd.Flags))
+		sort.Sort(cli.CommandsByName(subCmd.Subcommands))
+		if len(subCmd.Subcommands) > 0 {
+			sortCommands(subCmd.Subcommands)
+		}
+	}
 }
 
 func createGithubClient(ctx *cli.Context) error {
