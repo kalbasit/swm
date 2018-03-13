@@ -96,7 +96,7 @@ func coderPullRequestList(ctx *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "error getting the list of the pull requests")
 	}
-	// prepare the tableau writer and write down the PRs
+	// prepare the table writer and write down the PRs
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Number", "Title", "URL", "Created at"})
 	for _, pr := range prs {
