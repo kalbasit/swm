@@ -81,6 +81,20 @@ func (c *code) Scan() error {
 	return nil
 }
 
+// ProjectByAbsolutePath returns the project corresponding to the absolute
+// path.
+func (c *code) ProjectByAbsolutePath(p string) (Project, error) {
+	// TODO!!
+
+	pro, err := c.Profile("publica")
+	if err != nil {
+		return nil, err
+	}
+	s := pro.Story(baseStoryName)
+
+	return s.Project("github.com/publica-project/adctrl")
+}
+
 // getProfile return the profile identified by name
 func (c *code) getProfile(name string) (*profile, error) {
 	c.mu.RLock()

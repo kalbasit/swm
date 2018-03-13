@@ -28,6 +28,10 @@ type Coder interface {
 	// this name was found
 	Profile(profile string) (Profile, error)
 
+	// ProjectByAbsolutePath returns the project corresponding to the absolute
+	// path.
+	ProjectByAbsolutePath(p string) (Project, error)
+
 	// Scan scans the code path
 	Scan() error
 }

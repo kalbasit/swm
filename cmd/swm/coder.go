@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"os"
 
 	"github.com/google/go-github/github"
 	"github.com/kalbasit/swm/code"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
+
 	cli "gopkg.in/urfave/cli.v2"
 )
 
@@ -74,5 +77,34 @@ func coderAddProject(ctx *cli.Context) error {
 }
 
 func coderPullRequestList(ctx *cli.Context) error {
+	// create a new coder
+	c, err := newCoder(ctx)
+	if err != nil {
+		return err
+	}
+	if err = c.Scan(); err != nil {
+		return err
+	}
+	// get the project from the current PATH
+	var prj code.Project
+	var wd string
+	wd, err = os.Getwd()
+	if err != nil {
+		return errors.Wrap(err, "error finding the current working directory")
+	}
+	prj, err = c.ProjectByAbsolutePath(wd)
+	if err != nil {
+		return errors.Wrap(err, "error finding the project for the current directory")
+	}
+	// get the list of prs
+	var prs []*github.PullRequest
+	prs, err = prj.ListPullRequests()
+	if err != nil {
+		return errors.Wrap(err, "error getting the list of the pull requests")
+	}
+	for _, pr := range prs {
+		fmt.Printf("%d %s\n", pr.GetID(), pr.GetTitle())
+	}
+
 	return nil
 }
