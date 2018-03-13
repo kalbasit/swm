@@ -1,5 +1,7 @@
 package code
 
+import "github.com/google/go-github/github"
+
 // Coder defines the coder interface
 // code/
 // |-- profile1
@@ -96,4 +98,7 @@ type Project interface {
 
 	// ImportPath returns the path under which this project can be imported in Go
 	ImportPath() string
+
+	// ListPullRequests returns the list of pull requests
+	ListPullRequests() ([]*github.PullRequest, error)
 }

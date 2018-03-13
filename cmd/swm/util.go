@@ -4,9 +4,12 @@ import (
 	"errors"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 
+	"github.com/kalbasit/swm/code"
 	"go.i3wm.org/i3"
+	cli "gopkg.in/urfave/cli.v2"
 )
 
 func getDefaultProfile() string {
@@ -75,4 +78,14 @@ func getActiveI3WorkspaceName() (string, error) {
 		}
 	}
 	return "", errors.New("no active i3 workspace was found")
+}
+
+func newCoder(ctx *cli.Context) (code.Coder, error) {
+	// parse the regex
+	ignorePattern, err := regexp.Compile(ctx.String("ignore-pattern"))
+	if err != nil {
+		return nil, err
+	}
+	// create a new coder
+	return code.New(ctx.String("code-path"), ignorePattern), nil
 }

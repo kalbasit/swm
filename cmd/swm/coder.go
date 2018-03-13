@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
-	"regexp"
 
+	"github.com/google/go-github/github"
 	"github.com/kalbasit/swm/code"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/oauth2"
 	cli "gopkg.in/urfave/cli.v2"
 )
 
@@ -18,6 +20,30 @@ var coderCmd = &cli.Command{
 			Usage:     "TODO",
 			Action:    coderAddProject,
 			ArgsUsage: "<url>",
+		},
+		// pull request
+		{
+			Name:    "pull-request",
+			Usage:   "TODO",
+			Aliases: []string{"pr"},
+			Flags: []cli.Flag{
+				&cli.StringFlag{Name: "github.access_token", Usage: "The access token for accessing Github", EnvVars: []string{"GITHUB_ACCESS_TOKEN"}},
+			},
+			Before: func(ctx *cli.Context) error {
+				code.GithubClient = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
+					&oauth2.Token{AccessToken: ctx.String("github.access_token")},
+				)))
+				return nil
+			},
+			Subcommands: []*cli.Command{
+				// list
+				{
+					Name:    "list",
+					Usage:   "TODO",
+					Aliases: []string{"ls"},
+					Action:  coderPullRequestList,
+				},
+			},
 		},
 	},
 }
@@ -32,7 +58,7 @@ func coderAddProject(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := c.Scan(); err != nil {
+	if err = c.Scan(); err != nil {
 		return err
 	}
 	// get the profile
@@ -47,12 +73,6 @@ func coderAddProject(ctx *cli.Context) error {
 	return story.AddProject(ctx.Args().First())
 }
 
-func newCoder(ctx *cli.Context) (code.Coder, error) {
-	// parse the regex
-	ignorePattern, err := regexp.Compile(ctx.String("ignore-pattern"))
-	if err != nil {
-		return nil, err
-	}
-	// create a new coder
-	return code.New(ctx.String("code-path"), ignorePattern), nil
+func coderPullRequestList(ctx *cli.Context) error {
+	return nil
 }

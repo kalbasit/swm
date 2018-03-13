@@ -1,12 +1,14 @@
 package code
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 
+	"github.com/google/go-github/github"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
 )
@@ -95,6 +97,12 @@ func (p *project) Repo() string {
 		return ""
 	}
 	return parts[2]
+}
+
+func (p *project) ListPullRequests() ([]*github.PullRequest, error) {
+	prSvc := GithubClient.GetPullRequests()
+	prs, _, err := prSvc.List(context.Background(), p.Owner(), p.Repo(), nil)
+	return prs, err
 }
 
 // runPreHooks iterates over the executable files in
