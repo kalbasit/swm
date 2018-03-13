@@ -12,7 +12,7 @@ var tmuxCmd = &cli.Command{
 		// switch client switches tmux client
 		{
 			Name:   "switch-client",
-			Usage:  "TODO",
+			Usage:  "Switch the client within the session for this profile and story",
 			Action: tmuxSwitchClient,
 			Flags: []cli.Flag{
 				&cli.BoolFlag{Name: "kill-pane", Usage: "kill the TMUX pane after switch client"},
@@ -21,13 +21,13 @@ var tmuxCmd = &cli.Command{
 		// vim exit will save/exit any open vim
 		{
 			Name:   "vim-exit",
-			Usage:  "TODO",
+			Usage:  "Close all of open Vim within the session for this profile and story",
 			Action: tmuxVimExit,
 		},
 		// kill-server will kill the server
 		{
 			Name:   "kill-server",
-			Usage:  "TODO",
+			Usage:  "Kill the server closes the tmux session for this profile and story",
 			Action: tmuxKillServer,
 			Flags: []cli.Flag{
 				&cli.BoolFlag{Name: "vim-exit", Usage: "if vim is found running, kill it"},

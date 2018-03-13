@@ -20,14 +20,14 @@ var coderCmd = &cli.Command{
 		// add project
 		{
 			Name:      "add-project",
-			Usage:     "TODO",
+			Usage:     "Clone a new project and places it in the selected profile and story",
 			Action:    coderAddProject,
 			ArgsUsage: "<url>",
 		},
 		// pull request
 		{
 			Name:    "pull-request",
-			Usage:   "TODO",
+			Usage:   "Pull request sub-command provides commands to interact with Github",
 			Aliases: []string{"pr"},
 			Flags: []cli.Flag{
 				&cli.StringFlag{Name: "github.access_token", Usage: "The access token for accessing Github", EnvVars: []string{"GITHUB_ACCESS_TOKEN"}},
@@ -37,7 +37,7 @@ var coderCmd = &cli.Command{
 				// list
 				{
 					Name:    "list",
-					Usage:   "TODO",
+					Usage:   "List the pull requests open for this repository over on Github",
 					Aliases: []string{"ls"},
 					Action:  coderPullRequestList,
 				},
