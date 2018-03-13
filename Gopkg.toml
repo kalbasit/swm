@@ -21,6 +21,10 @@
 #  version = "2.4.0"
 
 
+[prune]
+  go-tests = true
+  unused-packages = true
+
 [[constraint]]
   branch = "master"
   name = "github.com/spf13/afero"
@@ -48,3 +52,7 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/oauth2"
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+  version = "^0.8.0"
