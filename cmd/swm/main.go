@@ -56,21 +56,17 @@ var app = &cli.App{
 
 func init() {
 	// sort the commands/flags
-	// TODO: refactor this to walk the tree rather than manually doing so
 	sort.Sort(cli.FlagsByName(app.Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
-	for _, subCmds := range app.Commands {
-		sort.Sort(cli.FlagsByName(subCmds.Flags))
-		sort.Sort(cli.CommandsByName(subCmds.Subcommands))
-		for _, subCmds := range subCmds.Subcommands {
-			sort.Sort(cli.FlagsByName(subCmds.Flags))
-			sort.Sort(cli.CommandsByName(subCmds.Subcommands))
-			for _, subCmds := range subCmds.Subcommands {
-				sort.Sort(cli.FlagsByName(subCmds.Flags))
-				if len(subCmds.Subcommands) > 0 {
-					panic("another subcommand level was added, must add another loop")
-				}
-			}
+	sortCommands(app.Commands)
+}
+
+func sortCommands(subCmds []*cli.Command) {
+	for _, subCmd := range subCmds {
+		sort.Sort(cli.FlagsByName(subCmd.Flags))
+		sort.Sort(cli.CommandsByName(subCmd.Subcommands))
+		if len(subCmd.Subcommands) > 0 {
+			sortCommands(subCmd.Subcommands)
 		}
 	}
 }
