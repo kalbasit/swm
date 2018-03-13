@@ -1,11 +1,13 @@
 package code
 
 import (
-	"errors"
 	"os"
+	"path"
 	"regexp"
+	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/afero"
 )
@@ -33,6 +35,10 @@ var (
 
 	// ErrCoderNotScanned is returned if San() was never called
 	ErrCoderNotScanned = errors.New("code was not scanned")
+
+	// ErrPathIsInvalid is returned if the given absolute path is invalid (it
+	// does not make up a full coder path + profile + story + project).
+	ErrPathIsInvalid = errors.New("path is invalid")
 )
 
 func init() {
@@ -56,7 +62,7 @@ type code struct {
 // scan the code directory
 func New(p string, ignore *regexp.Regexp) Coder {
 	return &code{
-		path:           p,
+		path:           path.Clean(p),
 		excludePattern: ignore,
 		profiles:       make(map[string]*profile),
 	}
@@ -84,15 +90,40 @@ func (c *code) Scan() error {
 // ProjectByAbsolutePath returns the project corresponding to the absolute
 // path.
 func (c *code) ProjectByAbsolutePath(p string) (Project, error) {
-	// TODO!!
-
-	pro, err := c.Profile("publica")
+	// clean the path
+	p = path.Clean(p)
+	// trim the coder path from the path we are looking for (along with the pathSeparator)
+	p = strings.TrimPrefix(p, c.Path()+string(os.PathSeparator))
+	// split the path by the pathSeparator now
+	parts := strings.Split(p, string(os.PathSeparator))
+	if len(parts) < 5 { // 5 because the template is story/stories/STORY-NAME/src/project
+		return nil, ErrPathIsInvalid
+	}
+	// get the profile
+	profile, err := c.getProfile(parts[0])
 	if err != nil {
 		return nil, err
 	}
-	s := pro.Story(baseStoryName)
+	// get the story
+	var story Story
+	if parts[1] == baseStoryName {
+		story = profile.Base()
+		parts = parts[3:]
+	} else if parts[1] == storiesDirName {
+		story = profile.Story(parts[2])
+		// TODO: must verify the story exists!
+		parts = parts[4:]
+	}
 
-	return s.Project("github.com/publica-project/adctrl")
+	for i := len(parts); i > 0; i-- {
+		var prj Project
+		prj, err = story.Project(path.Join(parts[:i]...))
+		if err == nil {
+			return prj, nil
+		}
+	}
+
+	return nil, ErrProjectNotFound
 }
 
 // getProfile return the profile identified by name
