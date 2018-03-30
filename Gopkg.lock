@@ -33,10 +33,10 @@
   version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/google/go-github"
   packages = ["github"]
-  revision = "8c26ef494543315e9dac52a0d03acdad21550c92"
+  revision = "e48060a28fac52d0f1cb758bc8b87c07bac4a87d"
+  version = "v15.0.0"
 
 [[projects]]
   branch = "master"
@@ -72,20 +72,21 @@
   name = "github.com/rs/zerolog"
   packages = [
     ".",
+    "internal/cbor",
     "internal/json",
     "log"
   ]
-  revision = "56a970de510213e50dbaa39ad73ac07c9ec75606"
-  version = "v1.5.0"
+  revision = "05eafee0eb17d0150591a8f30f0fa592cc9b7471"
+  version = "v1.6.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/spf13/afero"
   packages = [
     ".",
     "mem"
   ]
-  revision = "bbf41cb36dffe15dff5bf7e18c447801e7ffe163"
+  revision = "bb8f1927f2a9d3ab41c9340aa034f6b803f4359c"
+  version = "v1.0.2"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -109,7 +110,7 @@
     "context",
     "context/ctxhttp"
   ]
-  revision = "ae89d30ce0c63142b652837da33d782e2b0a9b25"
+  revision = "6078986fec03a1dcc236c34816c71b0e05018fda"
 
 [[projects]]
   branch = "master"
@@ -118,7 +119,7 @@
     ".",
     "internal"
   ]
-  revision = "7af32f14d0a25aec7873e0683e8e48dcead159a8"
+  revision = "fdc9e635145ae97e6c2cb777c48305600cf515cb"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -156,6 +157,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b66c1c09a56280b0269957284d9d16cc276797c1f483585c0e7175ba76185d7e"
+  inputs-digest = "5ad866d2dc2e25a0153b65fd54c00ea12903d7b7efd7bc59f8c1cee465152c54"
   solver-name = "gps-cdcl"
   solver-version = 1
