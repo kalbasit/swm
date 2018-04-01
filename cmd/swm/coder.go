@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/google/go-github/github"
-	"github.com/kalbasit/swm/code"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -34,10 +34,16 @@ var coderCmd = &cli.Command{
 			},
 			Before: createGithubClient,
 			Subcommands: []*cli.Command{
+				// new
+				{
+					Name:   "new",
+					Usage:  "Open a new pull request for this project over on Github",
+					Action: coderPullRequestNew,
+				},
 				// list
 				{
 					Name:    "list",
-					Usage:   "List the pull requests open for this repository over on Github",
+					Usage:   "List the pull requests open for this project over on Github",
 					Aliases: []string{"ls"},
 					Action:  coderPullRequestList,
 				},
@@ -72,22 +78,8 @@ func coderAddProject(ctx *cli.Context) error {
 }
 
 func coderPullRequestList(ctx *cli.Context) error {
-	// create a new coder
-	c, err := newCoder(ctx)
-	if err != nil {
-		return err
-	}
-	if err = c.Scan(); err != nil {
-		return err
-	}
-	// get the project from the current PATH
-	var prj code.Project
-	var wd string
-	wd, err = os.Getwd()
-	if err != nil {
-		return errors.Wrap(err, "error finding the current working directory")
-	}
-	prj, err = c.ProjectByAbsolutePath(wd)
+	// get the project for the current directory
+	prj, err := projectForCurrentPath(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error finding the project for the current directory")
 	}
@@ -110,6 +102,29 @@ func coderPullRequestList(ctx *cli.Context) error {
 		table.Append([]string{strconv.Itoa(pr.GetNumber()), pr.GetTitle(), pr.GetHTMLURL(), pr.GetCreatedAt().String()})
 	}
 	table.Render()
+
+	return nil
+}
+
+func coderPullRequestNew(ctx *cli.Context) error {
+	if len(os.Args) < 5 {
+		return errors.Errorf("%s coder pull-request new <title>", os.Args[0])
+	}
+	// get the project for the current directory
+	// prj, err := projectForCurrentPath(ctx)
+	// if err != nil {
+	// 	return errors.Wrap(err, "error finding the project for the current directory")
+	// }
+	// if prj.HasPullRequest() {
+	// 	return errors.New("This project already has a Pull Request")
+	// }
+	// compute the title and the body of the pull request
+	title := strings.Join(os.Args[4:], " ")
+	body, err := openEditor([]byte(title))
+	if err != nil {
+		return errors.Wrap(err, "error opening a new file for editing")
+	}
+	fmt.Printf("%s", string(body))
 
 	return nil
 }

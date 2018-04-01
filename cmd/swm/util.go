@@ -5,6 +5,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"sort"
@@ -151,4 +152,73 @@ func newCoder(ctx *cli.Context) (code.Coder, error) {
 	}
 	// create a new coder
 	return code.New(ctx.String("code-path"), ignorePattern), nil
+}
+
+func projectForCurrentPath(ctx *cli.Context) (code.Project, error) {
+	// create a new coder
+	c, err := newCoder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating a new coder")
+	}
+	if err = c.Scan(); err != nil {
+		return nil, errors.Wrap(err, "error scanning the coder")
+	}
+	// get the project from the current PATH
+	var wd string
+	wd, err = os.Getwd()
+	if err != nil {
+		return nil, errors.Wrap(err, "error finding the current working directory")
+	}
+	return c.ProjectByAbsolutePath(wd)
+}
+
+func openEditor(content []byte) ([]byte, error) {
+	// generate a new File
+	f, err := ioutil.TempFile("", "swm-editor.XXXXXX")
+	fName := f.Name()
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating a temporary file")
+	}
+	// write the content to it
+	if _, err = f.Write(content); err != nil {
+		return nil, errors.Wrap(err, "error writing the initial editor")
+	}
+	if err = f.Close(); err != nil {
+		return nil, errors.Wrap(err, "error closing the temporary file")
+	}
+	// find the editor path
+	editorPath, err := findEditor()
+	if err != nil {
+		return nil, errors.Wrap(err, "error finding the path of the editor to use")
+	}
+	cmd := exec.Command(editorPath, fName)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err = cmd.Start(); err != nil {
+		return nil, errors.Wrap(err, "error running the editor")
+	}
+	if err = cmd.Wait(); err != nil {
+		return nil, errors.Wrap(err, "error waiting for the editor")
+	}
+	// read the file back
+	fnew, err := os.Open(fName)
+	if err != nil {
+		return nil, errors.Wrap(err, "error opening the temporary file")
+	}
+	defer func() {
+		fnew.Close()
+		os.Remove(fName)
+	}()
+	return ioutil.ReadAll(fnew)
+}
+
+func findEditor() (string, error) {
+	// find the editor name
+	editorName := os.Getenv("EDITOR")
+	if editorName == "" {
+		return "", errors.New("no EDITOR defined")
+	}
+
+	return exec.LookPath(editorName)
 }
