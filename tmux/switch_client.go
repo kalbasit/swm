@@ -44,7 +44,7 @@ func (t *tmux) SwitchClient(killPane bool) error {
 		// session does not exist, we should start it
 		for _, args := range [][]string{
 			// start the session
-			{"-L", t.socketName(), "new-session", "-d", "-s", sessionName},
+			{"-L", t.socketName(), "new-session", "-c", project.Path(), "-d", "-s", sessionName},
 			// set the active profile
 			{"-L", t.socketName(), "set-environment", "-t", sessionName, "ACTIVE_PROFILE", project.Story().Profile().Name()},
 			// set the active story
@@ -52,7 +52,7 @@ func (t *tmux) SwitchClient(killPane bool) error {
 			// set the new GOPATH
 			{"-L", t.socketName(), "set-environment", "-t", sessionName, "GOPATH", project.Story().GoPath()},
 			// start a new shell on window 1
-			{"-L", t.socketName(), "new-window", "-t", sessionName + ":1"},
+			{"-L", t.socketName(), "new-window", "-c", project.Path(), "-t", sessionName + ":1"},
 			// start vim in the first window
 			{"-L", t.socketName(), "send-keys", "-t", sessionName + ":0", "type vim_ready &>/dev/null && vim_ready; clear; vim", "Enter"},
 		} {
