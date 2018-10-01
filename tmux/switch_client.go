@@ -40,7 +40,7 @@ func (t *tmux) SwitchClient(killPane bool) error {
 		return err
 	}
 	// run tmux has-session -t sessionName to check if session already exists
-	if err := exec.Command(tmuxPath, "-L", t.socketName(), "has-session", "-t", sessionName).Run(); err != nil {
+	if err := exec.Command(tmuxPath, "-L", t.socketName(), "has-session", "-t="+sessionName).Run(); err != nil {
 		// session does not exist, we should start it
 		for _, args := range [][]string{
 			// start the session
