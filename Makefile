@@ -11,16 +11,13 @@ all: install
 swm: $(SOURCES)
 	go build -ldflags "-X main.version=$(VERSION)" -o swm ./cmd/swm/*.go
 
-build: prerequisites vendor swm
+build: prerequisites swm
 
-vendor: Gopkg.toml Gopkg.lock
-	dep ensure -v
-
-install: prerequisites vendor
+install: prerequisites
 	go install -v -ldflags "-X main.version=$(VERSION)" ./cmd/swm
 
-test: prerequisites vendor
-	go test -v -race -cover -bench=. $(shell go list ./... | grep -v /vendor/)
+test: prerequisites
+	go test -v -race -cover -bench=. $(shell go list ./...)
 
 ci: test
 
@@ -51,7 +48,7 @@ endif
 	@:
 
 list-packages:
-	@go list $(PROJECT_PATH)/... | grep -v /vendor/ &>/dev/null
+	@go list $(PROJECT_PATH)/...
 
 assert-project-under-gopath: assert-gopath-available
 	@make list-packages || make error-project
