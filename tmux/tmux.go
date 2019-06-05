@@ -12,7 +12,6 @@ import (
 const (
 	dotChar   = "\u2022"
 	colonChar = "\uFF1A"
-	slashChar = "\uFF0F"
 )
 
 var (
