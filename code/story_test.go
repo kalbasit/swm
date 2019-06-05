@@ -100,6 +100,20 @@ func TestStoryGoPath(t *testing.T) {
 	}
 	// assert the Path
 	assert.Equal(t, "/code/"+t.Name()+"/stories/STORY-123", s.GoPath())
+
+	// testing the case of a story with a slash in it
+
+	s = &story{
+		name: "features/STORY-123",
+		profile: &profile{
+			name: t.Name(),
+			code: &code{
+				path: "/code",
+			},
+		},
+	}
+	// assert the Path
+	assert.Equal(t, "/code/"+t.Name()+"/stories/features/STORY-123", s.GoPath())
 }
 
 func TestStoryExist(t *testing.T) {
