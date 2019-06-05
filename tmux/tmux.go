@@ -3,6 +3,7 @@ package tmux
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/kalbasit/swm/code"
 	"github.com/rs/zerolog/log"
@@ -45,7 +46,9 @@ type Options struct {
 type tmux struct{ options *Options }
 
 // socketName returns the session name
-func (t *tmux) socketName() string { return fmt.Sprintf("%s@%s", t.options.Profile, t.options.Story) }
+func (t *tmux) socketName() string {
+	return strings.Replace(fmt.Sprintf("%s@%s", t.options.Profile, t.options.Story), "/", "_", -1)
+}
 
 // New returns a new tmux manager
 func New(opts *Options) Manager {
