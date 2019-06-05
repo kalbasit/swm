@@ -110,7 +110,7 @@ func (t *tmux) getSessionNameProjects() (map[string]code.Project, error) {
 	// loop over all projects and get the session name
 	for _, prj := range story.Projects() {
 		// assign it to the map
-		sessionNameProjects[strings.Replace(strings.Replace(prj.ImportPath(), ".", dotChar, -1), ":", colonChar, -1)] = prj
+		sessionNameProjects[sanitize(prj.ImportPath())] = prj
 	}
 
 	// get the base story
@@ -127,8 +127,15 @@ func (t *tmux) getSessionNameProjects() (map[string]code.Project, error) {
 			return nil, err
 		}
 		// assign it to the map
-		sessionNameProjects[strings.Replace(strings.Replace(prj.ImportPath(), ".", dotChar, -1), ":", colonChar, -1)] = prj
+		sessionNameProjects[sanitize(prj.ImportPath())] = prj
 	}
 
 	return sessionNameProjects, nil
+}
+
+func sanitize(name string) string {
+	name = strings.Replace(name, ".", dotChar, -1)
+	name = strings.Replace(name, ":", colonChar, -1)
+
+	return name
 }

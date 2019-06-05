@@ -103,3 +103,13 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 		}
 	}
 }
+
+func TestSanitize(t *testing.T) {
+	t.Run(".", func(t *testing.T) {
+		assert.Equal(t, "github"+dotChar+"com/kalbasit/swm", sanitize("github.com/kalbasit/swm"))
+	})
+
+	t.Run(":", func(t *testing.T) {
+		assert.Equal(t, "github"+colonChar+"com/kalbasit/swm", sanitize("github:com/kalbasit/swm"))
+	})
+}
