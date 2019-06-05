@@ -11,11 +11,11 @@ let
 in
 
 # This allows overriding nixpkgs by passing `--arg nixpkgs ...`
-{ nixpkgs ? pinnedPkgs }:
+{ nixpkgs ? pinnedPkgs, home ? builtins.getEnv "HOME" }:
 
 nixpkgs.mkShell {
-  buildInputs = with nixpkgs; [
-    go
-    dep
-  ];
+  buildInputs = with nixpkgs; [ go ];
+
+  GOPATH = "${home}/.cache/go";
+  GO111MODULE = "on";
 }
