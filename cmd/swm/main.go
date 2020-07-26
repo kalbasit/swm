@@ -5,7 +5,7 @@ import (
 	"sort"
 
 	"github.com/rs/zerolog/log"
-	"gopkg.in/urfave/cli.v2"
+	"github.com/urfave/cli/v2"
 )
 
 var version string

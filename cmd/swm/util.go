@@ -18,7 +18,7 @@ import (
 	"go.i3wm.org/i3"
 	"golang.org/x/oauth2"
 
-	cli "gopkg.in/urfave/cli.v2"
+	cli "github.com/urfave/cli/v2"
 )
 
 func createLogger(ctx *cli.Context) error {

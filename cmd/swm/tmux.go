@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/kalbasit/swm/tmux"
 
-	cli "gopkg.in/urfave/cli.v2"
+	cli "github.com/urfave/cli/v2"
 )
 
 var tmuxCmd = &cli.Command{
