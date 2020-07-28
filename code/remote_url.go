@@ -4,8 +4,8 @@ import (
 	"regexp"
 )
 
-// https://regex101.com/r/LEikJj/2
-var gitRemoteUrlRegexp = regexp.MustCompile(`^(?:(?:(?P<protocol>ssh|https?)://)?)(?:(?P<username>\S+)@)?(?P<hostname>(?:[^/:])+)(?P<path_separator>/|:)(?P<path>\S+?)(?P<extension>(?:\.git)?)$`)
+// https://regex101.com/r/LEikJj/5
+var gitRemoteUrlRegexp = regexp.MustCompile(`^(?:(?:(?P<protocol>file|ssh|https?)://)?)(?:(?P<username>\S+)@)?(?P<hostname>(?:[^/:])+)?(?P<path_separator>/|:)(?P<path>\S+?)(?P<extension>(?:\.git)?)$`)
 
 // TODO: add password
 type remoteURL struct {

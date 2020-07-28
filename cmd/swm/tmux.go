@@ -64,8 +64,9 @@ func tmuxKillServer(ctx *cli.Context) error {
 }
 
 func newTmuxManager(ctx *cli.Context) (tmux.Manager, error) {
-	// create a new coder
-	c, err := newCoder(ctx)
+	// create a new code
+	c, err := newCode(ctx)
+
 	if err != nil {
 		return nil, err
 	}
@@ -75,9 +76,8 @@ func newTmuxManager(ctx *cli.Context) (tmux.Manager, error) {
 	}
 	// create a new TMUX manager
 	tmuxManager := tmux.New(&tmux.Options{
-		Coder:   c,
-		Profile: ctx.String("profile"),
-		Story:   ctx.String("story"),
+		Coder:     c,
+		StoryName: ctx.String("story-name"),
 	})
 
 	return tmuxManager, nil

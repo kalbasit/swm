@@ -15,30 +15,19 @@ func init() {
 }
 
 func TestSocketName(t *testing.T) {
-	t.Run("typical profile/story", func(t *testing.T) {
+	t.Run("typical story", func(t *testing.T) {
 		tmx := &tmux{options: &Options{
-			Profile: "personal",
-			Story:   "STORY-123",
+			StoryName: "STORY-123",
 		}}
 
-		assert.Equal(t, "personal@STORY-123", tmx.socketName())
-	})
-
-	t.Run("profile with a slash", func(t *testing.T) {
-		tmx := &tmux{options: &Options{
-			Profile: "personal/a",
-			Story:   "STORY-123",
-		}}
-
-		assert.Equal(t, "personal_a@STORY-123", tmx.socketName())
+		assert.Equal(t, "swm-STORY-123", tmx.socketName())
 	})
 
 	t.Run("story with a slash", func(t *testing.T) {
 		tmx := &tmux{options: &Options{
-			Profile: "personal",
-			Story:   "feature/STORY-123",
+			StoryName: "feature/STORY-123",
 		}}
 
-		assert.Equal(t, "personal@feature_STORY-123", tmx.socketName())
+		assert.Equal(t, "swm-feature_STORY-123", tmx.socketName())
 	})
 }

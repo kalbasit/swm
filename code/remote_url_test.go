@@ -107,6 +107,14 @@ func TestParseRemoteURL(t *testing.T) {
 			path:          "kalbasit/swm",
 			extension:     "",
 		},
+		"file:///path/to/repository": &remoteURL{
+			protocol:      "file",
+			username:      "",
+			hostname:      "",
+			pathSeparator: "/",
+			path:          "path/to/repository",
+			extension:     "",
+		},
 	}
 
 	for url, expected := range tests {
@@ -128,6 +136,7 @@ func TestRemoteURLString(t *testing.T) {
 		"https://github.com/kalbasit/swm",
 		"ssh://git@github.com/kalbasit/swm.git",
 		"ssh://git@github.com/kalbasit/swm",
+		"file:///path/to/repository",
 	}
 
 	for _, url := range tests {
