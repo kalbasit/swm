@@ -8,7 +8,6 @@ import (
 	"path"
 	"regexp"
 	"sort"
-	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/kalbasit/swm/code"
@@ -16,7 +15,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"go.i3wm.org/i3"
 	"golang.org/x/oauth2"
 
 	cli "github.com/urfave/cli/v2"
@@ -76,42 +74,6 @@ func createGithubClient(ctx *cli.Context) error {
 	)))
 
 	return nil
-}
-
-func getDefaultStoryName() string {
-	var s string
-
-	// try parsing it from the SWM_STORY_NAME environment variable.
-	s = os.Getenv("SWM_STORY_NAME")
-	// try parsing it from the TMUX environment variable (the session path).
-	if s == "" {
-		if tmuxSocketPath := os.Getenv("TMUX"); tmuxSocketPath != "" {
-			s = strings.Split(path.Base(tmuxSocketPath), ",")[0]
-		}
-	}
-	// finally try parsing it from the i3 workspace
-	if s == "" {
-		i3Workspace, err := getActiveI3WorkspaceName()
-		if err == nil && strings.Contains(i3Workspace, "@") {
-			s = strings.Split(i3Workspace, "@")[1]
-		}
-	}
-
-	return s
-}
-
-func getActiveI3WorkspaceName() (string, error) {
-	// get the workspaces
-	workspaces, err := i3.GetWorkspaces()
-	if err != nil {
-		return "", err
-	}
-	for _, workspace := range workspaces {
-		if workspace.Focused {
-			return workspace.Name, nil
-		}
-	}
-	return "", errors.New("no active i3 workspace was found")
 }
 
 func newCode(ctx *cli.Context) (ifaces.Code, error) {
