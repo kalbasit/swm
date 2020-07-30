@@ -95,7 +95,7 @@ func (t *tmux) getSessionNameProjects() (map[string]ifaces.Project, error) {
 	sessionNameProjects := make(map[string]ifaces.Project)
 
 	// loop over all projects and get the session name
-	for _, prj := range t.options.Coder.Projects() {
+	for _, prj := range t.options.Code.Projects() {
 		// assign it to the map
 		sessionNameProjects[sanitize(prj.String())] = prj
 	}

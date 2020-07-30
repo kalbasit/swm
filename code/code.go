@@ -171,8 +171,8 @@ func (c *code) Clone(url string) error {
 	return nil
 }
 
-// GetProject returns a project identified by it's relative path to the repositories directory.
-func (c *code) GetProject(importPath string) (ifaces.Project, error) {
+// GetProjectByRelativePath returns a project identified by it's relative path to the repositories directory.
+func (c *code) GetProjectByRelativePath(importPath string) (ifaces.Project, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	prj, ok := c.projects[importPath]
@@ -183,9 +183,9 @@ func (c *code) GetProject(importPath string) (ifaces.Project, error) {
 	return prj, nil
 }
 
-// ProjectByAbsolutePath returns the project corresponding to the absolute
+// GetProjectByAbsolutePath returns the project corresponding to the absolute
 // path.
-func (c *code) ProjectByAbsolutePath(p string) (ifaces.Project, error) {
+func (c *code) GetProjectByAbsolutePath(p string) (ifaces.Project, error) {
 	dotGit := path.Join(p, ".git")
 	gitInfo, err := os.Stat(dotGit)
 	if err != nil {
@@ -212,7 +212,7 @@ func (c *code) ProjectByAbsolutePath(p string) (ifaces.Project, error) {
 	// trim the coder path from the path we are looking for (along with the pathSeparator)
 	pp = strings.TrimPrefix(pp, c.RepositoriesDir()+string(os.PathSeparator))
 
-	return c.GetProject(pp)
+	return c.GetProjectByRelativePath(pp)
 }
 
 func (c *code) RepositoriesDir() string { return path.Join(c.path, "repositories") }

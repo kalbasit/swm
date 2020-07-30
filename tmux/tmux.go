@@ -29,8 +29,8 @@ func init() {
 
 // Options configures the tmux manager
 type Options struct {
-	// Coder represents the coder instance
-	Coder ifaces.Code
+	// Code represents the coder instance
+	Code ifaces.Code
 
 	// StoryName represents the story we are going to use to compute the list of
 	// available projects.

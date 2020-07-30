@@ -16,16 +16,16 @@ type Code interface {
 	// Projects returns the projects in this coder
 	Projects() []Project
 
-	// GetProject returns a project identified by it's relative path to the repositories directory.
-	GetProject(string) (Project, error)
+	// GetProjectByRelativePath returns a project identified by it's relative path to the repositories directory.
+	GetProjectByRelativePath(string) (Project, error)
 
 	// Clone clones url as the new project. Will automatically compute the import
 	// path from the given URL.
 	Clone(url string) error
 
-	// ProjectByAbsolutePath returns the project corresponding to the absolute
+	// GetProjectByAbsolutePath returns the project corresponding to the absolute
 	// path.
-	ProjectByAbsolutePath(absolutePath string) (Project, error)
+	GetProjectByAbsolutePath(absolutePath string) (Project, error)
 
 	// Scan scans the code path.
 	Scan() error
