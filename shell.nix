@@ -14,7 +14,7 @@ in
 { nixpkgs ? pinnedPkgs, home ? builtins.getEnv "HOME" }:
 
 nixpkgs.mkShell {
-  buildInputs = with nixpkgs; [ go ];
+  buildInputs = with nixpkgs; [ go gotools ];
 
   GOPATH = "${home}/.cache/go";
   GO111MODULE = "on";
