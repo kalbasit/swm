@@ -9,7 +9,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/kalbasit/swm/code"
+	"github.com/kalbasit/swm/ifaces"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,7 +22,7 @@ func (t *tmux) SwitchClient(killPane bool) error {
 	}
 	// select the session using fzf
 	sessionName, err := t.withFilter(func(stdin io.WriteCloser) {
-		for name, _ := range sessionNameProjects {
+		for name := range sessionNameProjects {
 			io.WriteString(stdin, name)
 			io.WriteString(stdin, "\n")
 		}
@@ -45,12 +45,8 @@ func (t *tmux) SwitchClient(killPane bool) error {
 		for _, args := range [][]string{
 			// start the session
 			{"-L", t.socketName(), "new-session", "-c", project.Path(), "-d", "-s", sessionName},
-			// set the active profile
-			{"-L", t.socketName(), "set-environment", "-t", sessionName, "ACTIVE_PROFILE", project.Story().Profile().Name()},
-			// set the active story
-			{"-L", t.socketName(), "set-environment", "-t", sessionName, "ACTIVE_STORY", project.Story().Name()},
-			// set the new GOPATH
-			{"-L", t.socketName(), "set-environment", "-t", sessionName, "GOPATH", project.Story().GoPath()},
+			// set the active story name
+			{"-L", t.socketName(), "set-environment", "-t", sessionName, "SWM_STORY_NAME", t.options.StoryName},
 			// start a new shell on window 1
 			{"-L", t.socketName(), "new-window", "-c", project.Path(), "-t", sessionName + ":1"},
 			// start vim in the first window
@@ -61,12 +57,10 @@ func (t *tmux) SwitchClient(killPane bool) error {
 			// set the environment to current environment, change only ACTIVE_PROFILE, ACTIVE_STORY  and GOPATH
 			cmd.Env = func() []string {
 				res := []string{
-					fmt.Sprintf("ACTIVE_PROFILE=%s", project.Story().Profile().Name()),
-					fmt.Sprintf("ACTIVE_STORY=%s", project.Story().Name()),
-					fmt.Sprintf("GOPATH=%s", project.Story().GoPath()),
+					fmt.Sprintf("SWM_STORY_NAME=%s", t.options.StoryName),
 				}
 				for _, v := range os.Environ() {
-					if k := strings.Split(v, "=")[0]; k != "ACTIVE_PROFILE" && k != "ACTIVE_STORY" && k != "GOPATH" && k != "TMUX" {
+					if k := strings.Split(v, "=")[0]; k != "SWM_STORY_NAME" && k != "TMUX" {
 						res = append(res, v)
 					}
 				}
@@ -97,37 +91,13 @@ func (t *tmux) SwitchClient(killPane bool) error {
 }
 
 // getSessionNameProjects returns a map of a project session name to the project
-func (t *tmux) getSessionNameProjects() (map[string]code.Project, error) {
-	sessionNameProjects := make(map[string]code.Project)
+func (t *tmux) getSessionNameProjects() (map[string]ifaces.Project, error) {
+	sessionNameProjects := make(map[string]ifaces.Project)
 
-	// get the profile
-	profile, err := t.options.Coder.Profile(t.options.Profile)
-	if err != nil {
-		return nil, err
-	}
-	// get the story
-	story := profile.Story(t.options.Story)
 	// loop over all projects and get the session name
-	for _, prj := range story.Projects() {
+	for _, prj := range t.options.Code.Projects() {
 		// assign it to the map
-		sessionNameProjects[sanitize(prj.ImportPath())] = prj
-	}
-
-	// get the base story
-	baseStory := profile.Base()
-	// loop over all base projects and get the session name
-	for _, basePrj := range baseStory.Projects() {
-		// if we already know about the project, skip it
-		if _, ok := sessionNameProjects[basePrj.ImportPath()]; ok {
-			continue
-		}
-		// get the project for base project from the story
-		prj, err := story.Project(basePrj.ImportPath())
-		if err != nil {
-			return nil, err
-		}
-		// assign it to the map
-		sessionNameProjects[sanitize(prj.ImportPath())] = prj
+		sessionNameProjects[sanitize(prj.String())] = prj
 	}
 
 	return sessionNameProjects, nil

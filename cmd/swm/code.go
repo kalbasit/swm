@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/google/go-github/github"
-	"github.com/kalbasit/swm/code"
+	"github.com/kalbasit/swm/ifaces"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -14,14 +14,14 @@ import (
 	cli "github.com/urfave/cli/v2"
 )
 
-var coderCmd = &cli.Command{
-	Name: "coder",
+var codeCmd = &cli.Command{
+	Name: "code",
 	Subcommands: []*cli.Command{
 		// add project
 		{
-			Name:      "add-project",
+			Name:      "clone",
 			Usage:     "Clone a new project and places it in the selected profile and story",
-			Action:    coderAddProject,
+			Action:    codeCloneProject,
 			ArgsUsage: "<url>",
 		},
 		// pull request
@@ -46,34 +46,26 @@ var coderCmd = &cli.Command{
 	},
 }
 
-func coderAddProject(ctx *cli.Context) error {
+func codeCloneProject(ctx *cli.Context) error {
 	if ctx.NArg() != 1 {
 		log.Debug().Msgf("expecting one argument, the URL to clone. Got %d arguments", ctx.Args())
 		return errors.New("expecting one argument as url, required")
 	}
 	// create a new coder
-	c, err := newCoder(ctx)
+	c, err := newCode(ctx)
 	if err != nil {
 		return err
 	}
 	if err = c.Scan(); err != nil {
 		return err
 	}
-	// get the profile
-	profile, err := c.Profile(ctx.String("profile"))
-	if err != nil {
-		log.Debug().Str("profile", ctx.String("profile")).Msg("profile not found")
-		return err
-	}
-	// get the story
-	story := profile.Story(ctx.String("story"))
-	// add this project
-	return story.AddProject(ctx.Args().First())
+	// clone the project
+	return c.Clone(ctx.Args().First())
 }
 
 func coderPullRequestList(ctx *cli.Context) error {
 	// create a new coder
-	c, err := newCoder(ctx)
+	c, err := newCode(ctx)
 	if err != nil {
 		return err
 	}
@@ -81,13 +73,13 @@ func coderPullRequestList(ctx *cli.Context) error {
 		return err
 	}
 	// get the project from the current PATH
-	var prj code.Project
+	var prj ifaces.Project
 	var wd string
 	wd, err = os.Getwd()
 	if err != nil {
 		return errors.Wrap(err, "error finding the current working directory")
 	}
-	prj, err = c.ProjectByAbsolutePath(wd)
+	prj, err = c.GetProjectByAbsolutePath(wd)
 	if err != nil {
 		return errors.Wrap(err, "error finding the project for the current directory")
 	}

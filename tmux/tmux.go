@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/kalbasit/swm/code"
+	"github.com/kalbasit/swm/ifaces"
 	"github.com/rs/zerolog/log"
 )
 
@@ -29,16 +29,12 @@ func init() {
 
 // Options configures the tmux manager
 type Options struct {
-	// Coder represents the coder instance
-	Coder code.Coder
+	// Code represents the coder instance
+	Code ifaces.Code
 
-	// Profile represents the profile we are going to use to compute the list of
-	// available projects as well as the ACTIVE_PROFILE of new sessions.
-	Profile string
-
-	// Story represents the story we are going to use to compute the list of
+	// StoryName represents the story we are going to use to compute the list of
 	// available projects.
-	Story string
+	StoryName string
 }
 
 // tmux implements the Manager interface
@@ -46,7 +42,7 @@ type tmux struct{ options *Options }
 
 // socketName returns the session name
 func (t *tmux) socketName() string {
-	return strings.Replace(fmt.Sprintf("%s@%s", t.options.Profile, t.options.Story), "/", "_", -1)
+	return strings.Replace(fmt.Sprintf("swm-%s", t.options.StoryName), "/", "_", -1)
 }
 
 // New returns a new tmux manager

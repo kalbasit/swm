@@ -1,13 +1,13 @@
 language: go
 go:
-  - 1.12
+  - 1.14
 addons:
   apt:
     packages:
     - tmux
 env:
   global:
-    - FZF_VERSION=0.16.11
+    - FZF_VERSION=0.20.0
     - GO111MODULE=on
 before_install:
   # install go dependencies

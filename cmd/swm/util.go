@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/kalbasit/swm/code"
+	"github.com/kalbasit/swm/ifaces"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -28,8 +29,7 @@ func createLogger(ctx *cli.Context) error {
 		Timestamp().
 		Str("ignore-pattern", ctx.String("ignore-pattern")).
 		Str("code-path", ctx.String("code-path")).
-		Str("profile", ctx.String("profile")).
-		Str("story", ctx.String("story")).
+		Str("story-name", ctx.String("story-name")).
 		Logger().
 		Level(zerolog.InfoLevel)
 	// handle debug
@@ -50,6 +50,8 @@ func sortCommands(subCmds []*cli.Command) {
 	}
 }
 
+var githubClient *github.Client
+
 func createGithubClient(ctx *cli.Context) error {
 	githubAccessToken := ctx.String("github.access_token")
 	if githubAccessToken == "" {
@@ -68,54 +70,23 @@ func createGithubClient(ctx *cli.Context) error {
 		return errors.New("no Github token were provided")
 	}
 	log.Debug().Str("github.access_token", githubAccessToken).Msg("creating the Github client")
-	code.GithubClient = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
+
+	githubClient = github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: githubAccessToken},
 	)))
 
 	return nil
 }
 
-func getDefaultProfile() string {
-	var p string
-
-	// try parsing it from the ACTIVE_PROFILE environment variable.
-	p = os.Getenv("ACTIVE_PROFILE")
-	// try parsing it from the TMUX environment variable (the session path).
-	if p == "" {
-		tmuxSocketPath := os.Getenv("TMUX")
-		if tmuxSocketPath != "" {
-			profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
-			profileStoryArr := strings.Split(profileStory, "@")
-			if len(profileStoryArr) == 2 {
-				p = profileStoryArr[0]
-			}
-		}
-	}
-	// finally try parsing it from the i3 workspace
-	if p == "" {
-		i3Workspace, err := getActiveI3WorkspaceName()
-		if err == nil && strings.Contains(i3Workspace, "@") {
-			p = strings.Split(i3Workspace, "@")[0]
-		}
-	}
-
-	return p
-}
-
-func getDefaultStory() string {
+func getDefaultStoryName() string {
 	var s string
 
-	// try parsing it from the ACTIVE_STORY environment variable.
-	s = os.Getenv("ACTIVE_STORY")
+	// try parsing it from the SWM_STORY_NAME environment variable.
+	s = os.Getenv("SWM_STORY_NAME")
 	// try parsing it from the TMUX environment variable (the session path).
 	if s == "" {
-		tmuxSocketPath := os.Getenv("TMUX")
-		if tmuxSocketPath != "" {
-			profileStory := strings.Split(path.Base(tmuxSocketPath), ",")[0]
-			profileStoryArr := strings.Split(profileStory, "@")
-			if len(profileStoryArr) == 2 {
-				s = profileStoryArr[1]
-			}
+		if tmuxSocketPath := os.Getenv("TMUX"); tmuxSocketPath != "" {
+			s = strings.Split(path.Base(tmuxSocketPath), ",")[0]
 		}
 	}
 	// finally try parsing it from the i3 workspace
@@ -143,12 +114,12 @@ func getActiveI3WorkspaceName() (string, error) {
 	return "", errors.New("no active i3 workspace was found")
 }
 
-func newCoder(ctx *cli.Context) (code.Coder, error) {
+func newCode(ctx *cli.Context) (ifaces.Code, error) {
 	// parse the regex
 	ignorePattern, err := regexp.Compile(ctx.String("ignore-pattern"))
 	if err != nil {
 		return nil, err
 	}
 	// create a new coder
-	return code.New(ctx.String("code-path"), ignorePattern), nil
+	return code.New(githubClient, ctx.String("code-path"), ctx.String("story-name"), ignorePattern), nil
 }
