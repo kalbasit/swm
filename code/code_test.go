@@ -209,3 +209,37 @@ func TestGetProjectByAbsolutePath(t *testing.T) {
 	_, err = c.GetProjectByAbsolutePath(dir + "/repositories/github.com/user/repo")
 	assert.Error(t, err)
 }
+
+func TestStoryName(t *testing.T) {
+	t.Run("no story name", func(t *testing.T) {
+		c := &code{}
+		assert.Empty(t, c.StoryName())
+	})
+
+	t.Run("story name is set", func(t *testing.T) {
+		c := &code{story_name: "foobar"}
+		assert.Equal(t, "foobar", c.StoryName())
+	})
+}
+
+func TestStoryBranchName(t *testing.T) {
+	t.Run("no story branch name or a story name", func(t *testing.T) {
+		c := &code{}
+		assert.Empty(t, c.StoryBranchName())
+	})
+
+	t.Run("no story branch name but a story name", func(t *testing.T) {
+		c := &code{story_name: "foobar"}
+		assert.Equal(t, "foobar", c.StoryBranchName())
+	})
+
+	t.Run("story branch name, an no story name", func(t *testing.T) {
+		c := &code{story_branch_name: "foobar"}
+		assert.Equal(t, "foobar", c.StoryBranchName())
+	})
+
+	t.Run("story branch name and a story name", func(t *testing.T) {
+		c := &code{story_branch_name: "foobar", story_name: "nope"}
+		assert.Equal(t, "foobar", c.StoryBranchName())
+	})
+}
