@@ -41,9 +41,9 @@ func TestGetSessionProjectsNoStory(t *testing.T) {
 		keys = append(keys, k)
 	}
 	expectedKeys := []string{
-		"github" + dotChar + "com/kalbasit/swm",
-		"github" + dotChar + "com/kalbasit/dotfiles",
-		"github" + dotChar + "com/kalbasit/workflow",
+		"github" + dotChar + "com/owner1/repo1",
+		"github" + dotChar + "com/owner2/repo2",
+		"github" + dotChar + "com/owner3/repo3",
 	}
 	sort.Strings(keys)
 	sort.Strings(expectedKeys)
@@ -51,12 +51,12 @@ func TestGetSessionProjectsNoStory(t *testing.T) {
 	// assert the correct project
 	for name, prj := range sessionNameProjects {
 		switch name {
-		case "github" + dotChar + "com/kalbasit/swm":
-			assert.Equal(t, "github.com/kalbasit/swm", prj.String())
-		case "github" + dotChar + "com/kalbasit/dotfiles":
-			assert.Equal(t, "github.com/kalbasit/dotfiles", prj.String())
-		case "github" + dotChar + "com/kalbasit/workflow":
-			assert.Equal(t, "github.com/kalbasit/workflow", prj.String())
+		case "github" + dotChar + "com/owner1/repo1":
+			assert.Equal(t, "github.com/owner1/repo1", prj.String())
+		case "github" + dotChar + "com/owner2/repo2":
+			assert.Equal(t, "github.com/owner2/repo2", prj.String())
+		case "github" + dotChar + "com/owner3/repo3":
+			assert.Equal(t, "github.com/owner3/repo3", prj.String())
 		}
 	}
 }
@@ -93,9 +93,9 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 		keys = append(keys, k)
 	}
 	expectedKeys := []string{
-		"github" + dotChar + "com/kalbasit/swm",
-		"github" + dotChar + "com/kalbasit/dotfiles",
-		"github" + dotChar + "com/kalbasit/workflow",
+		"github" + dotChar + "com/owner1/repo1",
+		"github" + dotChar + "com/owner2/repo2",
+		"github" + dotChar + "com/owner3/repo3",
 	}
 	sort.Strings(keys)
 	sort.Strings(expectedKeys)
@@ -104,22 +104,22 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 	// assert the correct project
 	for name, prj := range sessionNameProjects {
 		switch name {
-		case "github" + dotChar + "com/kalbasit/swm":
-			assert.Equal(t, "github.com/kalbasit/swm", prj.String())
-		case "github" + dotChar + "com/kalbasit/dotfiles":
-			assert.Equal(t, "github.com/kalbasit/dotfiles", prj.String())
-		case "github" + dotChar + "com/kalbasit/workflow":
-			assert.Equal(t, "github.com/kalbasit/workflow", prj.String())
+		case "github" + dotChar + "com/owner1/repo1":
+			assert.Equal(t, "github.com/owner1/repo1", prj.String())
+		case "github" + dotChar + "com/owner2/repo2":
+			assert.Equal(t, "github.com/owner2/repo2", prj.String())
+		case "github" + dotChar + "com/owner3/repo3":
+			assert.Equal(t, "github.com/owner3/repo3", prj.String())
 		}
 	}
 }
 
 func TestSanitize(t *testing.T) {
 	t.Run(".", func(t *testing.T) {
-		assert.Equal(t, "github"+dotChar+"com/kalbasit/swm", sanitize("github.com/kalbasit/swm"))
+		assert.Equal(t, "github"+dotChar+"com/owner1/repo1", sanitize("github.com/owner1/repo1"))
 	})
 
 	t.Run(":", func(t *testing.T) {
-		assert.Equal(t, "github"+colonChar+"com/kalbasit/swm", sanitize("github:com/kalbasit/swm"))
+		assert.Equal(t, "github"+colonChar+"com/owner1/repo1", sanitize("github:com/owner1/repo1"))
 	})
 }

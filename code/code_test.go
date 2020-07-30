@@ -192,9 +192,9 @@ func TestGetProjectByAbsolutePath(t *testing.T) {
 	require.NoError(t, c.Scan())
 
 	tests := map[string]string{
-		dir + "/repositories/github.com/kalbasit/swm": "github.com/kalbasit/swm",
+		dir + "/repositories/github.com/owner1/repo1": "github.com/owner1/repo1",
 
-		dir + "/repositories/github.com/kalbasit/swm/cmd": "github.com/kalbasit/swm",
+		dir + "/repositories/github.com/owner2/repo2": "github.com/owner2/repo2",
 	}
 
 	for p, ip := range tests {
@@ -205,7 +205,7 @@ func TestGetProjectByAbsolutePath(t *testing.T) {
 	}
 
 	_, err = c.GetProjectByAbsolutePath("/code/not-existing/base")
-	assert.EqualError(t, err, ErrPathIsInvalid.Error())
+	assert.Error(t, err)
 	_, err = c.GetProjectByAbsolutePath(dir + "/repositories/github.com/user/repo")
-	assert.EqualError(t, err, ErrProjectNotFound.Error())
+	assert.Error(t, err)
 }

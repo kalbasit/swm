@@ -34,10 +34,6 @@ var (
 	// ErrCoderNotScanned is returned if San() was never called
 	ErrCoderNotScanned = errors.New("code was not scanned")
 
-	// ErrPathIsInvalid is returned if the given absolute path is invalid (it
-	// does not make up a full coder path + profile + story + project).
-	ErrPathIsInvalid = errors.New("path is invalid")
-
 	// ErrDotGitMalformed is returned if .git is malformed
 	ErrDotGitMalformed = errors.New(".git is malformed")
 
