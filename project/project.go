@@ -85,7 +85,7 @@ func (p *project) Code() ifaces.Code { return p.code }
 // the base project or noop if the story already exists on disk.
 func (p *project) Ensure() error {
 	if p.code.StoryName() == "" {
-		return ErrNoActiveStory
+		return nil
 	}
 
 	wp, err := p.StoryPath()
