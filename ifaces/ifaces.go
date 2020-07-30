@@ -33,6 +33,9 @@ type Code interface {
 	// StoryName returns the name of the story if any, empty string otherwise.
 	StoryName() string
 
+	// StoryBranchName returns the name of the branch of this story if any, empty string otherwise.
+	StoryBranchName() string
+
 	// RepositoriesDir returns the path to the repositories directory.
 	RepositoriesDir() string
 

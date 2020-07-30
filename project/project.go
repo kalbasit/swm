@@ -119,7 +119,7 @@ func (p *project) Ensure() error {
 	}
 	// create a new story for this project based on the base project
 	// TODO(kalbasit): switch to using [go-git](https://github.com/src-d/go-git)
-	cmd := exec.Command(gitPath, "worktree", "add", "-B", p.code.StoryName(), wp)
+	cmd := exec.Command(gitPath, "worktree", "add", "-B", p.code.StoryBranchName(), wp)
 	cmd.Dir = p.RepositoryPath()
 	out, err := cmd.CombinedOutput()
 	if err != nil {

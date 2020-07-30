@@ -14,8 +14,9 @@ import (
 )
 
 type code struct {
-	path       string
-	story_name string
+	path              string
+	story_name        string
+	story_branch_name string
 }
 
 func (c *code) Path() string { return c.path }
@@ -31,6 +32,12 @@ func (c *code) GetProjectByAbsolutePath(absolutePath string) (ifaces.Project, er
 func (c *code) Scan() error { return nil }
 
 func (c *code) StoryName() string { return c.story_name }
+func (c *code) StoryBranchName() string {
+	if c.story_branch_name == "" {
+		return c.story_name
+	}
+	return c.story_branch_name
+}
 
 func (c *code) RepositoriesDir() string { return path.Join(c.path, "repositories") }
 

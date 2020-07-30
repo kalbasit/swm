@@ -25,11 +25,11 @@ func TestGetSessionProjectsNoStory(t *testing.T) {
 	testhelper.CreateProjects(t, dir)
 
 	// create a code
-	c := code.New(nil, dir, "", regexp.MustCompile("^.snapshots$"))
+	c := code.New(nil, dir, "", "", regexp.MustCompile("^.snapshots$"))
 	require.NoError(t, c.Scan())
 
 	// create the tmux client
-	tmx := &tmux{options: &Options{Code: c}}
+	tmx := &tmux{code: c}
 
 	// get the session map
 	sessionNameProjects, err := tmx.getSessionNameProjects()
@@ -73,14 +73,11 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 	testhelper.CreateProjects(t, dir)
 
 	// create a code
-	c := code.New(nil, dir, "STORY-123", regexp.MustCompile("^.snapshots$"))
+	c := code.New(nil, dir, "STORY-123", "", regexp.MustCompile("^.snapshots$"))
 	require.NoError(t, c.Scan())
 
 	// create the tmux client
-	tmx := &tmux{options: &Options{
-		Code:      c,
-		StoryName: "STORY-123",
-	}}
+	tmx := &tmux{code: c}
 
 	// get the session map
 	sessionNameProjects, err := tmx.getSessionNameProjects()

@@ -56,12 +56,12 @@ func TestScan(t *testing.T) {
 	}
 
 	// create a code without a story
-	c := New(nil, dir, "", regexp.MustCompile("^.snapshots$"))
+	c := New(nil, dir, "", "", regexp.MustCompile("^.snapshots$"))
 	require.NoError(t, c.Scan())
 	assertFn(c, "")
 
 	// create a new code with a story
-	sc := New(nil, dir, t.Name(), regexp.MustCompile("^.snapshots$"))
+	sc := New(nil, dir, t.Name(), "", regexp.MustCompile("^.snapshots$"))
 	require.NoError(t, sc.Scan())
 	assertFn(sc, t.Name())
 }
@@ -95,7 +95,7 @@ func TestGetProject(t *testing.T) {
 
 	for _, testCase := range testCases {
 		// create a code
-		c := New(nil, dir, testCase.story_name, regexp.MustCompile("^.snapshots$"))
+		c := New(nil, dir, testCase.story_name, "", regexp.MustCompile("^.snapshots$"))
 		require.NoError(t, c.Scan())
 
 		// get the project and assert things
@@ -126,7 +126,7 @@ func TestProjects(t *testing.T) {
 	testhelper.CreateProjects(t, dir)
 
 	// create a code
-	c := New(nil, dir, "", regexp.MustCompile("^.snapshots$"))
+	c := New(nil, dir, "", "", regexp.MustCompile("^.snapshots$"))
 	require.NoError(t, c.Scan())
 
 	// get all the projects, and collect their import paths, then compare those to the expected ones
@@ -158,7 +158,7 @@ func TestClone(t *testing.T) {
 	testhelper.CreateProjects(t, dir)
 
 	// create a code
-	c := New(nil, dir, "", regexp.MustCompile("^.snapshots$"))
+	c := New(nil, dir, "", "", regexp.MustCompile("^.snapshots$"))
 	require.NoError(t, c.Scan())
 
 	// clone the repo4 from the ignored location, but first validate it does not exist in the scanned projects
@@ -188,7 +188,7 @@ func TestGetProjectByAbsolutePath(t *testing.T) {
 	testhelper.CreateProjects(t, dir)
 
 	// create a code
-	c := New(nil, dir, "", regexp.MustCompile("^.snapshots$"))
+	c := New(nil, dir, "", "", regexp.MustCompile("^.snapshots$"))
 	require.NoError(t, c.Scan())
 
 	tests := map[string]string{

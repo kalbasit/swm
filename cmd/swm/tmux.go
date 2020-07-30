@@ -75,10 +75,7 @@ func newTmuxManager(ctx *cli.Context) (tmux.Manager, error) {
 		return nil, err
 	}
 	// create a new TMUX manager
-	tmuxManager := tmux.New(&tmux.Options{
-		Code:      c,
-		StoryName: ctx.String("story-name"),
-	})
+	tmuxManager := tmux.New(c)
 
 	return tmuxManager, nil
 }

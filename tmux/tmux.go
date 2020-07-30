@@ -27,25 +27,15 @@ func init() {
 	}
 }
 
-// Options configures the tmux manager
-type Options struct {
-	// Code represents the coder instance
-	Code ifaces.Code
-
-	// StoryName represents the story we are going to use to compute the list of
-	// available projects.
-	StoryName string
-}
-
 // tmux implements the Manager interface
-type tmux struct{ options *Options }
+type tmux struct{ code ifaces.Code }
 
 // socketName returns the session name
 func (t *tmux) socketName() string {
-	return strings.Replace(fmt.Sprintf("swm-%s", t.options.StoryName), "/", "_", -1)
+	return strings.Replace(fmt.Sprintf("swm-%s", t.code.StoryName()), "/", "_", -1)
 }
 
 // New returns a new tmux manager
-func New(opts *Options) Manager {
-	return &tmux{options: opts}
+func New(c ifaces.Code) Manager {
+	return &tmux{code: c}
 }
