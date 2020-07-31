@@ -16,10 +16,10 @@ var app = &cli.App{
 	Usage:                "swm <command>",
 	EnableBashCompletion: true,
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "code-path", Usage: "The absolute path to the code path", Value: os.Getenv("CODE_PATH")},
+		&cli.StringFlag{Name: "code-path", Usage: "The absolute path to the code path", EnvVars: []string{"CODE_PATH"}},
 		&cli.StringFlag{Name: "ignore-pattern", Usage: "The Regex pattern to ignore", Value: "^.snapshots$"},
-		&cli.StringFlag{Name: "story-branch-name", Usage: "The name of the branch if different than the name of the story", Value: os.Getenv("SWM_STORY_BRANCH_NAME")},
-		&cli.StringFlag{Name: "story-name", Usage: "The name of the story", Value: os.Getenv("SWM_STORY_NAME")},
+		&cli.StringFlag{Name: "story-branch-name", Usage: "The name of the branch if different than the name of the story", EnvVars: []string{"SWM_STORY_BRANCH_NAME"}},
+		&cli.StringFlag{Name: "story-name", Usage: "The name of the story", EnvVars: []string{"SWM_STORY_NAME"}},
 		&cli.BoolFlag{Name: "debug", Usage: "enable debug mode"},
 	},
 	Before: createLogger,

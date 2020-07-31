@@ -17,6 +17,15 @@ import (
 var codeCmd = &cli.Command{
 	Name: "code",
 	Subcommands: []*cli.Command{
+		// create a story
+		{
+			Name:   "create-story",
+			Usage:  "Create a new story",
+			Action: codeCreateStory,
+			Flags: []cli.Flag{
+				&cli.StringFlag{Name: "story-name", Usage: "The name of the story", EnvVars: []string{"GITHUB_ACCESS_TOKEN"}},
+			},
+		},
 		// add project
 		{
 			Name:      "clone",
@@ -44,6 +53,10 @@ var codeCmd = &cli.Command{
 			},
 		},
 	},
+}
+
+func codeCreateStory(ctx *cli.Context) error {
+	return nil
 }
 
 func codeCloneProject(ctx *cli.Context) error {
