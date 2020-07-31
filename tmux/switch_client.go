@@ -46,7 +46,9 @@ func (t *tmux) SwitchClient(killPane bool) error {
 			// start the session
 			{"-L", t.socketName(), "new-session", "-c", project.Path(), "-d", "-s", sessionName},
 			// set the active story name
-			{"-L", t.socketName(), "set-environment", "-t", sessionName, "SWM_STORY_NAME", t.options.StoryName},
+			{"-L", t.socketName(), "set-environment", "-t", sessionName, "SWM_STORY_NAME", t.code.StoryName()},
+			// set the branch name
+			{"-L", t.socketName(), "set-environment", "-t", sessionName, "SWM_STORY_BRANCH_NAME", t.code.StoryBranchName()},
 			// start a new shell on window 1
 			{"-L", t.socketName(), "new-window", "-c", project.Path(), "-t", sessionName + ":1"},
 			// start vim in the first window
@@ -57,7 +59,8 @@ func (t *tmux) SwitchClient(killPane bool) error {
 			// set the environment to current environment, change only ACTIVE_PROFILE, ACTIVE_STORY  and GOPATH
 			cmd.Env = func() []string {
 				res := []string{
-					fmt.Sprintf("SWM_STORY_NAME=%s", t.options.StoryName),
+					fmt.Sprintf("SWM_STORY_NAME=%s", t.code.StoryName()),
+					fmt.Sprintf("SWM_STORY_BRANCH_NAME=%s", t.code.StoryBranchName()),
 				}
 				for _, v := range os.Environ() {
 					if k := strings.Split(v, "=")[0]; k != "SWM_STORY_NAME" && k != "TMUX" {
@@ -95,7 +98,7 @@ func (t *tmux) getSessionNameProjects() (map[string]ifaces.Project, error) {
 	sessionNameProjects := make(map[string]ifaces.Project)
 
 	// loop over all projects and get the session name
-	for _, prj := range t.options.Code.Projects() {
+	for _, prj := range t.code.Projects() {
 		// assign it to the map
 		sessionNameProjects[sanitize(prj.String())] = prj
 	}

@@ -62,6 +62,9 @@ type code struct {
 	// the name of the story
 	story_name string
 
+	// the name of the branch
+	story_branch_name string
+
 	// excludePattern is a list of patterns to ignore
 	excludePattern *regexp.Regexp
 
@@ -71,13 +74,14 @@ type code struct {
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
-func New(ghc *github.Client, p, sn string, ignore *regexp.Regexp) ifaces.Code {
+func New(ghc *github.Client, p, sn, sbn string, ignore *regexp.Regexp) ifaces.Code {
 	return &code{
-		ghClient:       ghc,
-		excludePattern: ignore,
-		path:           path.Clean(p),
-		projects:       make(map[string]ifaces.Project),
-		story_name:     sn,
+		ghClient:          ghc,
+		excludePattern:    ignore,
+		path:              path.Clean(p),
+		projects:          make(map[string]ifaces.Project),
+		story_name:        sn,
+		story_branch_name: sbn,
 	}
 }
 
@@ -86,6 +90,14 @@ func (c *code) Path() string { return c.path }
 
 // StoryName returns the name of the story if any, empty string otherwise.
 func (c *code) StoryName() string { return c.story_name }
+
+// StoryBranchName returns the name of the branch of this story if any, empty string otherwise.
+func (c *code) StoryBranchName() string {
+	if c.story_branch_name == "" {
+		return c.story_name
+	}
+	return c.story_branch_name
+}
 
 // GithubClient represents the client for Github API.
 func (c *code) GithubClient() *github.Client { return c.ghClient }

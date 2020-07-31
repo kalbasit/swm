@@ -22,14 +22,18 @@ import (
 
 func createLogger(ctx *cli.Context) error {
 	// create the logger that pretty prints to the ctx.Writer
-	log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: ctx.App.Writer}).
+	lb := zerolog.New(zerolog.ConsoleWriter{Out: ctx.App.Writer}).
 		With().
 		Timestamp().
 		Str("ignore-pattern", ctx.String("ignore-pattern")).
 		Str("code-path", ctx.String("code-path")).
-		Str("story-name", ctx.String("story-name")).
-		Logger().
-		Level(zerolog.InfoLevel)
+		Str("story-name", ctx.String("story-name"))
+
+	if bn := ctx.String("story-branch-name"); bn != "" {
+		lb = lb.Str("story-branch-name", bn)
+	}
+
+	log.Logger = lb.Logger().Level(zerolog.InfoLevel)
 	// handle debug
 	if ctx.Bool("debug") {
 		log.Logger = log.Logger.Level(zerolog.DebugLevel)
@@ -77,11 +81,10 @@ func createGithubClient(ctx *cli.Context) error {
 }
 
 func newCode(ctx *cli.Context) (ifaces.Code, error) {
-	// parse the regex
 	ignorePattern, err := regexp.Compile(ctx.String("ignore-pattern"))
 	if err != nil {
 		return nil, err
 	}
-	// create a new coder
-	return code.New(githubClient, ctx.String("code-path"), ctx.String("story-name"), ignorePattern), nil
+
+	return code.New(githubClient, ctx.String("code-path"), ctx.String("story-name"), ctx.String("story-branch-name"), ignorePattern), nil
 }
