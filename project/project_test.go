@@ -19,33 +19,24 @@ type code struct {
 	story_branch_name string
 }
 
-func (c *code) Path() string { return c.path }
-
-func (c *code) Projects() []ifaces.Project { return nil }
-
-func (c *code) GetProjectByRelativePath(string) (ifaces.Project, error) { return nil, nil }
-
-func (c *code) Clone(url string) error { return nil }
-
+func (c *code) Clone(url string) error                                               { return nil }
+func (c *code) CreateStory() error                                                   { return nil }
 func (c *code) GetProjectByAbsolutePath(absolutePath string) (ifaces.Project, error) { return nil, nil }
-
-func (c *code) Scan() error { return nil }
-
-func (c *code) StoryName() string { return c.story_name }
+func (c *code) GetProjectByRelativePath(string) (ifaces.Project, error)              { return nil, nil }
+func (c *code) GithubClient() *github.Client                                         { return nil }
+func (c *code) HookPath() string                                                     { return "" }
+func (c *code) Path() string                                                         { return c.path }
+func (c *code) Projects() []ifaces.Project                                           { return nil }
+func (c *code) RepositoriesDir() string                                              { return path.Join(c.path, "repositories") }
+func (c *code) Scan() error                                                          { return nil }
+func (c *code) StoriesDir() string                                                   { return path.Join(c.path, "stories") }
+func (c *code) StoryName() string                                                    { return c.story_name }
 func (c *code) StoryBranchName() string {
 	if c.story_branch_name == "" {
 		return c.story_name
 	}
 	return c.story_branch_name
 }
-
-func (c *code) RepositoriesDir() string { return path.Join(c.path, "repositories") }
-
-func (c *code) StoriesDir() string { return path.Join(c.path, "stories") }
-
-func (c *code) GithubClient() *github.Client { return nil }
-
-func (c *code) HookPath() string { return "" }
 
 func TestStoryPath(t *testing.T) {
 	t.Run("no active story", func(t *testing.T) {

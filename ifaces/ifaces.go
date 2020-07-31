@@ -10,6 +10,9 @@ import "github.com/google/go-github/github"
 // |   |-- STORY-123
 // |   |   |-- go.import.path
 type Code interface {
+	// CreateStory creates a story
+	CreateStory() error
+
 	// Path returns the absolute path of this coder
 	Path() string
 

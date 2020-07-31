@@ -56,7 +56,13 @@ var codeCmd = &cli.Command{
 }
 
 func codeCreateStory(ctx *cli.Context) error {
-	return nil
+	// create a new coder
+	c, err := newCode(ctx)
+	if err != nil {
+		return err
+	}
+
+	return c.CreateStory()
 }
 
 func codeCloneProject(ctx *cli.Context) error {

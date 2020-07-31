@@ -102,6 +102,9 @@ func (c *code) StoryBranchName() string {
 // GithubClient represents the client for Github API.
 func (c *code) GithubClient() *github.Client { return c.ghClient }
 
+// CreateStory creates a story
+func (c *code) CreateStory() error { return nil }
+
 // Scan loads the code from the cache (if it exists), otherwise it will
 // initiate a full scan and save it in cache.
 func (c *code) Scan() error {
