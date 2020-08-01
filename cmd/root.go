@@ -7,20 +7,34 @@ import (
 	"strings"
 
 	"github.com/adrg/xdg"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var defaultCfgFile string
+var version string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "swm",
-	Short: "Story-based Workflow Manager",
-	Long:  `TODO: describe what's the point of this`,
+	Use:     "swm",
+	Short:   "Story-based Workflow Manager",
+	Version: version,
+	Long:    `TODO: describe what's the point of this`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
+
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if err := createLogger(cmd); err != nil {
+			return errors.Wrap(err, "error creating a logger")
+		}
+		if err := createCode(); err != nil {
+			return errors.Wrap(err, "error creating a code")
+		}
+
+		return nil
+	},
 
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Hello, World!")
@@ -59,6 +73,8 @@ func init() {
 	if err := rootCmd.MarkPersistentFlagDirname("code-path"); err != nil {
 		panic(err)
 	}
+
+	rootCmd.PersistentFlags().Bool("debug", false, "Enable debugging")
 
 	rootCmd.PersistentFlags().String("repositories-dirname", "repositories", "The name of the repositories directory, a child directory of the code-path and the parent directory for all repositories")
 
