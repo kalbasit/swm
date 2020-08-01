@@ -26,6 +26,14 @@ var rootCmd = &cobra.Command{
 	//	Run: func(cmd *cobra.Command, args []string) { },
 
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// By default, the RunE functions of all commands print the usage, and
+		// prints the error twice.
+		// This was discussed in the following issue and cobra is not going to
+		// change that behavior anytime soon, and they recommend turning them off
+		// instead: https://github.com/spf13/cobra/issues/340
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
+
 		if err := createLogger(cmd); err != nil {
 			return errors.Wrap(err, "error creating a logger")
 		}

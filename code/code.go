@@ -23,16 +23,16 @@ var (
 	ErrCodePathEmpty = errors.New("code path is empty or does not exist")
 
 	// ErrProjectNotFound is returned if the project is not found
-	ErrProjectNotFound = errors.New("project not found")
+	ErrProjectNotFound = errors.New("the project is not found")
 
 	// ErrInvalidURL is returned by AddProject if the URL given is not valid
 	ErrInvalidURL = errors.New("invalid URL given")
 
 	// ErrProjectAlreadyExists is returned if the project already exists
-	ErrProjectAlreadyExists = errors.New("project already exists")
+	ErrProjectAlreadyExists = errors.New("the project already exists")
 
 	// ErrCoderNotScanned is returned if San() was never called
-	ErrCoderNotScanned = errors.New("code was not scanned")
+	ErrCoderNotScanned = errors.New("the code was not scanned")
 
 	// ErrDotGitMalformed is returned if .git is malformed
 	ErrDotGitMalformed = errors.New(".git is malformed")
@@ -158,9 +158,10 @@ func (c *code) Clone(url string) error {
 	// validate we don't have it already
 	if prj, err := c.getProject(importPath); err == nil {
 		log.Debug().
+			Err(ErrProjectAlreadyExists).
 			Str("import-path", importPath).
 			Str("path", prj.RepositoryPath()).
-			Msg(ErrProjectAlreadyExists.Error())
+			Msg("not going to clone this repository")
 		return ErrProjectAlreadyExists
 	}
 	// clone the project
