@@ -34,10 +34,16 @@ func codeVcsCloneCmdRun(cmd *cobra.Command, args []string) error {
 	cu := viper.GetString("clone-url")
 
 	if gip == "" && cu == "" {
+		// re-show the usage for this error
+		cmd.SilenceUsage = false
+		cmd.SilenceErrors = false
 		return errOneRequired
 	}
 
 	if gip != "" && cu != "" {
+		// re-show the usage for this error
+		cmd.SilenceUsage = false
+		cmd.SilenceErrors = false
 		return errNotBoth
 	}
 
