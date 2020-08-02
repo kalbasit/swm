@@ -26,10 +26,10 @@ script:
       git --no-pager diff
       exit 1
     fi
-  - go run main.go doc markdown --path ./doc
+  - go run main.go gen-doc markdown --path ./doc
   - >
     if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
-    echo ">>> Changes detected to the documentation, re-generate with: go run main.go doc markdown --path ./doc"
+    echo ">>> Changes detected to the documentation, re-generate with: go run main.go gen-doc markdown --path ./doc"
       echo; echo; echo;
       git --no-pager diff
       exit 1

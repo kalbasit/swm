@@ -8,25 +8,25 @@ import (
 	"github.com/spf13/cobra/doc"
 )
 
-var docMarkdownCmd = &cobra.Command{
+var genDocMarkdownCmd = &cobra.Command{
 	Use:   "markdown",
 	Short: "Generate Markdown documentation for the command",
-	RunE:  docMarkdownRun,
+	RunE:  genDocMarkdownRun,
 }
 
 func init() {
-	docCmd.AddCommand(docMarkdownCmd)
+	genDocCmd.AddCommand(genDocMarkdownCmd)
 
-	docMarkdownCmd.Flags().String("path", "", "The path to the tree to generate documentation")
-	if err := docMarkdownCmd.MarkFlagRequired("path"); err != nil {
+	genDocMarkdownCmd.Flags().String("path", "", "The path to the tree to generate documentation")
+	if err := genDocMarkdownCmd.MarkFlagRequired("path"); err != nil {
 		panic(err)
 	}
-	if err := docMarkdownCmd.MarkFlagFilename("path"); err != nil {
+	if err := genDocMarkdownCmd.MarkFlagFilename("path"); err != nil {
 		panic(err)
 	}
 }
 
-func docMarkdownRun(cmd *cobra.Command, args []string) error {
+func genDocMarkdownRun(cmd *cobra.Command, args []string) error {
 	p, err := cmd.Flags().GetString("path")
 	if err != nil {
 		return errors.Wrap(err, "error getting the value of the path flag")
