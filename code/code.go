@@ -106,6 +106,9 @@ func (c *code) StoryBranchName() string {
 // GithubClient represents the client for Github API.
 func (c *code) GithubClient() *github.Client { return c.ghClient }
 
+// SetGithubClient sets the GitHub client in the code
+func (c *code) SetGithubClient(ghc *github.Client) { c.ghClient = ghc }
+
 // CreateStory creates a story
 func (c *code) CreateStory() error { return nil }
 

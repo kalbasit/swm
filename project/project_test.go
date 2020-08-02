@@ -24,6 +24,7 @@ func (c *code) CreateStory() error                                              
 func (c *code) GetProjectByAbsolutePath(absolutePath string) (ifaces.Project, error) { return nil, nil }
 func (c *code) GetProjectByRelativePath(string) (ifaces.Project, error)              { return nil, nil }
 func (c *code) GithubClient() *github.Client                                         { return nil }
+func (c *code) SetGithubClient(*github.Client)                                       {}
 func (c *code) HookPath() string                                                     { return "" }
 func (c *code) Path() string                                                         { return c.path }
 func (c *code) Projects() []ifaces.Project                                           { return nil }
