@@ -11,24 +11,10 @@ import (
 var errStoryIsRequired = errors.New("you must specify a story name with the --story-name flag")
 
 var codeStoryCreateCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Create a new story",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		sn := viper.GetString("story-name")
-		sbn := viper.GetString("story-branch-name")
-		if sn == "" {
-			return errStoryIsRequired
-		}
-		if sbn == "" {
-			sbn = sn
-		}
-
-		code.SetStoryName(sn)
-		code.SetStoryBranchName(sbn)
-
-		return nil
-	},
-	RunE: codeStoryCreateRun,
+	Use:     "create",
+	Short:   "Create a new story",
+	PreRunE: codeStoryPrePrunE,
+	RunE:    codeStoryCreateRun,
 }
 
 func init() {

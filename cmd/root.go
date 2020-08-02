@@ -20,11 +20,7 @@ var rootCmd = &cobra.Command{
 	Use:     "swm",
 	Short:   "Story-based Workflow Manager",
 	Version: version,
-	Long:    `TODO: describe what's the point of this`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
-
+	Long:    `swm (Story-based Workflow Manager) is a Tmux session manager specifically designed for Story-based development workflow`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// By default, the RunE functions of all commands print the usage, and
 		// prints the error twice.

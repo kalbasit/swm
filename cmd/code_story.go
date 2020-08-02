@@ -19,3 +19,19 @@ func init() {
 		panic(fmt.Sprintf("error binding cobra flags to viper: %s", err))
 	}
 }
+
+func codeStoryPrePrunE(cmd *cobra.Command, args []string) error {
+	sn := viper.GetString("story-name")
+	sbn := viper.GetString("story-branch-name")
+	if sn == "" {
+		return errStoryIsRequired
+	}
+	if sbn == "" {
+		sbn = sn
+	}
+
+	code.SetStoryName(sn)
+	code.SetStoryBranchName(sbn)
+
+	return nil
+}
