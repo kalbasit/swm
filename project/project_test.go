@@ -30,6 +30,8 @@ func (c *code) Projects() []ifaces.Project                                      
 func (c *code) RepositoriesDir() string                                              { return path.Join(c.path, "repositories") }
 func (c *code) Scan() error                                                          { return nil }
 func (c *code) StoriesDir() string                                                   { return path.Join(c.path, "stories") }
+func (c *code) SetStoryName(string)                                                  {}
+func (c *code) SetStoryBranchName(string)                                            {}
 func (c *code) StoryName() string                                                    { return c.story_name }
 func (c *code) StoryBranchName() string {
 	if c.story_branch_name == "" {

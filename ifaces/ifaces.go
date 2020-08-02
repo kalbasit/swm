@@ -13,6 +13,12 @@ type Code interface {
 	// CreateStory creates a story
 	CreateStory() error
 
+	// SetStoryName sets the story name
+	SetStoryName(string)
+
+	// SetStoryBranchName sets the story branch name
+	SetStoryBranchName(string)
+
 	// Path returns the absolute path of this coder
 	Path() string
 

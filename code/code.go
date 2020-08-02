@@ -74,19 +74,23 @@ type code struct {
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
-func New(ghc *github.Client, p, sn, sbn string, ignore *regexp.Regexp) ifaces.Code {
+func New(ghc *github.Client, p string, ignore *regexp.Regexp) ifaces.Code {
 	return &code{
-		ghClient:          ghc,
-		excludePattern:    ignore,
-		path:              path.Clean(p),
-		projects:          make(map[string]ifaces.Project),
-		story_name:        sn,
-		story_branch_name: sbn,
+		ghClient:       ghc,
+		excludePattern: ignore,
+		path:           path.Clean(p),
+		projects:       make(map[string]ifaces.Project),
 	}
 }
 
 // Path returns the absolute path of this coder
 func (c *code) Path() string { return c.path }
+
+// SetStoryName sets the story name
+func (c *code) SetStoryName(sn string) { c.story_name = sn }
+
+// SetStoryBranchName sets the story branch name
+func (c *code) SetStoryBranchName(sbn string) { c.story_branch_name = sbn }
 
 // StoryName returns the name of the story if any, empty string otherwise.
 func (c *code) StoryName() string { return c.story_name }
