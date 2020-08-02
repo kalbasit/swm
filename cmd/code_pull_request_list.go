@@ -31,7 +31,7 @@ var codePullRequestListCmd = &cobra.Command{
 func init() {
 	codePullRequestCmd.AddCommand(codePullRequestListCmd)
 
-	if err := viper.BindPFlags(codePullRequestCmd.Flags()); err != nil {
+	if err := viper.BindPFlags(codePullRequestListCmd.Flags()); err != nil {
 		panic(fmt.Sprintf("error binding cobra flags to viper: %s", err))
 	}
 }

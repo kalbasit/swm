@@ -43,14 +43,6 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
-
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Hello, World!")
-		fmt.Printf("cfgFile => %s\n", viper.GetString("config"))
-		fmt.Printf("codeDir => %s\n", viper.GetString("code-path"))
-		fmt.Printf("repositoriesDirname => %s\n", viper.GetString("repositories-dirname"))
-		fmt.Printf("storiesDirname => %s\n", viper.GetString("stories-dirname"))
-	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
