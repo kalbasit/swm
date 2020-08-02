@@ -8,7 +8,6 @@ addons:
 env:
   global:
     - FZF_VERSION=0.20.0
-    - GO111MODULE=on
 before_install:
   # install go dependencies
   - go get -u golang.org/x/tools/cmd/cover
@@ -18,4 +17,20 @@ before_install:
   - export PATH=$PATH:~
 install:
   - go mod tidy
-script: make ci
+script:
+  - go test -v -race -cover -bench=. ./...
+  - >
+    if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
+      echo ">>> Changes were detected before running \`kt fmt\`. This should not happen!"
+      echo; echo; echo;
+      git --no-pager diff
+      exit 1
+    fi
+  - go run main.go doc markdown --path ./doc
+  - >
+    if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
+    echo ">>> Changes detected to the documentation, re-generate with: go run main.go doc markdown --path ./doc"
+      echo; echo; echo;
+      git --no-pager diff
+      exit 1
+    fi
