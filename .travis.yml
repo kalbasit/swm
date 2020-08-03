@@ -19,3 +19,12 @@ script:
       git --no-pager diff
       exit 1
     fi
+
+    go mod vendor
+
+    if [[ "$( git --no-pager status --untracked-files=yes --short ./vendor | wc -l )" -gt 0 ]]; then
+    echo ">>> Changes detected to the vendor directory, re-generate with: go mod vendor"
+      echo; echo; echo;
+      git --no-pager diff
+      exit 1
+    fi
