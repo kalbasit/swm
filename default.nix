@@ -23,7 +23,7 @@ buildGoModule rec {
 
   vendorSha256 = null;
 
-  buildFlagsArray = [ "-ldflags=" "-X=main.version=${version}" ];
+  buildFlagsArray = [ "-ldflags=" "-X=github.com/kalbasit/swm/cmd.version=${version}" ];
 
   nativeBuildInputs = [ fzf git tmux procps installShellFiles ];
 
