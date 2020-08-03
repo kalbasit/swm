@@ -1,6 +1,18 @@
-{ pkgs ? import (import ./nix/pkgs.nix) {}, version ? "dev" }:
+let
+  pkgs = import (import ./nix/pkgs.nix) {};
+in
 
-with pkgs;
+{
+  buildGoModule ? pkgs.buildGoModule
+, nix-gitignore ? pkgs.nix-gitignore
+, version ? "dev"
+, fzf ? pkgs.fzf
+, git ? pkgs.git
+, tmux ? pkgs.tmux
+, procps ? pkgs.procps
+, installShellFiles ? pkgs.installShellFiles
+, lib ? pkgs.lib
+}:
 
 buildGoModule rec {
   inherit version;
