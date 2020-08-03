@@ -1,6 +1,4 @@
-language: go
-go:
-  - 1.14
+language: nix
 addons:
   apt:
     packages:
@@ -9,16 +7,11 @@ env:
   global:
     - FZF_VERSION=0.20.0
 before_install:
-  # install go dependencies
-  - go get -u golang.org/x/tools/cmd/cover
-
   # install fzf
   - curl -L https://github.com/junegunn/fzf-bin/releases/download/$FZF_VERSION/fzf-$FZF_VERSION-linux_amd64.tgz | tar -C ~ -xz
   - export PATH=$PATH:~
-install:
-  - go mod tidy
 script:
-  - go test -v -race -cover -bench=. ./...
+  - nix-shell --run 'go test -v -race -cover -bench=. ./...'
   - >
     if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
       echo ">>> Changes were detected after we ran the tests, this should not happen!"
@@ -26,7 +19,7 @@ script:
       git --no-pager diff
       exit 1
     fi
-  - go run main.go gen-doc markdown --path ./doc
+  - nix-shell --run 'go run main.go gen-doc markdown --path ./doc'
   - >
     if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
     echo ">>> Changes detected to the documentation, re-generate with: go run main.go gen-doc markdown --path ./doc"
