@@ -84,7 +84,7 @@ func createCode() error {
 		return errors.Wrap(err, "error compiling the exclude pattern")
 	}
 
-	code = codePkg.New(githubClient, viper.GetString("code-path"), ignorePattern)
+	code = codePkg.New(viper.GetString("code-path"), ignorePattern)
 
 	return code.Scan()
 }

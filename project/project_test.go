@@ -77,7 +77,7 @@ func TestEnsure(t *testing.T) {
 	defer func() { os.RemoveAll(dir) }()
 
 	// create the filesystem we want to scan
-	testhelper.CreateProjects(t, dir)
+	require.NoError(t, testhelper.CreateProjects(dir))
 
 	// create a code
 	c := &code{path: dir, story_name: "STORY-123"}

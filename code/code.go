@@ -74,9 +74,8 @@ type code struct {
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
-func New(ghc *github.Client, p string, ignore *regexp.Regexp) ifaces.Code {
+func New(p string, ignore *regexp.Regexp) ifaces.Code {
 	return &code{
-		ghClient:       ghc,
 		excludePattern: ignore,
 		path:           path.Clean(p),
 		projects:       make(map[string]ifaces.Project),

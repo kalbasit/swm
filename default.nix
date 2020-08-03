@@ -1,10 +1,11 @@
-{ pkgs ? import (import ./nix/pkgs.nix) {} }:
+{ pkgs ? import (import ./nix/pkgs.nix) {}, version ? "dev" }:
 
 with pkgs;
 
 buildGoModule rec {
+  inherit version;
+
   pname = "swm";
-  version = "2020-08-03";
 
   src = nix-gitignore.gitignoreSource [ ".git" ".envrc" ".travis.yml" ".gitignore" ] ./.;
 
@@ -12,9 +13,7 @@ buildGoModule rec {
 
   buildFlagsArray = [ "-ldflags=" "-X=main.version=${version}" ];
 
-  buildInputs = [ fzf git tmux procps ];
-
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [ fzf git tmux procps installShellFiles ];
 
   postInstall = ''
     for shell in bash zsh fish; do
@@ -24,6 +23,15 @@ buildGoModule rec {
 
     $out/bin/swm gen-doc man --path ./man
     installManPage man/*.7
+  '';
+
+  doCheck = true;
+  preCheck = ''
+    export HOME=$NIX_BUILD_TOP/home
+    mkdir -p $HOME
+
+    git config --global user.email "nix-test@example.com"
+    git config --global user.name "Nix Test"
   '';
 
   meta = with lib; {

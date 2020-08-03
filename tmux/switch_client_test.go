@@ -22,10 +22,10 @@ func TestGetSessionProjectsNoStory(t *testing.T) {
 	defer func() { os.RemoveAll(dir) }()
 
 	// create the filesystem we want to scan
-	testhelper.CreateProjects(t, dir)
+	require.NoError(t, testhelper.CreateProjects(dir))
 
 	// create a code
-	c := code.New(nil, dir, regexp.MustCompile("^.snapshots$"))
+	c := code.New(dir, regexp.MustCompile("^.snapshots$"))
 	require.NoError(t, c.Scan())
 
 	// create the tmux client
@@ -70,10 +70,10 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 	defer func() { os.RemoveAll(dir) }()
 
 	// create the filesystem we want to scan
-	testhelper.CreateProjects(t, dir)
+	require.NoError(t, testhelper.CreateProjects(dir))
 
 	// create a code
-	c := code.New(nil, dir, regexp.MustCompile("^.snapshots$"))
+	c := code.New(dir, regexp.MustCompile("^.snapshots$"))
 	c.SetStoryName("STORY-123")
 	require.NoError(t, c.Scan())
 

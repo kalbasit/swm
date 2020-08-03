@@ -17,7 +17,7 @@ func init() {
 
 func TestSocketName(t *testing.T) {
 	t.Run("typical story", func(t *testing.T) {
-		c := code.New(nil, "", nil)
+		c := code.New("", nil)
 		c.SetStoryName("STORY-123")
 		tmx := &tmux{code: c}
 
@@ -25,7 +25,7 @@ func TestSocketName(t *testing.T) {
 	})
 
 	t.Run("story with a slash", func(t *testing.T) {
-		c := code.New(nil, "", nil)
+		c := code.New("", nil)
 		c.SetStoryName("feature/STORY-123")
 		tmx := &tmux{code: c}
 

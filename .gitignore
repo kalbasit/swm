@@ -14,5 +14,4 @@ debug
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# vendored dependencies
-vendor/
+result*

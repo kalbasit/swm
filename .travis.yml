@@ -1,6 +1,8 @@
 language: nix
 script:
-  - nix-shell --pure --run 'go test -v -race -cover -bench=. ./...'
+  # build the swm package
+  - nix-build .
+  # verify that the doc directory was updated
   - >
     if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
       echo ">>> Changes were detected after we ran the tests, this should not happen!"
@@ -8,8 +10,9 @@ script:
       git --no-pager diff
       exit 1
     fi
-  - nix-shell --pure --run 'go run main.go gen-doc markdown --path ./doc'
-  - >
+
+    nix-shell --pure --run 'go run main.go gen-doc markdown --path ./doc'
+
     if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
     echo ">>> Changes detected to the documentation, re-generate with: go run main.go gen-doc markdown --path ./doc"
       echo; echo; echo;
