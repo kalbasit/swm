@@ -21,6 +21,10 @@ func init() {
 }
 
 func codeStoryPrePrunE(cmd *cobra.Command, args []string) error {
+	if err := requireCodePath(cmd, args); err != nil {
+		return err
+	}
+
 	sn := viper.GetString("story-name")
 	sbn := viper.GetString("story-branch-name")
 	if sn == "" {

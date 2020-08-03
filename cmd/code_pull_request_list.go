@@ -17,6 +17,10 @@ var codePullRequestListCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	Short:   "List the pull requests open for this repository over on Github",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireCodePath(cmd, args); err != nil {
+			return err
+		}
+
 		if err := createGithubClient(); err != nil {
 			return errors.Wrap(err, "error creating a GitHub client")
 		}

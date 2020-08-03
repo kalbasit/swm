@@ -15,6 +15,8 @@ import (
 var defaultCfgFile string
 var version string
 
+var errCodePathIsRequired = errors.New("the code path is required")
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     "swm",
@@ -39,6 +41,14 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func requireCodePath(cmd *cobra.Command, args []string) error {
+	if viper.GetString("code-path") == "" {
+		return errCodePathIsRequired
+	}
+
+	return nil
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

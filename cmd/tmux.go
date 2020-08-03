@@ -24,6 +24,10 @@ func init() {
 }
 
 func tmuxPreRunE(cmd *cobra.Command, args []string) error {
+	if err := requireCodePath(cmd, args); err != nil {
+		return err
+	}
+
 	sn := viper.GetString("story-name")
 	sbn := viper.GetString("story-branch-name")
 	if sbn == "" {

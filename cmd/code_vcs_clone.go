@@ -13,9 +13,10 @@ var errNotBoth = errors.New("you cannot specify both --go-import-path and --clon
 var errOneRequired = errors.New("you must specify either --go-import-path or --clone-url")
 
 var codeVcsCloneCmd = &cobra.Command{
-	Use:   "clone",
-	Short: "Clone a repository",
-	RunE:  codeVcsCloneCmdRun,
+	Use:     "clone",
+	Short:   "Clone a repository",
+	PreRunE: requireCodePath,
+	RunE:    codeVcsCloneCmdRun,
 }
 
 func init() {

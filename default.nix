@@ -27,8 +27,6 @@ buildGoModule rec {
 
   nativeBuildInputs = [ fzf git tmux procps installShellFiles ];
 
-  subPackages = [ "." ];
-
   postInstall = ''
     for shell in bash zsh fish; do
       $out/bin/swm auto-complete $shell > swm.$shell
