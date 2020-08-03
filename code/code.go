@@ -23,16 +23,16 @@ var (
 	ErrCodePathEmpty = errors.New("code path is empty or does not exist")
 
 	// ErrProjectNotFound is returned if the project is not found
-	ErrProjectNotFound = errors.New("project not found")
+	ErrProjectNotFound = errors.New("the project is not found")
 
 	// ErrInvalidURL is returned by AddProject if the URL given is not valid
 	ErrInvalidURL = errors.New("invalid URL given")
 
 	// ErrProjectAlreadyExists is returned if the project already exists
-	ErrProjectAlreadyExists = errors.New("project already exists")
+	ErrProjectAlreadyExists = errors.New("the project already exists")
 
 	// ErrCoderNotScanned is returned if San() was never called
-	ErrCoderNotScanned = errors.New("code was not scanned")
+	ErrCoderNotScanned = errors.New("the code was not scanned")
 
 	// ErrDotGitMalformed is returned if .git is malformed
 	ErrDotGitMalformed = errors.New(".git is malformed")
@@ -74,19 +74,22 @@ type code struct {
 
 // New returns a new empty Code, caller must call Load to load from cache or
 // scan the code directory
-func New(ghc *github.Client, p, sn, sbn string, ignore *regexp.Regexp) ifaces.Code {
+func New(p string, ignore *regexp.Regexp) ifaces.Code {
 	return &code{
-		ghClient:          ghc,
-		excludePattern:    ignore,
-		path:              path.Clean(p),
-		projects:          make(map[string]ifaces.Project),
-		story_name:        sn,
-		story_branch_name: sbn,
+		excludePattern: ignore,
+		path:           path.Clean(p),
+		projects:       make(map[string]ifaces.Project),
 	}
 }
 
 // Path returns the absolute path of this coder
 func (c *code) Path() string { return c.path }
+
+// SetStoryName sets the story name
+func (c *code) SetStoryName(sn string) { c.story_name = sn }
+
+// SetStoryBranchName sets the story branch name
+func (c *code) SetStoryBranchName(sbn string) { c.story_branch_name = sbn }
 
 // StoryName returns the name of the story if any, empty string otherwise.
 func (c *code) StoryName() string { return c.story_name }
@@ -101,6 +104,12 @@ func (c *code) StoryBranchName() string {
 
 // GithubClient represents the client for Github API.
 func (c *code) GithubClient() *github.Client { return c.ghClient }
+
+// SetGithubClient sets the GitHub client in the code
+func (c *code) SetGithubClient(ghc *github.Client) { c.ghClient = ghc }
+
+// CreateStory creates a story
+func (c *code) CreateStory() error { return nil }
 
 // Scan loads the code from the cache (if it exists), otherwise it will
 // initiate a full scan and save it in cache.
@@ -155,9 +164,10 @@ func (c *code) Clone(url string) error {
 	// validate we don't have it already
 	if prj, err := c.getProject(importPath); err == nil {
 		log.Debug().
+			Err(ErrProjectAlreadyExists).
 			Str("import-path", importPath).
 			Str("path", prj.RepositoryPath()).
-			Msg(ErrProjectAlreadyExists.Error())
+			Msg("not going to clone this repository")
 		return ErrProjectAlreadyExists
 	}
 	// clone the project

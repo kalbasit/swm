@@ -1,11 +1,9 @@
 package testhelper
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
-	"testing"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -25,7 +23,7 @@ func init() {
 }
 
 // CreateProjects creates projects in a filesystem to prepare a coder
-func CreateProjects(t *testing.T, basePath string) error {
+func CreateProjects(basePath string) error {
 	// initialize repositories that should make it as part of the scan
 	for _, importPath := range []string{"github.com/owner1/repo1", "github.com/owner2/repo2", "github.com/owner3/repo3"} {
 		if err := gitInitRepo(path.Join(basePath, "repositories", importPath)); err != nil {
@@ -53,8 +51,8 @@ func gitInitRepo(p string) error {
 
 	cmd := exec.Command(gitPath, "init")
 	cmd.Dir = p
-	cmd.Stdout = ioutil.Discard
-	cmd.Stderr = ioutil.Discard
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "error creating the Git repository")
 	}
@@ -70,18 +68,18 @@ func gitInitRepo(p string) error {
 
 	cmd = exec.Command(gitPath, "add", "-A", ".")
 	cmd.Dir = p
-	cmd.Stdout = ioutil.Discard
-	cmd.Stderr = ioutil.Discard
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "error adding files to the index")
 	}
 
 	cmd = exec.Command(gitPath, "commit", "--no-verify", "--no-gpg-sign", "--message", "initial import")
 	cmd.Dir = p
-	cmd.Stdout = ioutil.Discard
-	cmd.Stderr = ioutil.Discard
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "error adding files to the index")
+		return errors.Wrap(err, "error running git commit")
 	}
 
 	return nil

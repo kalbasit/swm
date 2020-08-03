@@ -1,21 +1,30 @@
-language: go
-go:
-  - 1.14
-addons:
-  apt:
-    packages:
-    - tmux
-env:
-  global:
-    - FZF_VERSION=0.20.0
-    - GO111MODULE=on
-before_install:
-  # install go dependencies
-  - go get -u golang.org/x/tools/cmd/cover
+language: nix
+script:
+  # build the swm package
+  - nix-build .
+  # verify that the doc directory was updated
+  - >
+    if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
+      echo ">>> Changes were detected after we ran the tests, this should not happen!"
+      echo; echo; echo;
+      git --no-pager diff
+      exit 1
+    fi
 
-  # install fzf
-  - curl -L https://github.com/junegunn/fzf-bin/releases/download/$FZF_VERSION/fzf-$FZF_VERSION-linux_amd64.tgz | tar -C ~ -xz
-  - export PATH=$PATH:~
-install:
-  - go mod tidy
-script: make ci
+    nix-shell --pure --run 'go run main.go gen-doc markdown --path ./doc'
+
+    if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
+    echo ">>> Changes detected to the documentation, re-generate with: go run main.go gen-doc markdown --path ./doc"
+      echo; echo; echo;
+      git --no-pager diff
+      exit 1
+    fi
+
+    go mod vendor
+
+    if [[ "$( git --no-pager status --untracked-files=yes --short ./vendor | wc -l )" -gt 0 ]]; then
+    echo ">>> Changes detected to the vendor directory, re-generate with: go mod vendor"
+      echo; echo; echo;
+      git --no-pager diff
+      exit 1
+    fi

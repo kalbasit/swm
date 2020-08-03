@@ -10,6 +10,15 @@ import "github.com/google/go-github/github"
 // |   |-- STORY-123
 // |   |   |-- go.import.path
 type Code interface {
+	// CreateStory creates a story
+	CreateStory() error
+
+	// SetStoryName sets the story name
+	SetStoryName(string)
+
+	// SetStoryBranchName sets the story branch name
+	SetStoryBranchName(string)
+
 	// Path returns the absolute path of this coder
 	Path() string
 
@@ -44,6 +53,9 @@ type Code interface {
 
 	// GithubClient represents the client for Github API.
 	GithubClient() *github.Client
+
+	// SetGithubClient sets the GitHub client in the code
+	SetGithubClient(*github.Client)
 
 	// HookPath returns the absolute path to the hooks directory.
 	HookPath() string
