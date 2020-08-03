@@ -21,7 +21,7 @@ script:
   - go test -v -race -cover -bench=. ./...
   - >
     if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
-      echo ">>> Changes were detected before running \`kt fmt\`. This should not happen!"
+      echo ">>> Changes were detected after we ran the tests, this should not happen!"
       echo; echo; echo;
       git --no-pager diff
       exit 1
