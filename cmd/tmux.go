@@ -26,9 +26,6 @@ func init() {
 func tmuxPreRunE(cmd *cobra.Command, args []string) error {
 	sn := viper.GetString("story-name")
 	sbn := viper.GetString("story-branch-name")
-	if sn == "" {
-		return errStoryIsRequired
-	}
 	if sbn == "" {
 		sbn = sn
 	}
