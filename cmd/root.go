@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -12,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var defaultCfgFile string
+var configPath string
 var version string
 
 var errCodePathIsRequired = errors.New("the code path is required")
@@ -62,7 +63,7 @@ func Execute() {
 
 func init() {
 	// initialize the configuration file at ~/.config/swm/config.yaml
-	defaultCfgFile = path.Join(xdg.ConfigHome, "swm", "config.yaml")
+	configPath = path.Join(xdg.ConfigHome, "swm", "config.yaml")
 
 	cobra.OnInitialize(initConfig)
 
@@ -70,28 +71,27 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().String("config", defaultCfgFile, "The path to the configuration YAML file")
-	if err := rootCmd.MarkPersistentFlagFilename("config"); err != nil {
+	rootCmd.PersistentFlags().String("code-path", "", "The path to the code directory")
+	if err := viper.BindPFlag("code-path", rootCmd.PersistentFlags().Lookup("code-path")); err != nil {
 		panic(err)
 	}
-
-	rootCmd.PersistentFlags().String("code-path", "", "The path to the code directory")
 	if err := rootCmd.MarkPersistentFlagDirname("code-path"); err != nil {
 		panic(err)
 	}
 
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debugging")
-
-	rootCmd.PersistentFlags().String("repositories-dirname", "repositories", "The name of the repositories directory, a child directory of the code-path and the parent directory for all repositories")
-
-	rootCmd.PersistentFlags().String("stories-dirname", "stories", "The name of the stories directory, a child directory of the code-path and the parent directory for all stories")
-
-	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
-		panic(fmt.Sprintf("error binding cobra persistent flags to viper: %s", err))
+	if err := viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug")); err != nil {
+		panic(err)
 	}
 
-	if err := viper.BindPFlags(rootCmd.Flags()); err != nil {
-		panic(fmt.Sprintf("error binding cobra flags to viper: %s", err))
+	rootCmd.PersistentFlags().String("repositories-dirname", "repositories", "The name of the repositories directory, a child directory of the code-path and the parent directory for all repositories")
+	if err := viper.BindPFlag("repositories-dirname", rootCmd.PersistentFlags().Lookup("repositories-dirname")); err != nil {
+		panic(err)
+	}
+
+	rootCmd.PersistentFlags().String("stories-dirname", "stories", "The name of the stories directory, a child directory of the code-path and the parent directory for all stories")
+	if err := viper.BindPFlag("stories-dirname", rootCmd.PersistentFlags().Lookup("stories-dirname")); err != nil {
+		panic(err)
 	}
 }
 
@@ -108,10 +108,10 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	// set the configuration file as defined by the flag
-	viper.SetConfigFile(viper.GetString("config"))
+	viper.SetConfigFile(configPath)
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil && !os.IsNotExist(err) {
-		panic(errors.Wrap(err, "error reading the config file"))
+		log.Fatal(errors.Wrap(err, "error reading the config file"))
 	}
 }

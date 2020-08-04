@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/kalbasit/swm/ifaces"
+	"github.com/kalbasit/swm/story"
 	"github.com/kalbasit/swm/testhelper"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -43,26 +44,19 @@ func TestScan(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, importPath, prj.String())
-			assert.Equal(t, path.Join(dir, "repositories", importPath), prj.RepositoryPath())
-			if story_name != "" {
-				assert.NoError(t, prj.Ensure())
+			assert.Equal(t, path.Join(dir, "repositories", importPath), prj.Path(nil))
 
-				sn, err := prj.StoryPath()
-				if assert.NoError(t, err) {
-					assert.Equal(t, path.Join(dir, "stories", story_name, importPath), sn)
-				}
-			}
+			s, err := story.New(story_name, "")
+			require.NoError(t, err)
+
+			require.NoError(t, prj.CreateStory(s))
+
+			sn := prj.Path(s)
+			assert.Equal(t, path.Join(dir, "stories", story_name, importPath), sn)
 		}
 	}
 
-	// create a code without a story
-	c := New(dir, regexp.MustCompile("^.snapshots$"))
-	require.NoError(t, c.Scan())
-	assertFn(c, "")
-
-	// create a new code with a story
 	sc := New(dir, regexp.MustCompile("^.snapshots$"))
-	sc.SetStoryName(t.Name())
 	require.NoError(t, sc.Scan())
 	assertFn(sc, t.Name())
 }
@@ -97,20 +91,25 @@ func TestGetProject(t *testing.T) {
 	for _, testCase := range testCases {
 		// create a code
 		c := New(dir, regexp.MustCompile("^.snapshots$"))
-		c.SetStoryName(testCase.story_name)
 		require.NoError(t, c.Scan())
+
+		// create the story
+		var s ifaces.Story
+		if testCase.story_name != "" {
+			s, err = story.New(testCase.story_name, "")
+			require.NoError(t, err)
+		}
 
 		// get the project and assert things
 		for _, importPath := range []string{"github.com/owner1/repo1", "github.com/owner2/repo2", "github.com/owner3/repo3"} {
+
 			prj, err := c.GetProjectByRelativePath(importPath)
 			require.NoError(t, err)
-			assert.Equal(t, path.Join(dir, "repositories", importPath), prj.RepositoryPath())
+			assert.Equal(t, path.Join(dir, "repositories", importPath), prj.Path(nil))
 
 			if testCase.story_name != "" {
-				sp, err := prj.StoryPath()
-				if assert.NoError(t, err) {
-					assert.Equal(t, path.Join(dir, "stories", testCase.story_name, importPath), sp)
-				}
+				sp := prj.Path(s)
+				assert.Equal(t, path.Join(dir, "stories", testCase.story_name, importPath), sp)
 			}
 		}
 	}
@@ -173,7 +172,7 @@ func TestClone(t *testing.T) {
 		prj, err := c.GetProjectByRelativePath(importPath)
 		if assert.NoError(t, err) {
 			assert.Equal(t, importPath, prj.String())
-			assert.Equal(t, path.Join(c.RepositoriesDir(), importPath), prj.RepositoryPath())
+			assert.Equal(t, path.Join(c.RepositoriesDir(), importPath), prj.Path(nil))
 		}
 	}
 }
@@ -210,38 +209,4 @@ func TestGetProjectByAbsolutePath(t *testing.T) {
 	assert.Error(t, err)
 	_, err = c.GetProjectByAbsolutePath(dir + "/repositories/github.com/user/repo")
 	assert.Error(t, err)
-}
-
-func TestStoryName(t *testing.T) {
-	t.Run("no story name", func(t *testing.T) {
-		c := &code{}
-		assert.Empty(t, c.StoryName())
-	})
-
-	t.Run("story name is set", func(t *testing.T) {
-		c := &code{story_name: "foobar"}
-		assert.Equal(t, "foobar", c.StoryName())
-	})
-}
-
-func TestStoryBranchName(t *testing.T) {
-	t.Run("no story branch name or a story name", func(t *testing.T) {
-		c := &code{}
-		assert.Empty(t, c.StoryBranchName())
-	})
-
-	t.Run("no story branch name but a story name", func(t *testing.T) {
-		c := &code{story_name: "foobar"}
-		assert.Equal(t, "foobar", c.StoryBranchName())
-	})
-
-	t.Run("story branch name, an no story name", func(t *testing.T) {
-		c := &code{story_branch_name: "foobar"}
-		assert.Equal(t, "foobar", c.StoryBranchName())
-	})
-
-	t.Run("story branch name and a story name", func(t *testing.T) {
-		c := &code{story_branch_name: "foobar", story_name: "nope"}
-		assert.Equal(t, "foobar", c.StoryBranchName())
-	})
 }

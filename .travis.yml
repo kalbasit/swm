@@ -4,27 +4,31 @@ script:
   - nix-build .
   # verify that the doc directory was updated
   - >
-    if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
+    if [[ "$( git --no-pager status --short | wc -l )" -gt 0 ]]; then
       echo ">>> Changes were detected after we ran the tests, this should not happen!"
       echo; echo; echo;
       git --no-pager diff
       exit 1
     fi
 
-    nix-shell --pure --run 'go run main.go gen-doc markdown --path ./doc'
+    # TODO: Make this work. Currently it does not work because:
+    # - The generation places the date of the day it was generated which makes it irreproducible.
+    # - When SWM_STORY_NAME and SWM_STORY_BRANCH_NAME are in the environment, it changes the description of their respective flags.
+    #nix-shell --pure --run 'go run main.go gen-doc markdown --path ./doc'
+    #if [[ "$( git --no-pager status --short | wc -l )" -gt 0 ]]; then
+    #  echo ">>> Changes detected to the documentation, re-generate with: go run main.go gen-doc markdown --path ./doc"
+    #  echo; echo; echo;
+    #  git status
+    #  git --no-pager diff
+    #  exit 1
+    #fi
 
-    if [[ "$( git --no-pager status --untracked-files=no --short | wc -l )" -gt 0 ]]; then
-    echo ">>> Changes detected to the documentation, re-generate with: go run main.go gen-doc markdown --path ./doc"
+    nix-shell --pure --run 'go mod tidy && go mod vendo'
+
+    if [[ "$( git --no-pager status --short ./vendor | wc -l )" -gt 0 ]]; then
+      echo ">>> Changes detected to the vendor directory, re-generate with: go mod vendor"
       echo; echo; echo;
-      git --no-pager diff
-      exit 1
-    fi
-
-    go mod vendor
-
-    if [[ "$( git --no-pager status --untracked-files=yes --short ./vendor | wc -l )" -gt 0 ]]; then
-    echo ">>> Changes detected to the vendor directory, re-generate with: go mod vendor"
-      echo; echo; echo;
+      git status
       git --no-pager diff
       exit 1
     fi

@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"fmt"
+	"os"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var tmuxKillServerCmd = &cobra.Command{
@@ -17,15 +17,15 @@ var tmuxKillServerCmd = &cobra.Command{
 func init() {
 	tmuxCmd.AddCommand(tmuxKillServerCmd)
 
-	tmuxKillServerCmd.Flags().String("story-name", "", "The name of the story")
-	tmuxKillServerCmd.Flags().String("story-branch-name", "", "The name of the branch. By default, it's set the same as the story-name")
+	tmuxKillServerCmd.Flags().String("story-name", os.Getenv("SWM_STORY_NAME"), "The name of the story")
 	tmuxKillServerCmd.Flags().Bool("vim-exit", false, "if vim is found running, kill it")
-
-	if err := viper.BindPFlags(tmuxKillServerCmd.Flags()); err != nil {
-		panic(fmt.Sprintf("error binding cobra flags to viper: %s", err))
-	}
 }
 
 func tmuxKillServerRun(cmd *cobra.Command, args []string) error {
-	return tmuxManager.KillServer(viper.GetBool("vim-exit"))
+	ve, err := cmd.Flags().GetBool("vim-exit")
+	if err != nil {
+		return errors.Wrap(err, "error getting the value of the --vim-exit flag")
+	}
+
+	return tmuxManager.KillServer(ve)
 }

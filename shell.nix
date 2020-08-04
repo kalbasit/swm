@@ -5,7 +5,7 @@ with pkgs;
 let
   swm = callPackage ./default.nix {};
 in mkShell {
-  buildInputs = [ go gotools ] ++ swm.buildInputs;
+  buildInputs = [ go gotools ] ++ swm.buildInputs ++ swm.nativeBuildInputs;
 
   GOPATH = "${home}/.cache/go";
   GO111MODULE = "on";

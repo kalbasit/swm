@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/go-github/github"
 	"github.com/kalbasit/swm/ifaces"
 	"github.com/kalbasit/swm/project"
 	"github.com/pkg/errors"
@@ -53,17 +52,8 @@ func init() {
 
 // code implements the coder interface
 type code struct {
-	// ghClient represents a GitHub client
-	ghClient *github.Client
-
 	// path is the base path of this profile
 	path string
-
-	// the name of the story
-	story_name string
-
-	// the name of the branch
-	story_branch_name string
 
 	// excludePattern is a list of patterns to ignore
 	excludePattern *regexp.Regexp
@@ -84,32 +74,6 @@ func New(p string, ignore *regexp.Regexp) ifaces.Code {
 
 // Path returns the absolute path of this coder
 func (c *code) Path() string { return c.path }
-
-// SetStoryName sets the story name
-func (c *code) SetStoryName(sn string) { c.story_name = sn }
-
-// SetStoryBranchName sets the story branch name
-func (c *code) SetStoryBranchName(sbn string) { c.story_branch_name = sbn }
-
-// StoryName returns the name of the story if any, empty string otherwise.
-func (c *code) StoryName() string { return c.story_name }
-
-// StoryBranchName returns the name of the branch of this story if any, empty string otherwise.
-func (c *code) StoryBranchName() string {
-	if c.story_branch_name == "" {
-		return c.story_name
-	}
-	return c.story_branch_name
-}
-
-// GithubClient represents the client for Github API.
-func (c *code) GithubClient() *github.Client { return c.ghClient }
-
-// SetGithubClient sets the GitHub client in the code
-func (c *code) SetGithubClient(ghc *github.Client) { c.ghClient = ghc }
-
-// CreateStory creates a story
-func (c *code) CreateStory() error { return nil }
 
 // Scan loads the code from the cache (if it exists), otherwise it will
 // initiate a full scan and save it in cache.
@@ -166,14 +130,14 @@ func (c *code) Clone(url string) error {
 		log.Debug().
 			Err(ErrProjectAlreadyExists).
 			Str("import-path", importPath).
-			Str("path", prj.RepositoryPath()).
+			Str("path", prj.Path(nil)).
 			Msg("not going to clone this repository")
 		return ErrProjectAlreadyExists
 	}
 	// clone the project
 	prj := project.New(c, importPath)
 	// run a git clone on the absolute path of the project
-	cmd := exec.Command(gitPath, "clone", url, prj.RepositoryPath())
+	cmd := exec.Command(gitPath, "clone", url, prj.Path(nil))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -181,7 +145,7 @@ func (c *code) Clone(url string) error {
 	}
 	log.Info().
 		Str("import-path", prj.String()).
-		Str("repository_path", prj.RepositoryPath()).
+		Str("repository_path", prj.Path(nil)).
 		Msg("project successfully cloned")
 	// add it to the map of projects
 	c.addProject(prj)

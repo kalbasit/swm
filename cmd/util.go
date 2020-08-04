@@ -28,6 +28,7 @@ func createLogger(cmd *cobra.Command) error {
 	lb := zerolog.New(zerolog.ConsoleWriter{Out: cmd.ErrOrStderr()}).
 		With().
 		Timestamp()
+
 	if v := viper.GetString("exclude"); v != "" {
 		lb = lb.Str("exclude", v)
 	}
@@ -79,9 +80,15 @@ func createGithubClient() error {
 
 func createCode() error {
 	log.Logger.Debug().Msg("creating a new coder")
-	ignorePattern, err := regexp.Compile(viper.GetString("exclude"))
-	if err != nil {
-		return errors.Wrap(err, "error compiling the exclude pattern")
+
+	var ignorePattern *regexp.Regexp
+	if es := viper.GetString("exclude"); es != "" {
+		var err error
+
+		ignorePattern, err = regexp.Compile(es)
+		if err != nil {
+			return errors.Wrap(err, "error compiling the exclude pattern")
+		}
 	}
 
 	code = codePkg.New(viper.GetString("code-path"), ignorePattern)

@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,15 +22,18 @@ func init() {
 
 	codeVcsCloneCmd.Flags().String("go-import-path", "", "Clone a repository by its Go import path")
 	codeVcsCloneCmd.Flags().String("clone-url", "", "Clone a repository by its clone URL")
-
-	if err := viper.BindPFlags(codeVcsCloneCmd.Flags()); err != nil {
-		panic(fmt.Sprintf("error binding cobra flags to viper: %s", err))
-	}
 }
 
 func codeVcsCloneCmdRun(cmd *cobra.Command, args []string) error {
-	gip := viper.GetString("go-import-path")
-	cu := viper.GetString("clone-url")
+	gip, err := cmd.Flags().GetString("go-import-path")
+	if err != nil {
+		return err
+	}
+
+	cu, err := cmd.Flags().GetString("clone-url")
+	if err != nil {
+		return err
+	}
 
 	if gip == "" && cu == "" {
 		// re-show the usage for this error

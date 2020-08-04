@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var autoCompletePowerShellCmd = &cobra.Command{
@@ -16,10 +14,6 @@ var autoCompletePowerShellCmd = &cobra.Command{
 
 func init() {
 	autoCompleteCmd.AddCommand(autoCompletePowerShellCmd)
-
-	if err := viper.BindPFlags(autoCompletePowerShellCmd.Flags()); err != nil {
-		panic(fmt.Sprintf("error binding cobra flags to viper: %s", err))
-	}
 }
 
 func autoCompletePowerShellRun(cmd *cobra.Command, args []string) error {
