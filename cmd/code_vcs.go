@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var codeVcsCmd = &cobra.Command{
@@ -14,8 +11,4 @@ var codeVcsCmd = &cobra.Command{
 
 func init() {
 	codeCmd.AddCommand(codeVcsCmd)
-
-	if err := viper.BindPFlags(codeVcsCmd.Flags()); err != nil {
-		panic(fmt.Sprintf("error binding cobra flags to viper: %s", err))
-	}
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var codePullRequestListCmd = &cobra.Command{
@@ -25,8 +24,6 @@ var codePullRequestListCmd = &cobra.Command{
 			return errors.Wrap(err, "error creating a GitHub client")
 		}
 
-		code.SetGithubClient(githubClient)
-
 		return nil
 	},
 	RunE: codePullRequestListRun,
@@ -34,10 +31,6 @@ var codePullRequestListCmd = &cobra.Command{
 
 func init() {
 	codePullRequestCmd.AddCommand(codePullRequestListCmd)
-
-	if err := viper.BindPFlags(codePullRequestListCmd.Flags()); err != nil {
-		panic(fmt.Sprintf("error binding cobra flags to viper: %s", err))
-	}
 }
 
 func codePullRequestListRun(cmd *cobra.Command, args []string) error {
@@ -52,7 +45,7 @@ func codePullRequestListRun(cmd *cobra.Command, args []string) error {
 	}
 	// get the list of prs
 	var prs []*github.PullRequest
-	prs, err = prj.ListPullRequests()
+	prs, err = prj.ListPullRequests(githubClient)
 	if err != nil {
 		return errors.Wrap(err, "error getting the list of the pull requests")
 	}

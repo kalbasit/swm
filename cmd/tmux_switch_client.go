@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"fmt"
+	"os"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var tmuxSwitchClientCmd = &cobra.Command{
@@ -17,15 +17,15 @@ var tmuxSwitchClientCmd = &cobra.Command{
 func init() {
 	tmuxCmd.AddCommand(tmuxSwitchClientCmd)
 
-	tmuxSwitchClientCmd.Flags().String("story-name", "", "The name of the story")
-	tmuxSwitchClientCmd.Flags().String("story-branch-name", "", "The name of the branch. By default, it's set the same as the story-name")
+	tmuxSwitchClientCmd.Flags().String("story-name", os.Getenv("SWM_STORY_NAME"), "The name of the story")
 	tmuxSwitchClientCmd.Flags().Bool("kill-pane", false, "kill the TMUX pane after switch client")
-
-	if err := viper.BindPFlags(tmuxSwitchClientCmd.Flags()); err != nil {
-		panic(fmt.Sprintf("error binding cobra flags to viper: %s", err))
-	}
 }
 
 func tmuxSwitchClientRun(cmd *cobra.Command, args []string) error {
-	return tmuxManager.SwitchClient(viper.GetBool("kill-pane"))
+	kp, err := cmd.Flags().GetBool("kill-pane")
+	if err != nil {
+		return errors.Wrap(err, "error getting the value of the --kill-pane flag")
+	}
+
+	return tmuxManager.SwitchClient(kp)
 }

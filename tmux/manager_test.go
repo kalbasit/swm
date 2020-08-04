@@ -8,10 +8,44 @@ import (
 	"testing"
 
 	"github.com/kalbasit/swm/code"
+	"github.com/kalbasit/swm/story"
 	"github.com/kalbasit/swm/testhelper"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	// discard logs
+	log.Logger = zerolog.New(ioutil.Discard)
+}
+
+func TestSocketName(t *testing.T) {
+	t.Run("typical story", func(t *testing.T) {
+		s, err := story.New("STORY-123", "")
+		require.NoError(t, err)
+
+		tmx := &Manager{
+			code:  code.New("", nil),
+			story: s,
+		}
+
+		assert.Equal(t, "swm-STORY-123", tmx.socketName())
+	})
+
+	t.Run("story with a slash", func(t *testing.T) {
+		s, err := story.New("feature/STORY-123", "")
+		require.NoError(t, err)
+
+		tmx := &Manager{
+			code:  code.New("", nil),
+			story: s,
+		}
+
+		assert.Equal(t, "swm-feature_STORY-123", tmx.socketName())
+	})
+}
 
 func TestGetSessionProjectsNoStory(t *testing.T) {
 	// create a temporary directory
@@ -29,7 +63,7 @@ func TestGetSessionProjectsNoStory(t *testing.T) {
 	require.NoError(t, c.Scan())
 
 	// create the tmux client
-	tmx := &tmux{code: c}
+	tmx := &Manager{code: c}
 
 	// get the session map
 	sessionNameProjects, err := tmx.getSessionNameProjects()
@@ -74,11 +108,14 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 
 	// create a code
 	c := code.New(dir, regexp.MustCompile("^.snapshots$"))
-	c.SetStoryName("STORY-123")
 	require.NoError(t, c.Scan())
 
+	// create the story
+	s, err := story.New("STORY-123", "")
+	require.NoError(t, err)
+
 	// create the tmux client
-	tmx := &tmux{code: c}
+	tmx := &Manager{code: c, story: s}
 
 	// get the session map
 	sessionNameProjects, err := tmx.getSessionNameProjects()
@@ -112,12 +149,12 @@ func TestGetSessionProjectsStory123(t *testing.T) {
 	}
 }
 
-func TestSanitize(t *testing.T) {
+func TestSanitizeSessionName(t *testing.T) {
 	t.Run(".", func(t *testing.T) {
-		assert.Equal(t, "github"+dotChar+"com/owner1/repo1", sanitize("github.com/owner1/repo1"))
+		assert.Equal(t, "github"+dotChar+"com/owner1/repo1", sanitizeSessionName("github.com/owner1/repo1"))
 	})
 
 	t.Run(":", func(t *testing.T) {
-		assert.Equal(t, "github"+colonChar+"com/owner1/repo1", sanitize("github:com/owner1/repo1"))
+		assert.Equal(t, "github"+colonChar+"com/owner1/repo1", sanitizeSessionName("github:com/owner1/repo1"))
 	})
 }

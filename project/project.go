@@ -41,57 +41,47 @@ func init() {
 	}
 }
 
-func New(c ifaces.Code, importPath string) *project {
+func New(c ifaces.Code, importPath string) ifaces.Project {
 	return &project{
 		code:       c,
 		importPath: importPath,
 	}
 }
 
-// StoryPath returns the absolute path to the story for this project. It
-// returns an error if there is no active story.
-func (p *project) StoryPath() (string, error) {
-	if p.code.StoryName() == "" {
-		return "", ErrNoActiveStory
+// Path returns the absolute path to the repository or the story for this project.
+func (p *project) Path(s ifaces.Story) string {
+	if rp := p.storyPath(s); rp != "" {
+		return rp
 	}
-	return path.Join(p.code.StoriesDir(), p.code.StoryName(), p.importPath), nil
-}
 
-// RepositoryPath returns the absolute path to the repository for this project.
-func (p *project) RepositoryPath() string {
 	return path.Join(p.code.RepositoriesDir(), p.importPath)
-}
-
-// Path returns the path of the story, if it's a story. Otherwise, the
-// path of the repository is returned.
-func (p *project) Path() string {
-	pp, err := p.StoryPath()
-	if err != nil {
-		if errors.Is(err, ErrNoActiveStory) {
-			return p.RepositoryPath()
-		}
-
-		log.Fatal().Err(err).Msg("not sure what happened")
-	}
-
-	return pp
 }
 
 func (p *project) String() string { return p.importPath }
 
 func (p *project) Code() ifaces.Code { return p.code }
 
-// Ensure ensures the project exists on disk, by creating a new story from
-// the base project or noop if the story already exists on disk.
-func (p *project) Ensure() error {
-	if p.code.StoryName() == "" {
-		return nil
-	}
+// ListPullRequests returns the list of pull requests.
+func (p *project) ListPullRequests(ghc *github.Client) ([]*github.PullRequest, error) {
+	prs, _, err := ghc.PullRequests.List(context.Background(), p.owner(), p.repo(), nil)
+	return prs, err
+}
 
-	wp, err := p.StoryPath()
-	if err != nil {
-		return err
+func (p *project) storyPath(s ifaces.Story) string {
+	if s == nil {
+		return ""
 	}
+	return path.Join(p.code.StoriesDir(), s.GetName(), p.importPath)
+}
+
+func (p *project) repositoryPath() string {
+	return path.Join(p.code.RepositoriesDir(), p.importPath)
+}
+
+// CreateStory creates the story path for this project.
+func (p *project) CreateStory(s ifaces.Story) error {
+	wp := p.storyPath(s)
+	sbn := s.GetBranchName()
 
 	if _, err := os.Stat(wp); !os.IsNotExist(err) {
 		if err != nil {
@@ -105,12 +95,12 @@ func (p *project) Ensure() error {
 		log.Debug().
 			Str("import-path", p.importPath).
 			Str("story-path", wp).
-			Msg("story already exists")
+			Msg("the story already exists")
 		return nil
 	}
 
 	// run the pre-hooks
-	if err = p.runPreHooks(); err != nil {
+	if err := p.runPreHooks(s); err != nil {
 		log.Error().
 			Str("import-path", p.importPath).
 			Str("story-path", wp).
@@ -119,14 +109,14 @@ func (p *project) Ensure() error {
 	}
 	// create a new story for this project based on the base project
 	// TODO(kalbasit): switch to using [go-git](https://github.com/src-d/go-git)
-	cmd := exec.Command(gitPath, "worktree", "add", "-B", p.code.StoryBranchName(), wp)
-	cmd.Dir = p.RepositoryPath()
+	cmd := exec.Command(gitPath, "worktree", "add", "-B", sbn, wp)
+	cmd.Dir = p.repositoryPath()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error creating a new story: %s\nOutput:\n%s", err, string(out))
 	}
 	// run the post-hooks
-	if err = p.runPostHooks(); err != nil {
+	if err := p.runPostHooks(s); err != nil {
 		log.Error().
 			Str("import-path", p.importPath).
 			Str("story0path", wp).
@@ -141,9 +131,6 @@ func (p *project) Ensure() error {
 
 	return nil
 }
-
-// ImportPath returns the path under which this project can be imported in Go
-func (p *project) ImportPath() string { return p.importPath }
 
 func (p *project) owner() string {
 	parts := strings.Split(p.importPath, "/")
@@ -161,19 +148,13 @@ func (p *project) repo() string {
 	return parts[2]
 }
 
-// ListPullRequests returns the list of pull requests
-func (p *project) ListPullRequests() ([]*github.PullRequest, error) {
-	prs, _, err := p.code.GithubClient().PullRequests.List(context.Background(), p.owner(), p.repo(), nil)
-	return prs, err
-}
-
 // runPreHooks iterates over the executable files in
 // ~/.config/swm/hooks/coder/pre-hook and runs each with the following
 // arguments:
 // - The name of the story
 // - The path to the story of this project
 // - The path to the repository of this project
-func (p *project) runPreHooks() error {
+func (p *project) runPreHooks(s ifaces.Story) error {
 	// get the hooks directory
 	preHooksDir := path.Join(p.code.HookPath(), "pre-hook")
 	// first get the list of the hooks
@@ -185,11 +166,8 @@ func (p *project) runPreHooks() error {
 		return nil
 	}
 	// compute the paths needed for all hooks
-	rp := p.RepositoryPath()
-	wp, err := p.StoryPath()
-	if err != nil {
-		return ErrNoActiveStory
-	}
+	rp := p.repositoryPath()
+	wp := p.storyPath(s)
 	// iterate over the list of hooks and run it
 	for _, hook := range hooks {
 		// compute the absolute path of the hook
@@ -200,7 +178,7 @@ func (p *project) runPreHooks() error {
 			Msg("found a pre-hook")
 		// is this a file and is executable by the current user?
 		if !hook.IsDir() && hook.Mode().Perm()&0111 != 0 {
-			cmd := exec.Command(hookPath, p.code.StoryName(), wp, rp)
+			cmd := exec.Command(hookPath, s.GetName(), wp, rp)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("error running the pre-hook: %s\nOutput:\n%s", err, string(out))
@@ -217,7 +195,7 @@ func (p *project) runPreHooks() error {
 // - The name of the story
 // - The path to the story of this project
 // - The path to the repository of this project
-func (p *project) runPostHooks() error {
+func (p *project) runPostHooks(s ifaces.Story) error {
 	// compute the absolute path of the hook
 	postHooksDir := path.Join(p.code.HookPath(), "post-hook")
 	// first get the list of the hooks
@@ -229,11 +207,8 @@ func (p *project) runPostHooks() error {
 		return nil
 	}
 	// compute the paths needed for all hooks
-	rp := p.RepositoryPath()
-	wp, err := p.StoryPath()
-	if err != nil {
-		return ErrNoActiveStory
-	}
+	rp := p.repositoryPath()
+	wp := p.storyPath(s)
 	// iterate over the list of hooks and run it
 	for _, hook := range hooks {
 		hookPath := path.Join(postHooksDir, hook.Name())
@@ -243,7 +218,7 @@ func (p *project) runPostHooks() error {
 			Msg("found a post-hook")
 		// is this a file and is executable by the current user?
 		if !hook.IsDir() && hook.Mode().Perm()&0111 != 0 {
-			cmd := exec.Command(hookPath, p.code.StoryName(), wp, rp)
+			cmd := exec.Command(hookPath, s.GetName(), wp, rp)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("error running the post-hook: %s\nOutput:\n%s", err, string(out))

@@ -1,9 +1,11 @@
 package testhelper
 
 import (
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
+	"testing"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -24,16 +26,18 @@ func init() {
 
 // CreateProjects creates projects in a filesystem to prepare a coder
 func CreateProjects(basePath string) error {
+	verbose := testing.Verbose()
+
 	// initialize repositories that should make it as part of the scan
 	for _, importPath := range []string{"github.com/owner1/repo1", "github.com/owner2/repo2", "github.com/owner3/repo3"} {
-		if err := gitInitRepo(path.Join(basePath, "repositories", importPath)); err != nil {
+		if err := gitInitRepo(path.Join(basePath, "repositories", importPath), verbose); err != nil {
 			return err
 		}
 	}
 
 	// initialize repositories that should not make it as part of the scan
 	for _, importPath := range []string{"github.com/owner4/repo4", "github.com/owner5/repo5", "github.com/owner6/repo6"} {
-		if err := gitInitRepo(path.Join(basePath, ".snapshots", importPath)); err != nil {
+		if err := gitInitRepo(path.Join(basePath, ".snapshots", importPath), verbose); err != nil {
 			return err
 		}
 	}
@@ -41,7 +45,7 @@ func CreateProjects(basePath string) error {
 	return nil
 }
 
-func gitInitRepo(p string) error {
+func gitInitRepo(p string, verbose bool) error {
 	if _, err := os.Stat(p); err != nil {
 		if !os.IsNotExist(err) {
 			return err
@@ -49,10 +53,15 @@ func gitInitRepo(p string) error {
 		os.MkdirAll(p, 0755)
 	}
 
+	writer := ioutil.Discard
+	if verbose {
+		writer = os.Stdout
+	}
+
 	cmd := exec.Command(gitPath, "init")
 	cmd.Dir = p
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = writer
+	cmd.Stderr = writer
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "error creating the Git repository")
 	}
@@ -68,16 +77,16 @@ func gitInitRepo(p string) error {
 
 	cmd = exec.Command(gitPath, "add", "-A", ".")
 	cmd.Dir = p
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = writer
+	cmd.Stderr = writer
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "error adding files to the index")
 	}
 
 	cmd = exec.Command(gitPath, "commit", "--no-verify", "--no-gpg-sign", "--message", "initial import")
 	cmd.Dir = p
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = writer
+	cmd.Stderr = writer
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "error running git commit")
 	}

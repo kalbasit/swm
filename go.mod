@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/adrg/xdg v0.2.1
+	github.com/fatih/color v1.7.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/google/go-github v17.0.0+incompatible
@@ -29,5 +30,5 @@ require (
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/ini.v1 v1.57.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
+	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 )
