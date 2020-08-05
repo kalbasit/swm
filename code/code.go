@@ -125,6 +125,7 @@ func (c *code) Clone(url string) error {
 			Interface("remote-url", r).
 			Msg("parsing succeded")
 	}
+
 	// validate we don't have it already
 	if prj, err := c.getProject(importPath); err == nil {
 		log.Debug().
@@ -134,21 +135,41 @@ func (c *code) Clone(url string) error {
 			Msg("not going to clone this repository")
 		return ErrProjectAlreadyExists
 	}
-	// clone the project
+
+	// create a new project
 	prj := project.New(c, importPath)
-	// run a git clone on the absolute path of the project
-	cmd := exec.Command(gitPath, "clone", url, prj.Path(nil))
+	rp := prj.Path(nil)
+
+	// compute the temporary clone location
+	tmpDir := path.Join(c.path, ".tmp-clone", strings.Replace(prj.String(), "/", "_", -1))
+
+	// Clone the project in its temporary location
+	cmd := exec.Command(gitPath, "clone", url, tmpDir)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	log.Info().
+	log.Debug().
 		Str("import-path", prj.String()).
-		Str("repository_path", prj.Path(nil)).
+		Str("clone_at", tmpDir).
 		Msg("project successfully cloned")
+
+	// move the directory to its real location
+	if err := os.MkdirAll(path.Dir(rp), 0777); err != nil {
+		return errors.Wrapf(err, "error creating the parent directory of the repository. The cloned directory is left at %s", tmpDir)
+	}
+	if err := os.Rename(tmpDir, rp); err != nil {
+		return errors.Wrapf(err, "error moving %q to %q", tmpDir, rp)
+	}
+
 	// add it to the map of projects
 	c.addProject(prj)
+
+	log.Info().
+		Str("import-path", prj.String()).
+		Str("repository_path", rp).
+		Msg("project successfully cloned")
 
 	return nil
 }

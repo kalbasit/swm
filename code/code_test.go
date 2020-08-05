@@ -148,33 +148,58 @@ func TestProjects(t *testing.T) {
 }
 
 func TestClone(t *testing.T) {
-	// create a temporary directory
-	dir, err := ioutil.TempDir("", "swm-test-*")
-	require.NoError(t, err)
+	t.Run("non-exist repository should not create top-level directory of the repository", func(t *testing.T) {
+		// create a temporary directory
+		dir, err := ioutil.TempDir("", "swm-test-*")
+		require.NoError(t, err)
 
-	// delete it once we are done here
-	defer func() { os.RemoveAll(dir) }()
+		// delete it once we are done here
+		defer func() { os.RemoveAll(dir) }()
 
-	// create the filesystem we want to scan
-	require.NoError(t, testhelper.CreateProjects(dir))
+		// create a code
+		c := New(dir, regexp.MustCompile("^.snapshots$"))
+		require.NoError(t, c.Scan())
 
-	// create a code
-	c := New(dir, regexp.MustCompile("^.snapshots$"))
-	require.NoError(t, c.Scan())
+		// assert that we get an error
+		err = c.Clone("file://path/to/inexistent-repository")
+		assert.EqualError(t, err, "exit status 128")
 
-	// clone the repo4 from the ignored location, but first validate it does not exist in the scanned projects
-	importPath := strings.TrimPrefix(path.Join(dir, ".snapshots", "github.com/owner4/repo4"), string(os.PathSeparator))
-	_, err = c.GetProjectByRelativePath(importPath)
-	require.True(t, errors.Is(err, ErrProjectNotFound))
+		// make sure that the parent of the repository does not exist
+		assert.NoDirExists(t, path.Join(c.RepositoriesDir(), "path"))
+		assert.NoDirExists(t, path.Join(c.RepositoriesDir(), "path", "to"))
 
-	err = c.Clone(fmt.Sprintf("file://%s", path.Join(dir, ".snapshots", "github.com/owner4/repo4")))
-	if assert.NoError(t, err) {
-		prj, err := c.GetProjectByRelativePath(importPath)
+		assert.DirExists(t, path.Join(dir, ".tmp-clone"))
+	})
+
+	t.Run("cloning a working URL should work", func(t *testing.T) {
+		// create a temporary directory
+		dir, err := ioutil.TempDir("", "swm-test-*")
+		require.NoError(t, err)
+
+		// delete it once we are done here
+		defer func() { os.RemoveAll(dir) }()
+
+		// create the filesystem we want to scan
+		require.NoError(t, testhelper.CreateProjects(dir))
+
+		// create a code
+		c := New(dir, regexp.MustCompile("^.snapshots$"))
+		require.NoError(t, c.Scan())
+
+		// clone the repo4 from the ignored location, but first validate it does not exist in the scanned projects
+		importPath := strings.TrimPrefix(path.Join(dir, ".snapshots", "github.com/owner4/repo4"), string(os.PathSeparator))
+		_, err = c.GetProjectByRelativePath(importPath)
+		require.True(t, errors.Is(err, ErrProjectNotFound))
+
+		err = c.Clone(fmt.Sprintf("file://%s", path.Join(dir, ".snapshots", "github.com/owner4/repo4")))
 		if assert.NoError(t, err) {
-			assert.Equal(t, importPath, prj.String())
-			assert.Equal(t, path.Join(c.RepositoriesDir(), importPath), prj.Path(nil))
+			prj, err := c.GetProjectByRelativePath(importPath)
+			if assert.NoError(t, err) {
+				assert.Equal(t, importPath, prj.String())
+				assert.Equal(t, path.Join(c.RepositoriesDir(), importPath), prj.Path(nil))
+			}
 		}
-	}
+	})
 }
 
 func TestGetProjectByAbsolutePath(t *testing.T) {
