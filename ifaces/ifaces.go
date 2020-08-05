@@ -1,6 +1,8 @@
 package ifaces
 
 import (
+	"time"
+
 	"github.com/google/go-github/github"
 )
 
@@ -74,6 +76,9 @@ type Story interface {
 
 	// GetBranchName returns the name of the branch of this story
 	GetBranchName() string
+
+	// GetCreatedAt returns the timestamp when this story was created
+	GetCreatedAt() time.Time
 
 	// Save saves the story in the data directory.
 	Save() error

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"time"
 
 	"github.com/adrg/xdg"
+	"github.com/bmatcuk/doublestar"
 	"github.com/kalbasit/swm/ifaces"
 	"github.com/pkg/errors"
 )
@@ -19,6 +21,7 @@ var ErrStoryExists = errors.New("the story already exists")
 type story struct {
 	Name       string
 	BranchName string
+	CreatedAt  time.Time
 }
 
 func newStory(name, branchName string) (*story, error) {
@@ -28,7 +31,7 @@ func newStory(name, branchName string) (*story, error) {
 	if branchName == "" {
 		branchName = name
 	}
-	return &story{Name: name, BranchName: branchName}, nil
+	return &story{Name: name, BranchName: branchName, CreatedAt: time.Now()}, nil
 }
 
 func New(name, branchName string) (ifaces.Story, error) {
@@ -92,6 +95,11 @@ func (s *story) GetName() string { return s.Name }
 // GetBranchName returns the name of the branch of this story
 func (s *story) GetBranchName() string { return s.BranchName }
 
+// GetCreatedAt returns the timestamp when this story was created
+func (s *story) GetCreatedAt() time.Time { return s.CreatedAt }
+
+// Save saves the story to disk, overridding any existing story. It's up to the
+// caller to decide to write the file or not.
 func (s *story) Save() error {
 	if s.Name == "" {
 		return ErrNameRequired
@@ -121,6 +129,32 @@ func (s *story) Save() error {
 	}
 
 	return nil
+}
+
+// List returns the list of all available stories
+func List() ([]ifaces.Story, error) {
+	filePaths, err := doublestar.Glob(path.Join(xdg.DataHome, "swm", "stories", "**"+string(os.PathSeparator)+"*.json"))
+	if err != nil {
+		return nil, err
+	}
+
+	stories := make([]ifaces.Story, 0, len(filePaths))
+	for _, fp := range filePaths {
+		f, err := os.Open(fp)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error reading the file %s", fp)
+		}
+
+		var s story
+		if err := json.NewDecoder(f).Decode(&s); err != nil {
+			f.Close()
+			return nil, errors.Wrapf(err, "error decoding the story as stored in %s", fp)
+		}
+
+		stories = append(stories, &s)
+	}
+
+	return stories, nil
 }
 
 func (s *story) filePath() string {
