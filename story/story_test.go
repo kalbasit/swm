@@ -61,3 +61,43 @@ func TestCreate(t *testing.T) {
 		}
 	})
 }
+
+func TestRemove(t *testing.T) {
+	t.Run("file already exists", func(t *testing.T) {
+		// create a temporary directory
+		dir, err := ioutil.TempDir("", "swm-test-*")
+		require.NoError(t, err)
+		// delete it once we are done here
+		defer func() { os.RemoveAll(dir) }()
+
+		xdg.DataHome = dir
+		defer xdg.Reload()
+
+		require.NoError(t, Create(t.Name(), ""))
+
+		s, err := newStory(t.Name(), "")
+		require.NoError(t, err)
+
+		assert.FileExists(t, s.filePath())
+
+		require.NoError(t, s.Remove())
+
+		assert.NoFileExists(t, s.filePath())
+	})
+
+	t.Run("file does not exist", func(t *testing.T) {
+		// create a temporary directory
+		dir, err := ioutil.TempDir("", "swm-test-*")
+		require.NoError(t, err)
+		// delete it once we are done here
+		defer func() { os.RemoveAll(dir) }()
+
+		xdg.DataHome = dir
+		defer xdg.Reload()
+
+		s, err := newStory(t.Name(), "")
+		require.NoError(t, err)
+
+		assert.True(t, os.IsNotExist(s.Remove()))
+	})
+}

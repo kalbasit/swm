@@ -30,6 +30,9 @@ func codeStoryCreateRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "error getting the value of the --story-name flag")
 	}
+	if sn == "" {
+		return errStoryIsRequired
+	}
 
 	sbn, err := cmd.Flags().GetString("branch-name")
 	if err != nil {

@@ -53,6 +53,9 @@ func Create(name, branchName string) error {
 	return s.Save()
 }
 
+// Remove saves the story in the data directory.
+func (s *story) Remove() error { return os.Remove(s.filePath()) }
+
 // Load returns the story identified by its name.
 func Load(name string) (ifaces.Story, error) {
 	if name == "" {

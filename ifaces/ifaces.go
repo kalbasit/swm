@@ -77,4 +77,7 @@ type Story interface {
 
 	// Save saves the story in the data directory.
 	Save() error
+
+	// Remove saves the story in the data directory.
+	Remove() error
 }
