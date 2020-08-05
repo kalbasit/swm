@@ -70,12 +70,17 @@ type Manager struct {
 
 // New returns a new tmux manager
 func New(c ifaces.Code, storyName string) (*Manager, error) {
-	s, err := story.Load(storyName)
-	if err != nil {
-		return nil, errors.Wrap(err, "error loading the story")
+	m := &Manager{code: c}
+
+	if storyName != "" {
+		s, err := story.Load(storyName)
+		if err != nil {
+			return nil, errors.Wrap(err, "error loading the story")
+		}
+		m.story = s
 	}
 
-	return &Manager{code: c, story: s}, nil
+	return m, nil
 }
 
 func (t *Manager) KillServer(closeVim bool) error {
@@ -99,7 +104,11 @@ func (t *Manager) KillServer(closeVim bool) error {
 
 // socketName returns the session name
 func (t *Manager) socketName() string {
-	return strings.Replace(fmt.Sprintf("swm-%s", t.story.GetName()), "/", "_", -1)
+	if t.story != nil {
+		return strings.Replace(fmt.Sprintf("swm-%s", t.story.GetName()), "/", "_", -1)
+	}
+
+	return "swm"
 }
 
 // withFilter filters input using fzf
@@ -149,31 +158,44 @@ func (t *Manager) SwitchClient(killPane bool) error {
 		return ErrProjectNotFoundForGivenSessionName
 	}
 	// make sure the project exists on disk
-	if err := project.CreateStory(t.story); err != nil {
-		return err
+	if t.story != nil {
+		if err := project.CreateStory(t.story); err != nil {
+			return err
+		}
 	}
 	// run tmux has-session -t sessionName to check if session already exists
 	if err := exec.Command(tmuxPath, "-L", t.socketName(), "has-session", "-t="+sessionName).Run(); err != nil {
 		// session does not exist, we should start it
-		for _, args := range [][]string{
+		var allArguments [][]string
+		allArguments = append(allArguments, [][]string{
 			// start the session
 			{"-L", t.socketName(), "new-session", "-c", project.Path(t.story), "-d", "-s", sessionName},
-			// set the active story name
-			{"-L", t.socketName(), "set-environment", "-t", sessionName, "SWM_STORY_NAME", t.story.GetName()},
-			// set the branch name
-			{"-L", t.socketName(), "set-environment", "-t", sessionName, "SWM_STORY_BRANCH_NAME", t.story.GetBranchName()},
 			// start a new shell on window 1
 			{"-L", t.socketName(), "new-window", "-c", project.Path(t.story), "-t", sessionName + ":1"},
 			// start vim in the first window
 			{"-L", t.socketName(), "send-keys", "-t", sessionName + ":0", "type vim_ready &>/dev/null && vim_ready; clear; vim", "Enter"},
-		} {
+		}...)
+
+		if t.story != nil {
+			allArguments = append(allArguments, [][]string{
+				// set the active story name
+				{"-L", t.socketName(), "set-environment", "-t", sessionName, "SWM_STORY_NAME", t.story.GetName()},
+				// set the branch name
+				{"-L", t.socketName(), "set-environment", "-t", sessionName, "SWM_STORY_BRANCH_NAME", t.story.GetBranchName()},
+			}...)
+		}
+
+		for _, args := range allArguments {
 			cmd := exec.Command(tmuxPath, args...)
 			cmd.Dir = project.Path(t.story)
 			// set the environment to current environment, change only ACTIVE_PROFILE, ACTIVE_STORY  and GOPATH
 			cmd.Env = func() []string {
-				res := []string{
-					fmt.Sprintf("SWM_STORY_NAME=%s", t.story.GetName()),
-					fmt.Sprintf("SWM_STORY_BRANCH_NAME=%s", t.story.GetBranchName()),
+				var res []string
+				if t.story != nil {
+					res = append(res, []string{
+						fmt.Sprintf("SWM_STORY_NAME=%s", t.story.GetName()),
+						fmt.Sprintf("SWM_STORY_BRANCH_NAME=%s", t.story.GetBranchName()),
+					}...)
 				}
 				for _, v := range os.Environ() {
 					if k := strings.Split(v, "=")[0]; k != "SWM_STORY_NAME" && k != "TMUX" {
