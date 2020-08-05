@@ -32,7 +32,7 @@ type Code interface {
 	// Scan scans the code path.
 	Scan() error
 
-	// RepositoriesDir returns the path to the repositories directory.
+	// RepositoriesDir returns the absolute path to the repositories directory.
 	RepositoriesDir() string
 
 	// StoriesDir returns the path to the stories directory.
