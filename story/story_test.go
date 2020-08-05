@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/adrg/xdg"
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,9 @@ import (
 )
 
 func TestCreate(t *testing.T) {
+	nowFn = func() time.Time { return time.Date(2020, time.August, 4, 20, 12, 7, 0, time.UTC) }
+	defer func() { nowFn = time.Now }()
+
 	t.Run("no name", func(t *testing.T) {
 		assert.EqualError(t, Create("", ""), ErrNameRequired.Error())
 	})
@@ -63,6 +67,9 @@ func TestCreate(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
+	nowFn = func() time.Time { return time.Date(2020, time.August, 4, 20, 12, 7, 0, time.UTC) }
+	defer func() { nowFn = time.Now }()
+
 	t.Run("file already exists", func(t *testing.T) {
 		// create a temporary directory
 		dir, err := ioutil.TempDir("", "swm-test-*")

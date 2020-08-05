@@ -18,6 +18,8 @@ var ErrNameRequired = errors.New("the name of the story is required")
 // ErrStoryExists is returned if the story already exists
 var ErrStoryExists = errors.New("the story already exists")
 
+var nowFn = time.Now
+
 type story struct {
 	Name       string
 	BranchName string
@@ -31,7 +33,7 @@ func newStory(name, branchName string) (*story, error) {
 	if branchName == "" {
 		branchName = name
 	}
-	return &story{Name: name, BranchName: branchName, CreatedAt: time.Now()}, nil
+	return &story{Name: name, BranchName: branchName, CreatedAt: nowFn()}, nil
 }
 
 func New(name, branchName string) (ifaces.Story, error) {
