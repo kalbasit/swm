@@ -14,6 +14,7 @@ import (
 
 var codeStoryRemoveCmd = &cobra.Command{
 	Use:     "remove",
+	Aliases: []string{"delete"},
 	Short:   "Remove a new story",
 	PreRunE: func(cmd *cobra.Command, args []string) error { return createCode() },
 	RunE:    codeStoryRemoveRun,

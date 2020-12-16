@@ -12,6 +12,7 @@ in
 , procps ? pkgs.procps
 , installShellFiles ? pkgs.installShellFiles
 , lib ? pkgs.lib
+, makeWrapper ? pkgs.makeWrapper
 }:
 
 buildGoModule rec {
@@ -25,7 +26,7 @@ buildGoModule rec {
 
   buildFlagsArray = [ "-ldflags=" "-X=github.com/kalbasit/swm/cmd.version=${version}" ];
 
-  nativeBuildInputs = [ fzf git tmux procps installShellFiles ];
+  nativeBuildInputs = [ fzf git tmux procps installShellFiles makeWrapper ];
 
   postInstall = ''
     for shell in bash zsh fish; do
@@ -35,6 +36,8 @@ buildGoModule rec {
 
     $out/bin/swm gen-doc man --path ./man
     installManPage man/*.7
+
+    wrapProgram $out/bin/swm --prefix PATH : ${lib.makeBinPath [ fzf git tmux procps ]}
   '';
 
   doCheck = true;
