@@ -23,7 +23,7 @@ script:
     #  exit 1
     #fi
 
-    nix-shell --pure --run 'go mod tidy && go mod vendo'
+    nix-shell --pure --run 'go mod tidy && go mod vendor'
 
     if [[ "$( git --no-pager status --short ./vendor | wc -l )" -gt 0 ]]; then
       echo ">>> Changes detected to the vendor directory, re-generate with: go mod vendor"
