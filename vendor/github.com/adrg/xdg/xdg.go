@@ -1,19 +1,11 @@
-/*
-Package xdg provides an implementation of the XDG Base Directory
-Specification. The specification defines a set of standard paths for storing
-application files including data and configuration files. For portability and
-flexibility reasons, applications should use the XDG defined locations instead
-of hardcoding paths. The package also includes the locations of well known user
-directories. The current implementation supports Windows, Mac OS and most
-flavors of Unix.
-
-	For more information regarding the XDG Base Directory Specification see:
-	https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
-
-	For more information regarding the XDG user directories see:
-	https://wiki.archlinux.org/index.php/XDG_user_directories
-*/
 package xdg
+
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/adrg/xdg/internal/pathutil"
+)
 
 var (
 	// Home contains the path of the user's home directory.
@@ -21,14 +13,14 @@ var (
 
 	// DataHome defines the base directory relative to which user-specific
 	// data files should be stored. This directory is defined by the
-	// environment variable $XDG_DATA_HOME. If this variable is not set,
+	// $XDG_DATA_HOME environment variable. If the variable is not set,
 	// a default equal to $HOME/.local/share should be used.
 	DataHome string
 
 	// DataDirs defines the preference-ordered set of base directories to
 	// search for data files in addition to the DataHome base directory.
-	// This set of directories is defined by the environment variable
-	// $XDG_DATA_DIRS. If this variable is not set, the default directories
+	// This set of directories is defined by the $XDG_DATA_DIRS environment
+	// variable. If the variable is not set, the default directories
 	// to be used are /usr/local/share and /usr/share, in that order. The
 	// DataHome directory is considered more important than any of the
 	// directories defined by DataDirs. Therefore, user data files should be
@@ -37,30 +29,36 @@ var (
 
 	// ConfigHome defines the base directory relative to which user-specific
 	// configuration files should be written. This directory is defined by
-	// the environment variable $XDG_CONFIG_HOME. If this variable is not
+	// the $XDG_CONFIG_HOME environment variable. If the variable is not
 	// not set, a default equal to $HOME/.config should be used.
 	ConfigHome string
 
 	// ConfigDirs defines the preference-ordered set of base directories to
 	// search for configuration files in addition to the ConfigHome base
-	// directory. This set of directories is defined by the environment
-	// variable $XDG_CONFIG_DIRS. If this variable is not set, a default
-	// equal to /etc/xdg should be used. The ConfigHome directory is
-	// considered more important than any of the directories defined by
-	// ConfigDirs. Therefore, user config files should be written
-	// relative to the ConfigHome directory, if possible.
+	// directory. This set of directories is defined by the $XDG_CONFIG_DIRS
+	// environment variable. If the variable is not set, a default equal
+	// to /etc/xdg should be used. The ConfigHome directory is considered
+	// more important than any of the directories defined by ConfigDirs.
+	// Therefore, user config files should be written relative to the
+	// ConfigHome directory, if possible.
 	ConfigDirs []string
+
+	// StateHome defines the base directory relative to which user-specific
+	// state files should be stored. This directory is defined by the
+	// $XDG_STATE_HOME environment variable. If the variable is not set,
+	// a default equal to ~/.local/state should be used.
+	StateHome string
 
 	// CacheHome defines the base directory relative to which user-specific
 	// non-essential (cached) data should be written. This directory is
-	// defined by the environment variable $XDG_CACHE_HOME. If this variable
+	// defined by the $XDG_CACHE_HOME environment variable. If the variable
 	// is not set, a default equal to $HOME/.cache should be used.
 	CacheHome string
 
 	// RuntimeDir defines the base directory relative to which user-specific
 	// non-essential runtime files and other file objects (such as sockets,
 	// named pipes, etc.) should be stored. This directory is defined by the
-	// environment variable $XDG_RUNTIME_DIR. If this variable is not set,
+	// $XDG_RUNTIME_DIR environment variable. If the variable is not set,
 	// applications should fall back to a replacement directory with similar
 	// capabilities. Applications should use this directory for communication
 	// and synchronization purposes and should not place larger files in it,
@@ -81,6 +79,10 @@ var (
 	baseDirs baseDirectories
 )
 
+func init() {
+	Reload()
+}
+
 // Reload refreshes base and user directories by reading the environment.
 // Defaults are applied for XDG variables which are empty or not present
 // in the environment.
@@ -88,19 +90,21 @@ func Reload() {
 	// Initialize home directory.
 	Home = homeDir()
 
-	// Initialize base directories.
-	initBaseDirs(Home)
+	// Initialize base and user directories.
+	initDirs(Home)
+
+	// Set standard directories.
 	DataHome = baseDirs.dataHome
 	DataDirs = baseDirs.data
 	ConfigHome = baseDirs.configHome
 	ConfigDirs = baseDirs.config
+	StateHome = baseDirs.stateHome
 	CacheHome = baseDirs.cacheHome
 	RuntimeDir = baseDirs.runtime
+
+	// Set non-standard directories.
 	FontDirs = baseDirs.fonts
 	ApplicationDirs = baseDirs.applications
-
-	// Initialize user directories.
-	initUserDirs(Home)
 }
 
 // DataFile returns a suitable location for the specified data file.
@@ -121,6 +125,18 @@ func DataFile(relPath string) (string, error) {
 // attempted paths is returned.
 func ConfigFile(relPath string) (string, error) {
 	return baseDirs.configFile(relPath)
+}
+
+// StateFile returns a suitable location for the specified state file. State
+// files are usually volatile data files, not suitable to be stored relative
+// to the $XDG_DATA_HOME directory.
+// The relPath parameter must contain the name of the state file, and
+// optionally, a set of parent directories (e.g. appname/app.state).
+// If the specified directories do not exist, they will be created relative
+// to the base state directory. On failure, an error containing the
+// attempted paths is returned.
+func StateFile(relPath string) (string, error) {
+	return baseDirs.stateFile(relPath)
 }
 
 // CacheFile returns a suitable location for the specified cache file.
@@ -159,6 +175,14 @@ func SearchConfigFile(relPath string) (string, error) {
 	return baseDirs.searchConfigFile(relPath)
 }
 
+// SearchStateFile searches for the specified file in the state search path.
+// The relPath parameter must contain the name of the state file, and
+// optionally, a set of parent directories (e.g. appname/app.state). If the
+// file cannot be found, an error specifying the searched path is returned.
+func SearchStateFile(relPath string) (string, error) {
+	return baseDirs.searchStateFile(relPath)
+}
+
 // SearchCacheFile searches for the specified file in the cache search path.
 // The relPath parameter must contain the name of the cache file, and
 // optionally, a set of parent directories (e.g. appname/app.cache). If the
@@ -175,6 +199,20 @@ func SearchRuntimeFile(relPath string) (string, error) {
 	return baseDirs.searchRuntimeFile(relPath)
 }
 
-func init() {
-	Reload()
+func xdgPath(name, defaultPath string) string {
+	dir := pathutil.ExpandHome(os.Getenv(name), Home)
+	if dir != "" && filepath.IsAbs(dir) {
+		return dir
+	}
+
+	return defaultPath
+}
+
+func xdgPaths(name string, defaultPaths ...string) []string {
+	dirs := pathutil.Unique(filepath.SplitList(os.Getenv(name)), Home)
+	if len(dirs) != 0 {
+		return dirs
+	}
+
+	return pathutil.Unique(defaultPaths, Home)
 }

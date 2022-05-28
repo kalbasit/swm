@@ -1,22 +1,45 @@
 package xdg
 
 import (
+	"os"
 	"path/filepath"
 )
 
+func homeDir() string {
+	if home := os.Getenv("HOME"); home != "" {
+		return home
+	}
+
+	return "/"
+}
+
+func initDirs(home string) {
+	initBaseDirs(home)
+	initUserDirs(home)
+}
+
 func initBaseDirs(home string) {
-	// Initialize base directories.
-	baseDirs.dataHome = xdgPath(envDataHome, filepath.Join(home, "Library", "Application Support"))
-	baseDirs.data = xdgPaths(envDataDirs, "/Library/Application Support")
-	baseDirs.configHome = xdgPath(envConfigHome, filepath.Join(home, "Library", "Preferences"))
-	baseDirs.config = xdgPaths(envConfigDirs, "/Library/Preferences")
+	homeAppSupport := filepath.Join(home, "Library", "Application Support")
+	rootAppSupport := "/Library/Application Support"
+
+	// Initialize standard directories.
+	baseDirs.dataHome = xdgPath(envDataHome, homeAppSupport)
+	baseDirs.data = xdgPaths(envDataDirs, rootAppSupport)
+	baseDirs.configHome = xdgPath(envConfigHome, homeAppSupport)
+	baseDirs.config = xdgPaths(envConfigDirs,
+		filepath.Join(home, "Library", "Preferences"),
+		rootAppSupport,
+		"/Library/Preferences",
+	)
+	baseDirs.stateHome = xdgPath(envStateHome, homeAppSupport)
 	baseDirs.cacheHome = xdgPath(envCacheHome, filepath.Join(home, "Library", "Caches"))
-	baseDirs.runtime = xdgPath(envRuntimeDir, filepath.Join(home, "Library", "Application Support"))
+	baseDirs.runtime = xdgPath(envRuntimeDir, homeAppSupport)
 
 	// Initialize non-standard directories.
 	baseDirs.applications = []string{
 		"/Applications",
 	}
+
 	baseDirs.fonts = []string{
 		filepath.Join(home, "Library/Fonts"),
 		"/Library/Fonts",
