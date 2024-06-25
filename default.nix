@@ -22,9 +22,9 @@ buildGoModule rec {
 
   src = nix-gitignore.gitignoreSource [ ".git" ".envrc" ".travis.yml" ".gitignore" ] ./.;
 
-  vendorSha256 = null;
+  vendorHash = null;
 
-  ldflags = "-X=github.com/kalbasit/swm/cmd.version=${version}";
+  ldflags = ["-X=github.com/kalbasit/swm/cmd.version=${version}"];
 
   nativeBuildInputs = [ fzf git tmux procps installShellFiles makeWrapper ];
 
