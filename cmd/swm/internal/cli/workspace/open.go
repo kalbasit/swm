@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -97,6 +98,9 @@ func NewOpenCmd(
 			var openErr error
 			if pickerClient != nil {
 				openErr = openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, storyName)
+				if openErr != nil && status.Code(openErr) == codes.FailedPrecondition {
+					openErr = openAllAttached(ctx, cmd, st, sess, resolver, storyName)
+				}
 			} else {
 				openErr = openAllAttached(ctx, cmd, st, sess, resolver, storyName)
 			}
@@ -141,7 +145,8 @@ func openWithPicker(
 
 	stream, err := pickerClient.Pick(ctx)
 	if err != nil {
-		return fmt.Errorf("opening picker stream: %w", err)
+		// Return unwrapped so the caller can inspect the gRPC status code.
+		return err
 	}
 
 	for _, c := range candidates {
@@ -329,13 +334,18 @@ func isAttached(st *coreStory.Story, key string) bool {
 
 // projectIDFromKey parses a "host/seg1/.../segN" string into a ProjectID.
 func projectIDFromKey(key string) (*pluginv1.ProjectID, error) {
-	parts := strings.SplitN(key, "/", 2) //nolint:mnd // split into host and the rest
-	if len(parts) < 2 {                  //nolint:mnd // need at least host/segment
+	parts := strings.SplitN(key, "/", 2)                    //nolint:mnd // split into host and the rest
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" { //nolint:mnd // need host and at least one segment
 		return nil, fmt.Errorf("%q: %w", key, errInvalidProjectKey)
+	}
+
+	segments := strings.Split(parts[1], "/")
+	if slices.Contains(segments, "") {
+		return nil, fmt.Errorf("%q: %w (empty segment)", key, errInvalidProjectKey)
 	}
 
 	return &pluginv1.ProjectID{
 		Host:     parts[0],
-		Segments: strings.Split(parts[1], "/"),
+		Segments: segments,
 	}, nil
 }

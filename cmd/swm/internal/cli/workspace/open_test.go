@@ -27,6 +27,8 @@ const (
 	testDefaultStory = "_default"
 	testStoryName    = "feat-x"
 	testStoryFlag    = "--story"
+	testHost         = "github.com"
+	testOwner        = "kalbasit"
 	testSegment      = "swm"
 )
 
@@ -103,7 +105,7 @@ func TestOpenCmd_WithPicker_ProjectAlreadyAttached(t *testing.T) {
 	store := &stubStore{getStory: &coreStory.Story{
 		Name: testStoryName,
 		Projects: []coreStory.Project{
-			{Host: "github.com", Segments: []string{"kalbasit", testSegment}},
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
 		},
 	}}
 	sess := &stubSess{}
@@ -177,6 +179,87 @@ func TestOpenCmd_WithPicker_Cancelled(t *testing.T) {
 	require.Nil(t, sess.lastPaneGroupReq)
 }
 
+func TestOpenCmd_WithPicker_FailedPrecondition_FallsBack(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+	sess := &stubSess{}
+	// Picker returns FailedPrecondition (e.g. no TTY available).
+	picker := &stubPickerClient{pickErr: status.Error(codes.FailedPrecondition, "no tty")}
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+
+	// Should succeed by falling back to Phase-1 behavior.
+	require.NoError(t, cmd.Execute())
+
+	// Phase-1 path: OpenWorkspace was called (not OpenPaneGroup).
+	require.NotNil(t, sess.lastOpenReq, "expected OpenWorkspace to be called as fallback")
+	require.Nil(t, sess.lastPaneGroupReq, "expected OpenPaneGroup NOT to be called")
+}
+
+func TestOpenCmd_WithPicker_InvalidKey_EmptyHost(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	sess := &stubSess{}
+	picker := &stubPickerClient{selectedKey: "/seg1"} // empty host
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid project key")
+}
+
+func TestOpenCmd_WithPicker_InvalidKey_EmptySegments(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	sess := &stubSess{}
+	picker := &stubPickerClient{selectedKey: "github.com/"} // empty segments
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid project key")
+}
+
+func TestOpenCmd_WithPicker_InvalidKey_EmptySegmentPart(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	sess := &stubSess{}
+	picker := &stubPickerClient{selectedKey: "github.com/seg1//seg3"} // empty middle segment
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid project key")
+}
+
 func TestOpenCmd_NoPicker_FallsBackToPhase1(t *testing.T) {
 	t.Parallel()
 
@@ -184,7 +267,7 @@ func TestOpenCmd_NoPicker_FallsBackToPhase1(t *testing.T) {
 	store := &stubStore{getStory: &coreStory.Story{
 		Name: testStoryName,
 		Projects: []coreStory.Project{
-			{Host: "github.com", Segments: []string{"kalbasit", "swm"}},
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
 		},
 	}}
 	sess := &stubSess{}
@@ -407,6 +490,7 @@ var _ pluginv1.VCSClient = (*stubVCS)(nil)
 type stubPickerClient struct {
 	selectedKey  string
 	cancelOnRecv bool
+	pickErr      error
 }
 
 func (p *stubPickerClient) Info(
@@ -421,6 +505,10 @@ func (p *stubPickerClient) Pick(
 	_ context.Context,
 	_ ...grpc.CallOption,
 ) (grpc.BidiStreamingClient[pluginv1.PickItem, pluginv1.PickResult], error) {
+	if p.pickErr != nil {
+		return nil, p.pickErr
+	}
+
 	return &stubPickStream{selectedKey: p.selectedKey, cancel: p.cancelOnRecv}, nil
 }
 
