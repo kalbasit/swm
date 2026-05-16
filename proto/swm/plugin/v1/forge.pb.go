@@ -7,11 +7,12 @@
 package pluginv1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -433,17 +434,19 @@ func file_swm_plugin_v1_forge_proto_rawDescGZIP() []byte {
 	return file_swm_plugin_v1_forge_proto_rawDescData
 }
 
-var file_swm_plugin_v1_forge_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
-var file_swm_plugin_v1_forge_proto_goTypes = []any{
-	(*ForgeInfo)(nil),       // 0: swm.plugin.v1.ForgeInfo
-	(*PullRequest)(nil),     // 1: swm.plugin.v1.PullRequest
-	(*ListPRsRequest)(nil),  // 2: swm.plugin.v1.ListPRsRequest
-	(*CreatePRRequest)(nil), // 3: swm.plugin.v1.CreatePRRequest
-	(*GetPRRequest)(nil),    // 4: swm.plugin.v1.GetPRRequest
-	(*PluginInfo)(nil),      // 5: swm.plugin.v1.PluginInfo
-	(*ProjectID)(nil),       // 6: swm.plugin.v1.ProjectID
-	(*Empty)(nil),           // 7: swm.plugin.v1.Empty
-}
+var (
+	file_swm_plugin_v1_forge_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+	file_swm_plugin_v1_forge_proto_goTypes  = []any{
+		(*ForgeInfo)(nil),       // 0: swm.plugin.v1.ForgeInfo
+		(*PullRequest)(nil),     // 1: swm.plugin.v1.PullRequest
+		(*ListPRsRequest)(nil),  // 2: swm.plugin.v1.ListPRsRequest
+		(*CreatePRRequest)(nil), // 3: swm.plugin.v1.CreatePRRequest
+		(*GetPRRequest)(nil),    // 4: swm.plugin.v1.GetPRRequest
+		(*PluginInfo)(nil),      // 5: swm.plugin.v1.PluginInfo
+		(*ProjectID)(nil),       // 6: swm.plugin.v1.ProjectID
+		(*Empty)(nil),           // 7: swm.plugin.v1.Empty
+	}
+)
 var file_swm_plugin_v1_forge_proto_depIdxs = []int32{
 	5, // 0: swm.plugin.v1.ForgeInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
 	6, // 1: swm.plugin.v1.ListPRsRequest.project_id:type_name -> swm.plugin.v1.ProjectID

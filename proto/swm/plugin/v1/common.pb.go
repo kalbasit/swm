@@ -7,12 +7,13 @@
 package pluginv1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -658,22 +659,24 @@ func file_swm_plugin_v1_common_proto_rawDescGZIP() []byte {
 	return file_swm_plugin_v1_common_proto_rawDescData
 }
 
-var file_swm_plugin_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_swm_plugin_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
-var file_swm_plugin_v1_common_proto_goTypes = []any{
-	(CapabilityType)(0),           // 0: swm.plugin.v1.CapabilityType
-	(*Empty)(nil),                 // 1: swm.plugin.v1.Empty
-	(*BoolValue)(nil),             // 2: swm.plugin.v1.BoolValue
-	(*PathResponse)(nil),          // 3: swm.plugin.v1.PathResponse
-	(*ProjectID)(nil),             // 4: swm.plugin.v1.ProjectID
-	(*Capability)(nil),            // 5: swm.plugin.v1.Capability
-	(*CapabilityDep)(nil),         // 6: swm.plugin.v1.CapabilityDep
-	(*PluginInfo)(nil),            // 7: swm.plugin.v1.PluginInfo
-	(*Project)(nil),               // 8: swm.plugin.v1.Project
-	(*Story)(nil),                 // 9: swm.plugin.v1.Story
-	nil,                           // 10: swm.plugin.v1.Story.MetadataEntry
-	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
-}
+var (
+	file_swm_plugin_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+	file_swm_plugin_v1_common_proto_msgTypes  = make([]protoimpl.MessageInfo, 10)
+	file_swm_plugin_v1_common_proto_goTypes   = []any{
+		CapabilityType(0),             // 0: swm.plugin.v1.CapabilityType
+		(*Empty)(nil),                 // 1: swm.plugin.v1.Empty
+		(*BoolValue)(nil),             // 2: swm.plugin.v1.BoolValue
+		(*PathResponse)(nil),          // 3: swm.plugin.v1.PathResponse
+		(*ProjectID)(nil),             // 4: swm.plugin.v1.ProjectID
+		(*Capability)(nil),            // 5: swm.plugin.v1.Capability
+		(*CapabilityDep)(nil),         // 6: swm.plugin.v1.CapabilityDep
+		(*PluginInfo)(nil),            // 7: swm.plugin.v1.PluginInfo
+		(*Project)(nil),               // 8: swm.plugin.v1.Project
+		(*Story)(nil),                 // 9: swm.plugin.v1.Story
+		nil,                           // 10: swm.plugin.v1.Story.MetadataEntry
+		(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	}
+)
 var file_swm_plugin_v1_common_proto_depIdxs = []int32{
 	0,  // 0: swm.plugin.v1.Capability.type:type_name -> swm.plugin.v1.CapabilityType
 	0,  // 1: swm.plugin.v1.CapabilityDep.capability:type_name -> swm.plugin.v1.CapabilityType

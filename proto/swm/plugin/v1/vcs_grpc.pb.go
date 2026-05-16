@@ -8,6 +8,7 @@ package pluginv1
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -155,21 +156,27 @@ type UnimplementedVCSServer struct{}
 func (UnimplementedVCSServer) Info(context.Context, *Empty) (*VCSInfo, error) {
 	return nil, status.Error(codes.Unimplemented, "method Info not implemented")
 }
+
 func (UnimplementedVCSServer) Clone(context.Context, *CloneRequest) (*CloneResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Clone not implemented")
 }
+
 func (UnimplementedVCSServer) ParseRemoteURL(context.Context, *ParseRemoteURLRequest) (*ProjectID, error) {
 	return nil, status.Error(codes.Unimplemented, "method ParseRemoteURL not implemented")
 }
+
 func (UnimplementedVCSServer) CreateWorktree(context.Context, *CreateWorktreeRequest) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateWorktree not implemented")
 }
+
 func (UnimplementedVCSServer) RemoveWorktree(context.Context, *RemoveWorktreeRequest) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveWorktree not implemented")
 }
+
 func (UnimplementedVCSServer) DetectProjectAtPath(context.Context, *DetectAtPathRequest) (*ProjectID, error) {
 	return nil, status.Error(codes.Unimplemented, "method DetectProjectAtPath not implemented")
 }
+
 func (UnimplementedVCSServer) ListBranches(*ListBranchesRequest, grpc.ServerStreamingServer[Branch]) error {
 	return status.Error(codes.Unimplemented, "method ListBranches not implemented")
 }

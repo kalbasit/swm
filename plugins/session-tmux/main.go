@@ -1,9 +1,24 @@
 // swm-plugin-session-tmux is the bundled tmux session plugin for swm.
-// Phase 0 stub — real implementation in Phase 1.
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+
+	sdksession "github.com/kalbasit/swm/sdk/go/session"
+
+	"github.com/kalbasit/swm/plugins/session-tmux/internal/session"
+)
 
 func main() {
-	fmt.Println("swm-plugin-session-tmux")
+	t, err := session.New()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "swm-plugin-session-tmux: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := sdksession.Serve(t); err != nil {
+		fmt.Fprintf(os.Stderr, "swm-plugin-session-tmux: serve: %v\n", err)
+		os.Exit(1)
+	}
 }

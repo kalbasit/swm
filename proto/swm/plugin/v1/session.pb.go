@@ -7,11 +7,12 @@
 package pluginv1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -543,22 +544,24 @@ func file_swm_plugin_v1_session_proto_rawDescGZIP() []byte {
 	return file_swm_plugin_v1_session_proto_rawDescData
 }
 
-var file_swm_plugin_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
-var file_swm_plugin_v1_session_proto_goTypes = []any{
-	(*SessionInfo)(nil),            // 0: swm.plugin.v1.SessionInfo
-	(*Workspace)(nil),              // 1: swm.plugin.v1.Workspace
-	(*PaneGroup)(nil),              // 2: swm.plugin.v1.PaneGroup
-	(*CurrentContextResponse)(nil), // 3: swm.plugin.v1.CurrentContextResponse
-	(*OpenWorkspaceRequest)(nil),   // 4: swm.plugin.v1.OpenWorkspaceRequest
-	(*CloseWorkspaceRequest)(nil),  // 5: swm.plugin.v1.CloseWorkspaceRequest
-	(*OpenPaneGroupRequest)(nil),   // 6: swm.plugin.v1.OpenPaneGroupRequest
-	(*SwitchToRequest)(nil),        // 7: swm.plugin.v1.SwitchToRequest
-	nil,                            // 8: swm.plugin.v1.OpenWorkspaceRequest.WorktreePathsEntry
-	(*PluginInfo)(nil),             // 9: swm.plugin.v1.PluginInfo
-	(*ProjectID)(nil),              // 10: swm.plugin.v1.ProjectID
-	(*Empty)(nil),                  // 11: swm.plugin.v1.Empty
-	(*BoolValue)(nil),              // 12: swm.plugin.v1.BoolValue
-}
+var (
+	file_swm_plugin_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+	file_swm_plugin_v1_session_proto_goTypes  = []any{
+		(*SessionInfo)(nil),            // 0: swm.plugin.v1.SessionInfo
+		(*Workspace)(nil),              // 1: swm.plugin.v1.Workspace
+		(*PaneGroup)(nil),              // 2: swm.plugin.v1.PaneGroup
+		(*CurrentContextResponse)(nil), // 3: swm.plugin.v1.CurrentContextResponse
+		(*OpenWorkspaceRequest)(nil),   // 4: swm.plugin.v1.OpenWorkspaceRequest
+		(*CloseWorkspaceRequest)(nil),  // 5: swm.plugin.v1.CloseWorkspaceRequest
+		(*OpenPaneGroupRequest)(nil),   // 6: swm.plugin.v1.OpenPaneGroupRequest
+		(*SwitchToRequest)(nil),        // 7: swm.plugin.v1.SwitchToRequest
+		nil,                            // 8: swm.plugin.v1.OpenWorkspaceRequest.WorktreePathsEntry
+		(*PluginInfo)(nil),             // 9: swm.plugin.v1.PluginInfo
+		(*ProjectID)(nil),              // 10: swm.plugin.v1.ProjectID
+		(*Empty)(nil),                  // 11: swm.plugin.v1.Empty
+		(*BoolValue)(nil),              // 12: swm.plugin.v1.BoolValue
+	}
+)
 var file_swm_plugin_v1_session_proto_depIdxs = []int32{
 	9,  // 0: swm.plugin.v1.SessionInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
 	10, // 1: swm.plugin.v1.PaneGroup.project_id:type_name -> swm.plugin.v1.ProjectID

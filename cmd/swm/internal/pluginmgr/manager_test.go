@@ -1,0 +1,173 @@
+package pluginmgr_test
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
+
+	"github.com/kalbasit/swm/cmd/swm/internal/config"
+	"github.com/kalbasit/swm/cmd/swm/internal/pluginmgr"
+)
+
+const fakePluginName = "fake"
+
+var fakeVCSBin string
+
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "pluginmgr-test-*")
+	if err != nil {
+		panic("creating temp dir: " + err.Error())
+	}
+
+	defer os.RemoveAll(dir) //nolint:errcheck // best-effort cleanup in test teardown
+
+	fakeVCSBin = filepath.Join(dir, "swm-plugin-vcs-fake")
+
+	cmd := exec.Command("go", "build", "-o", fakeVCSBin, //nolint:gosec // building from trusted test paths
+		"./testdata/fakevcs/")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		panic("building fake plugin: " + err.Error())
+	}
+
+	os.Exit(m.Run())
+}
+
+func newCfg(session, vcs string) *config.Config {
+	return &config.Config{
+		CodeRoot:     "/tmp/code",
+		DefaultStory: "_default",
+		Plugins: config.Plugins{
+			Session: session,
+			VCS:     vcs,
+		},
+	}
+}
+
+func TestDiscover_Path(t *testing.T) {
+	// Cannot use t.Parallel with t.Setenv.
+	dir := filepath.Dir(fakeVCSBin)
+	oldPath := os.Getenv("PATH")
+	t.Setenv("PATH", dir+string(filepath.ListSeparator)+oldPath)
+
+	// Copy fake binary to name expected by discovery.
+	dst := filepath.Join(dir, "swm-plugin-vcs-git")
+	data, err := os.ReadFile(fakeVCSBin) //nolint:gosec // reading trusted test binary
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(dst, data, 0o755)) //nolint:gosec // binary must be executable
+
+	mgr := pluginmgr.New(newCfg("", "git"), "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	raw, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+	require.NotNil(t, raw)
+}
+
+func TestGet_LazyLaunch(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		CodeRoot:     "/tmp/code",
+		DefaultStory: "_default",
+		Plugins: config.Plugins{
+			VCS: fakePluginName,
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	mgr := pluginmgr.New(cfg, "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	// First call triggers launch.
+	raw, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+	require.NotNil(t, raw)
+
+	// Second call returns cached client.
+	raw2, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+	require.Equal(t, raw, raw2)
+}
+
+func TestGet_ClientIsVCSClient(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Plugins: config.Plugins{
+			VCS: fakePluginName,
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	mgr := pluginmgr.New(cfg, "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	raw, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+
+	client, ok := raw.(pluginv1.VCSClient)
+	require.True(t, ok)
+
+	info, err := client.Info(context.Background(), &pluginv1.Empty{})
+	require.NoError(t, err)
+	require.Equal(t, fakePluginName, info.GetPluginInfo().GetName())
+}
+
+func TestGet_MissingPlugin(t *testing.T) {
+	t.Parallel()
+
+	mgr := pluginmgr.New(newCfg("", "nonexistent"), "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	_, err := mgr.Get(context.Background(), "vcs")
+	require.Error(t, err)
+}
+
+func TestGet_UnconfiguredCapability(t *testing.T) {
+	t.Parallel()
+
+	mgr := pluginmgr.New(newCfg("", ""), "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	_, err := mgr.Get(context.Background(), "vcs")
+	require.Error(t, err)
+}
+
+func TestClose_Cleanup(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Plugins: config.Plugins{
+			VCS: fakePluginName,
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	mgr := pluginmgr.New(cfg, "")
+	_, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+
+	require.NoError(t, mgr.Close())
+
+	// After close, a new Get would re-launch (no cache left).
+	raw, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+	require.NotNil(t, raw)
+
+	require.NoError(t, mgr.Close())
+}

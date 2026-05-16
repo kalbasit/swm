@@ -7,11 +7,12 @@
 package pluginv1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -368,21 +369,23 @@ func file_swm_plugin_v1_host_proto_rawDescGZIP() []byte {
 	return file_swm_plugin_v1_host_proto_rawDescData
 }
 
-var file_swm_plugin_v1_host_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
-var file_swm_plugin_v1_host_proto_goTypes = []any{
-	(*GetConfigRequest)(nil),       // 0: swm.plugin.v1.GetConfigRequest
-	(*Config)(nil),                 // 1: swm.plugin.v1.Config
-	(*ListProjectsRequest)(nil),    // 2: swm.plugin.v1.ListProjectsRequest
-	(*LogRequest)(nil),             // 3: swm.plugin.v1.LogRequest
-	(*CallCapabilityRequest)(nil),  // 4: swm.plugin.v1.CallCapabilityRequest
-	(*CallCapabilityResponse)(nil), // 5: swm.plugin.v1.CallCapabilityResponse
-	nil,                            // 6: swm.plugin.v1.LogRequest.FieldsEntry
-	(CapabilityType)(0),            // 7: swm.plugin.v1.CapabilityType
-	(*Empty)(nil),                  // 8: swm.plugin.v1.Empty
-	(*PathResponse)(nil),           // 9: swm.plugin.v1.PathResponse
-	(*Project)(nil),                // 10: swm.plugin.v1.Project
-	(*Story)(nil),                  // 11: swm.plugin.v1.Story
-}
+var (
+	file_swm_plugin_v1_host_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+	file_swm_plugin_v1_host_proto_goTypes  = []any{
+		(*GetConfigRequest)(nil),       // 0: swm.plugin.v1.GetConfigRequest
+		(*Config)(nil),                 // 1: swm.plugin.v1.Config
+		(*ListProjectsRequest)(nil),    // 2: swm.plugin.v1.ListProjectsRequest
+		(*LogRequest)(nil),             // 3: swm.plugin.v1.LogRequest
+		(*CallCapabilityRequest)(nil),  // 4: swm.plugin.v1.CallCapabilityRequest
+		(*CallCapabilityResponse)(nil), // 5: swm.plugin.v1.CallCapabilityResponse
+		nil,                            // 6: swm.plugin.v1.LogRequest.FieldsEntry
+		CapabilityType(0),              // 7: swm.plugin.v1.CapabilityType
+		(*Empty)(nil),                  // 8: swm.plugin.v1.Empty
+		(*PathResponse)(nil),           // 9: swm.plugin.v1.PathResponse
+		(*Project)(nil),                // 10: swm.plugin.v1.Project
+		(*Story)(nil),                  // 11: swm.plugin.v1.Story
+	}
+)
 var file_swm_plugin_v1_host_proto_depIdxs = []int32{
 	6,  // 0: swm.plugin.v1.LogRequest.fields:type_name -> swm.plugin.v1.LogRequest.FieldsEntry
 	7,  // 1: swm.plugin.v1.CallCapabilityRequest.capability:type_name -> swm.plugin.v1.CapabilityType
