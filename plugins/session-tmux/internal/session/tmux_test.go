@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
@@ -184,6 +185,94 @@ func TestCurrentContext_NotInside(t *testing.T) {
 	tmux, _ := newTmux(t)
 	_, err := tmux.CurrentContext(context.Background(), &pluginv1.Empty{})
 	require.Error(t, err)
+}
+
+func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
+	// Cannot be parallel — uses t.Setenv.
+	socketDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	sockPath := filepath.Join(socketDir, "feat-x.sock")
+
+	client := &fakeHostClient{
+		toml: []byte(`pane_group_command = "laio start --config {{worktree_path}}/.swm/laio.yaml"`),
+	}
+
+	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
+
+	// First create the workspace socket so has-session has a socket to probe.
+	if err := os.WriteFile(sockPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: "github.com", Segments: []string{"kalbasit", "swm"}},
+		WorktreePath: "/tmp/stories/feat-x/github.com/kalbasit/swm",
+	})
+	require.NoError(t, err)
+
+	// Read the log to verify the substituted command was passed to faketmux.
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	log := string(logBytes)
+	require.Contains(t, log, "laio start --config /tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml",
+		"expected substituted pane_group_command in tmux args")
+}
+
+// fakeHostClient implements pluginv1.HostClient for tests.
+type fakeHostClient struct {
+	toml []byte
+}
+
+func (c *fakeHostClient) CallCapability(
+	_ context.Context,
+	_ *pluginv1.CallCapabilityRequest,
+	_ ...grpc.CallOption,
+) (*pluginv1.CallCapabilityResponse, error) {
+	panic("stub")
+}
+
+func (c *fakeHostClient) GetCodeRoot(
+	_ context.Context,
+	_ *pluginv1.Empty,
+	_ ...grpc.CallOption,
+) (*pluginv1.PathResponse, error) {
+	panic("stub")
+}
+
+func (c *fakeHostClient) GetConfig(
+	_ context.Context,
+	_ *pluginv1.GetConfigRequest,
+	_ ...grpc.CallOption,
+) (*pluginv1.Config, error) {
+	return &pluginv1.Config{Toml: c.toml}, nil
+}
+
+func (c *fakeHostClient) GetCurrentStory(
+	_ context.Context,
+	_ *pluginv1.Empty,
+	_ ...grpc.CallOption,
+) (*pluginv1.Story, error) {
+	panic("stub")
+}
+
+func (c *fakeHostClient) ListProjects(
+	_ context.Context,
+	_ *pluginv1.ListProjectsRequest,
+	_ ...grpc.CallOption,
+) (grpc.ServerStreamingClient[pluginv1.Project], error) {
+	panic("stub")
+}
+
+func (c *fakeHostClient) Log(
+	_ context.Context,
+	_ *pluginv1.LogRequest,
+	_ ...grpc.CallOption,
+) (*pluginv1.Empty, error) {
+	panic("stub")
 }
 
 // collectWorkspaceStream implements pluginv1.Session_ListWorkspacesServer for tests.

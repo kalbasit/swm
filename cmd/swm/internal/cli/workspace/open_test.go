@@ -9,7 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	coreStory "github.com/kalbasit/swm/cmd/swm/internal/core/story"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
@@ -24,6 +26,7 @@ const (
 	testDefaultStory = "_default"
 	testStoryName    = "feat-x"
 	testStoryFlag    = "--story"
+	testSegment      = "swm"
 )
 
 var errNoPlugin = errors.New("no plugin")
@@ -90,10 +93,120 @@ func TestOpenCmd_NoProjects(t *testing.T) {
 	require.Empty(t, sess.lastOpenReq.GetWorktreePaths())
 }
 
+func TestOpenCmd_WithPicker_ProjectAlreadyAttached(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/swm"
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: "github.com", Segments: []string{"kalbasit", testSegment}},
+		},
+	}}
+	sess := &stubSess{}
+	vcs := &stubVCS{}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+
+	require.NoError(t, cmd.Execute())
+
+	// Already attached — no CreateWorktree call.
+	require.False(t, vcs.createCalled)
+
+	// Pane group was opened.
+	require.NotNil(t, sess.lastPaneGroupReq)
+	require.Equal(t, selectedKey, sess.lastPaneGroupReq.GetProjectId().GetHost()+"/"+
+		"kalbasit/"+testSegment)
+}
+
+func TestOpenCmd_WithPicker_ProjectNotAttached(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/dotfiles"
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name:       testStoryName,
+		BranchName: "feat/feat-x",
+	}}
+	sess := &stubSess{}
+	vcs := &stubVCS{}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+
+	require.NoError(t, cmd.Execute())
+
+	// Not attached — CreateWorktree must be called.
+	require.True(t, vcs.createCalled)
+
+	// Story store updated.
+	require.True(t, store.updateCalled)
+
+	// Pane group was opened.
+	require.NotNil(t, sess.lastPaneGroupReq)
+}
+
+func TestOpenCmd_WithPicker_Cancelled(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	sess := &stubSess{}
+	vcs := &stubVCS{}
+	// Picker returns Aborted (user pressed Escape).
+	picker := &stubPickerClient{cancelOnRecv: true}
+	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+
+	// Cancellation is not an error.
+	require.NoError(t, cmd.Execute())
+	require.Nil(t, sess.lastPaneGroupReq)
+}
+
+func TestOpenCmd_NoPicker_FallsBackToPhase1(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: "github.com", Segments: []string{"kalbasit", "swm"}},
+		},
+	}}
+	sess := &stubSess{}
+	mgr := &stubMgr{sess: sess} // no picker configured
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+
+	require.NoError(t, cmd.Execute())
+
+	// Phase 1 path: OpenWorkspace with all attached projects.
+	require.NotNil(t, sess.lastOpenReq)
+	require.Contains(t, sess.lastOpenReq.GetWorktreePaths(), "github.com/kalbasit/swm")
+}
+
+// ─── stubs ───────────────────────────────────────────────────────────────────
+
 // stubStore is a minimal story.Store.
 type stubStore struct {
-	getStory *coreStory.Story
-	getErr   error
+	getStory     *coreStory.Story
+	getErr       error
+	updateCalled bool
 }
 
 func (s *stubStore) Create(context.Context, string, string) (*coreStory.Story, error) {
@@ -116,26 +229,44 @@ func (s *stubStore) Get(_ context.Context, _ string) (*coreStory.Story, error) {
 
 func (s *stubStore) List(context.Context) ([]*coreStory.Story, error) { return nil, nil }
 
-func (s *stubStore) Update(context.Context, *coreStory.Story) error { return nil }
+func (s *stubStore) Update(_ context.Context, _ *coreStory.Story) error {
+	s.updateCalled = true
+
+	return nil
+}
 
 var _ coreStory.Store = (*stubStore)(nil)
 
 // stubMgr implements pluginManager.
 type stubMgr struct {
-	sess pluginv1.SessionClient
+	sess   pluginv1.SessionClient
+	vcs    pluginv1.VCSClient
+	picker pluginv1.PickerClient
 }
 
 func (s *stubMgr) Get(_ context.Context, capability string) (any, error) {
-	if capability == "session" && s.sess != nil {
-		return s.sess, nil
+	switch capability {
+	case "session":
+		if s.sess != nil {
+			return s.sess, nil
+		}
+	case "vcs":
+		if s.vcs != nil {
+			return s.vcs, nil
+		}
+	case "picker":
+		if s.picker != nil {
+			return s.picker, nil
+		}
 	}
 
 	return nil, fmt.Errorf("%w: %s", errNoPlugin, capability)
 }
 
-// stubSess records OpenWorkspace calls.
+// stubSess records session plugin calls.
 type stubSess struct {
-	lastOpenReq *pluginv1.OpenWorkspaceRequest
+	lastOpenReq      *pluginv1.OpenWorkspaceRequest
+	lastPaneGroupReq *pluginv1.OpenPaneGroupRequest
 }
 
 func (s *stubSess) CloseWorkspace(
@@ -179,11 +310,16 @@ func (s *stubSess) ListWorkspaces(
 }
 
 func (s *stubSess) OpenPaneGroup(
-	context.Context,
-	*pluginv1.OpenPaneGroupRequest,
-	...grpc.CallOption,
+	_ context.Context,
+	req *pluginv1.OpenPaneGroupRequest,
+	_ ...grpc.CallOption,
 ) (*pluginv1.PaneGroup, error) {
-	panic("stub")
+	s.lastPaneGroupReq = req
+
+	return &pluginv1.PaneGroup{
+		PaneGroupId: "swm",
+		WorkspaceId: req.GetWorkspaceId(),
+	}, nil
 }
 
 func (s *stubSess) OpenWorkspace(
@@ -193,7 +329,10 @@ func (s *stubSess) OpenWorkspace(
 ) (*pluginv1.Workspace, error) {
 	s.lastOpenReq = req
 
-	return &pluginv1.Workspace{StoryName: req.GetStoryName()}, nil
+	return &pluginv1.Workspace{
+		WorkspaceId: "/tmp/feat-x.sock",
+		StoryName:   req.GetStoryName(),
+	}, nil
 }
 
 func (s *stubSess) SwitchTo(
@@ -201,11 +340,127 @@ func (s *stubSess) SwitchTo(
 	*pluginv1.SwitchToRequest,
 	...grpc.CallOption,
 ) (*pluginv1.Empty, error) {
-	panic("stub")
+	return &pluginv1.Empty{}, nil
 }
 
 var _ pluginv1.SessionClient = (*stubSess)(nil)
 
+// stubVCS records CreateWorktree calls.
+type stubVCS struct {
+	createCalled bool
+}
+
+func (v *stubVCS) Clone(context.Context, *pluginv1.CloneRequest, ...grpc.CallOption) (*pluginv1.CloneResponse, error) {
+	panic("stub")
+}
+
+func (v *stubVCS) CreateWorktree(
+	_ context.Context,
+	_ *pluginv1.CreateWorktreeRequest,
+	_ ...grpc.CallOption,
+) (*pluginv1.Empty, error) {
+	v.createCalled = true
+
+	return &pluginv1.Empty{}, nil
+}
+
+func (v *stubVCS) DetectProjectAtPath(
+	context.Context,
+	*pluginv1.DetectAtPathRequest,
+	...grpc.CallOption,
+) (*pluginv1.ProjectID, error) {
+	panic("stub")
+}
+
+func (v *stubVCS) Info(context.Context, *pluginv1.Empty, ...grpc.CallOption) (*pluginv1.VCSInfo, error) {
+	panic("stub")
+}
+
+func (v *stubVCS) ListBranches(
+	context.Context,
+	*pluginv1.ListBranchesRequest,
+	...grpc.CallOption,
+) (grpc.ServerStreamingClient[pluginv1.Branch], error) {
+	panic("stub")
+}
+
+func (v *stubVCS) ParseRemoteURL(
+	context.Context,
+	*pluginv1.ParseRemoteURLRequest,
+	...grpc.CallOption,
+) (*pluginv1.ProjectID, error) {
+	panic("stub")
+}
+
+func (v *stubVCS) RemoveWorktree(
+	context.Context,
+	*pluginv1.RemoveWorktreeRequest,
+	...grpc.CallOption,
+) (*pluginv1.Empty, error) {
+	panic("stub")
+}
+
+var _ pluginv1.VCSClient = (*stubVCS)(nil)
+
+// stubPickerClient implements pluginv1.PickerClient.
+type stubPickerClient struct {
+	selectedKey  string
+	cancelOnRecv bool
+}
+
+func (p *stubPickerClient) Info(
+	context.Context,
+	*pluginv1.Empty,
+	...grpc.CallOption,
+) (*pluginv1.PickerInfo, error) {
+	return &pluginv1.PickerInfo{PluginInfo: &pluginv1.PluginInfo{Name: "stub"}}, nil
+}
+
+func (p *stubPickerClient) Pick(
+	_ context.Context,
+	_ ...grpc.CallOption,
+) (grpc.BidiStreamingClient[pluginv1.PickItem, pluginv1.PickResult], error) {
+	return &stubPickStream{selectedKey: p.selectedKey, cancel: p.cancelOnRecv}, nil
+}
+
+var _ pluginv1.PickerClient = (*stubPickerClient)(nil)
+
+// stubPickStream implements grpc.BidiStreamingClient[PickItem, PickResult].
+type stubPickStream struct {
+	selectedKey string
+	cancel      bool
+	recvCalled  bool
+}
+
+func (s *stubPickStream) CloseSend() error { return nil }
+
+func (s *stubPickStream) Context() context.Context { return context.Background() }
+
+func (s *stubPickStream) Header() (metadata.MD, error) { panic("stub") }
+
+func (s *stubPickStream) Recv() (*pluginv1.PickResult, error) {
+	if s.recvCalled {
+		return nil, io.EOF
+	}
+
+	s.recvCalled = true
+
+	if s.cancel {
+		return nil, status.Error(codes.Aborted, "cancelled")
+	}
+
+	return &pluginv1.PickResult{Key: s.selectedKey}, nil
+}
+
+func (s *stubPickStream) RecvMsg(any) error { return nil }
+
+func (s *stubPickStream) Send(*pluginv1.PickItem) error { return nil }
+
+func (s *stubPickStream) SendMsg(any) error { return nil }
+
+func (s *stubPickStream) Trailer() metadata.MD { return nil }
+
+// eofStream is a server stream that immediately returns io.EOF.
 type eofStream struct{}
 
 func (e *eofStream) CloseSend() error                   { return nil }

@@ -17,6 +17,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	defer t.Close() //nolint:errcheck // best-effort close of host gRPC connection on exit
+
 	if err := sdksession.Serve(t); err != nil {
 		fmt.Fprintf(os.Stderr, "swm-plugin-session-tmux: serve: %v\n", err)
 		os.Exit(1)

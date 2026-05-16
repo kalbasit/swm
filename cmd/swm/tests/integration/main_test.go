@@ -15,6 +15,8 @@ var (
 	vcsGitBin      string
 	sessionTmuxBin string
 	faketmuxBin    string
+	pickerFzfBin   string
+	fakefzfBin     string
 )
 
 func TestMain(m *testing.M) {
@@ -46,6 +48,20 @@ func TestMain(m *testing.M) {
 	faketmuxSrc := filepath.Join(repoRoot, "plugins/session-tmux/internal/session/testdata/faketmux")
 	if err := buildBin(repoRoot, faketmuxBin, faketmuxSrc); err != nil {
 		panic("build faketmux: " + err.Error())
+	}
+
+	// Compile picker-fzf plugin.
+	pickerFzfBin = filepath.Join(tmpDir, "swm-plugin-picker-fzf")
+	if err := buildBin(repoRoot, pickerFzfBin, filepath.Join(repoRoot, "plugins/picker-fzf")); err != nil {
+		panic("build picker-fzf: " + err.Error())
+	}
+
+	// Compile fakefzf binary (used as "fzf" in the picker integration test).
+	fakefzfBin = filepath.Join(tmpDir, "fzf")
+
+	fakefzfSrc := filepath.Join(repoRoot, "plugins/picker-fzf/internal/picker/testdata/fakefzf")
+	if err := buildBin(repoRoot, fakefzfBin, fakefzfSrc); err != nil {
+		panic("build fakefzf: " + err.Error())
 	}
 
 	os.Exit(m.Run())
