@@ -28,9 +28,11 @@
     inputs@{ flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
+        ./nix/apps/flake-module.nix
         ./nix/checks/flake-module.nix
         ./nix/devshells/flake-module.nix
         ./nix/formatter/flake-module.nix
+        ./nix/packages/flake-module.nix
         ./nix/pre-commit/flake-module.nix
       ];
       systems = [
