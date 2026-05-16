@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 	"google.golang.org/grpc"
@@ -153,13 +152,15 @@ func (s *Server) ListProjects(
 func (s *Server) Log(ctx context.Context, req *pluginv1.LogRequest) (*pluginv1.Empty, error) {
 	level := slog.LevelInfo
 
-	switch strings.ToLower(req.GetLevel()) {
-	case "debug":
+	switch req.GetLevel() {
+	case pluginv1.LogLevel_LOG_LEVEL_DEBUG:
 		level = slog.LevelDebug
-	case "warn", "warning":
+	case pluginv1.LogLevel_LOG_LEVEL_WARN:
 		level = slog.LevelWarn
-	case "error":
+	case pluginv1.LogLevel_LOG_LEVEL_ERROR:
 		level = slog.LevelError
+	case pluginv1.LogLevel_LOG_LEVEL_UNSPECIFIED, pluginv1.LogLevel_LOG_LEVEL_INFO:
+		// default: slog.LevelInfo already set above
 	}
 
 	slog.Log(ctx, level, req.GetMessage(), "fields", req.GetFields())

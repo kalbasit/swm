@@ -306,7 +306,7 @@ func TestGitHub_GetPullRequest_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(5), pr.GetNumber())
 	require.Equal(t, "PR five", pr.GetTitle())
-	require.Equal(t, "closed", pr.GetState())
+	require.Equal(t, pluginv1.PullRequestState_PULL_REQUEST_STATE_CLOSED, pr.GetState())
 }
 
 func TestGitHub_GetPullRequest_NotFound(t *testing.T) {

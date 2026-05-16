@@ -22,6 +22,112 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// PullRequestState enumerates the possible states of a pull request.
+type PullRequestState int32
+
+const (
+	PullRequestState_PULL_REQUEST_STATE_UNSPECIFIED PullRequestState = 0
+	PullRequestState_PULL_REQUEST_STATE_OPEN        PullRequestState = 1
+	PullRequestState_PULL_REQUEST_STATE_CLOSED      PullRequestState = 2
+	PullRequestState_PULL_REQUEST_STATE_MERGED      PullRequestState = 3
+)
+
+// Enum value maps for PullRequestState.
+var (
+	PullRequestState_name = map[int32]string{
+		0: "PULL_REQUEST_STATE_UNSPECIFIED",
+		1: "PULL_REQUEST_STATE_OPEN",
+		2: "PULL_REQUEST_STATE_CLOSED",
+		3: "PULL_REQUEST_STATE_MERGED",
+	}
+	PullRequestState_value = map[string]int32{
+		"PULL_REQUEST_STATE_UNSPECIFIED": 0,
+		"PULL_REQUEST_STATE_OPEN":        1,
+		"PULL_REQUEST_STATE_CLOSED":      2,
+		"PULL_REQUEST_STATE_MERGED":      3,
+	}
+)
+
+func (x PullRequestState) Enum() *PullRequestState {
+	p := new(PullRequestState)
+	*p = x
+	return p
+}
+
+func (x PullRequestState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PullRequestState) Descriptor() protoreflect.EnumDescriptor {
+	return file_swm_plugin_v1_forge_proto_enumTypes[0].Descriptor()
+}
+
+func (PullRequestState) Type() protoreflect.EnumType {
+	return &file_swm_plugin_v1_forge_proto_enumTypes[0]
+}
+
+func (x PullRequestState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PullRequestState.Descriptor instead.
+func (PullRequestState) EnumDescriptor() ([]byte, []int) {
+	return file_swm_plugin_v1_forge_proto_rawDescGZIP(), []int{0}
+}
+
+// PullRequestFilter enumerates the valid filter values for listing pull requests.
+type PullRequestFilter int32
+
+const (
+	PullRequestFilter_PULL_REQUEST_FILTER_UNSPECIFIED PullRequestFilter = 0
+	PullRequestFilter_PULL_REQUEST_FILTER_OPEN        PullRequestFilter = 1
+	PullRequestFilter_PULL_REQUEST_FILTER_CLOSED      PullRequestFilter = 2
+	PullRequestFilter_PULL_REQUEST_FILTER_ALL         PullRequestFilter = 3
+)
+
+// Enum value maps for PullRequestFilter.
+var (
+	PullRequestFilter_name = map[int32]string{
+		0: "PULL_REQUEST_FILTER_UNSPECIFIED",
+		1: "PULL_REQUEST_FILTER_OPEN",
+		2: "PULL_REQUEST_FILTER_CLOSED",
+		3: "PULL_REQUEST_FILTER_ALL",
+	}
+	PullRequestFilter_value = map[string]int32{
+		"PULL_REQUEST_FILTER_UNSPECIFIED": 0,
+		"PULL_REQUEST_FILTER_OPEN":        1,
+		"PULL_REQUEST_FILTER_CLOSED":      2,
+		"PULL_REQUEST_FILTER_ALL":         3,
+	}
+)
+
+func (x PullRequestFilter) Enum() *PullRequestFilter {
+	p := new(PullRequestFilter)
+	*p = x
+	return p
+}
+
+func (x PullRequestFilter) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PullRequestFilter) Descriptor() protoreflect.EnumDescriptor {
+	return file_swm_plugin_v1_forge_proto_enumTypes[1].Descriptor()
+}
+
+func (PullRequestFilter) Type() protoreflect.EnumType {
+	return &file_swm_plugin_v1_forge_proto_enumTypes[1]
+}
+
+func (x PullRequestFilter) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PullRequestFilter.Descriptor instead.
+func (PullRequestFilter) EnumDescriptor() ([]byte, []int) {
+	return file_swm_plugin_v1_forge_proto_rawDescGZIP(), []int{1}
+}
+
 // ForgeInfo is returned by Forge.Info.
 type ForgeInfo struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
@@ -83,7 +189,7 @@ type PullRequest struct {
 	Number        int64                  `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	Body          string                 `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
-	State         string                 `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	State         PullRequestState       `protobuf:"varint,5,opt,name=state,proto3,enum=swm.plugin.v1.PullRequestState" json:"state,omitempty"`
 	Url           string                 `protobuf:"bytes,6,opt,name=url,proto3" json:"url,omitempty"`
 	HeadBranch    string                 `protobuf:"bytes,7,opt,name=head_branch,json=headBranch,proto3" json:"head_branch,omitempty"`
 	BaseBranch    string                 `protobuf:"bytes,8,opt,name=base_branch,json=baseBranch,proto3" json:"base_branch,omitempty"`
@@ -150,11 +256,11 @@ func (x *PullRequest) GetBody() string {
 	return ""
 }
 
-func (x *PullRequest) GetState() string {
+func (x *PullRequest) GetState() PullRequestState {
 	if x != nil {
 		return x.State
 	}
-	return ""
+	return PullRequestState_PULL_REQUEST_STATE_UNSPECIFIED
 }
 
 func (x *PullRequest) GetUrl() string {
@@ -187,10 +293,9 @@ func (x *PullRequest) GetDraft() bool {
 
 // ListPRsRequest asks for pull requests on a project.
 type ListPRsRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId *ProjectID             `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	// state filters by PR state: "open", "closed", or "all".
-	State         string `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     *ProjectID             `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	State         PullRequestFilter      `protobuf:"varint,2,opt,name=state,proto3,enum=swm.plugin.v1.PullRequestFilter" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -232,11 +337,11 @@ func (x *ListPRsRequest) GetProjectId() *ProjectID {
 	return nil
 }
 
-func (x *ListPRsRequest) GetState() string {
+func (x *ListPRsRequest) GetState() PullRequestFilter {
 	if x != nil {
 		return x.State
 	}
-	return ""
+	return PullRequestFilter_PULL_REQUEST_FILTER_UNSPECIFIED
 }
 
 // CreatePRRequest asks the plugin to open a new pull request.
@@ -385,23 +490,23 @@ const file_swm_plugin_v1_forge_proto_rawDesc = "" +
 	"\tForgeInfo\x12:\n" +
 	"\vplugin_info\x18\x01 \x01(\v2\x19.swm.plugin.v1.PluginInfoR\n" +
 	"pluginInfo\x12#\n" +
-	"\rclaimed_hosts\x18\x02 \x03(\tR\fclaimedHosts\"\xdf\x01\n" +
+	"\rclaimed_hosts\x18\x02 \x03(\tR\fclaimedHosts\"\x80\x02\n" +
 	"\vPullRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06number\x18\x02 \x01(\x03R\x06number\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x12\n" +
-	"\x04body\x18\x04 \x01(\tR\x04body\x12\x14\n" +
-	"\x05state\x18\x05 \x01(\tR\x05state\x12\x10\n" +
+	"\x04body\x18\x04 \x01(\tR\x04body\x125\n" +
+	"\x05state\x18\x05 \x01(\x0e2\x1f.swm.plugin.v1.PullRequestStateR\x05state\x12\x10\n" +
 	"\x03url\x18\x06 \x01(\tR\x03url\x12\x1f\n" +
 	"\vhead_branch\x18\a \x01(\tR\n" +
 	"headBranch\x12\x1f\n" +
 	"\vbase_branch\x18\b \x01(\tR\n" +
 	"baseBranch\x12\x14\n" +
-	"\x05draft\x18\t \x01(\bR\x05draft\"_\n" +
+	"\x05draft\x18\t \x01(\bR\x05draft\"\x81\x01\n" +
 	"\x0eListPRsRequest\x127\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\v2\x18.swm.plugin.v1.ProjectIDR\tprojectId\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\"\xcc\x01\n" +
+	"project_id\x18\x01 \x01(\v2\x18.swm.plugin.v1.ProjectIDR\tprojectId\x126\n" +
+	"\x05state\x18\x02 \x01(\x0e2 .swm.plugin.v1.PullRequestFilterR\x05state\"\xcc\x01\n" +
 	"\x0fCreatePRRequest\x127\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\v2\x18.swm.plugin.v1.ProjectIDR\tprojectId\x12\x14\n" +
@@ -415,7 +520,17 @@ const file_swm_plugin_v1_forge_proto_rawDesc = "" +
 	"\fGetPRRequest\x127\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\v2\x18.swm.plugin.v1.ProjectIDR\tprojectId\x12\x16\n" +
-	"\x06number\x18\x02 \x01(\x03R\x06number2\xac\x02\n" +
+	"\x06number\x18\x02 \x01(\x03R\x06number*\x91\x01\n" +
+	"\x10PullRequestState\x12\"\n" +
+	"\x1ePULL_REQUEST_STATE_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17PULL_REQUEST_STATE_OPEN\x10\x01\x12\x1d\n" +
+	"\x19PULL_REQUEST_STATE_CLOSED\x10\x02\x12\x1d\n" +
+	"\x19PULL_REQUEST_STATE_MERGED\x10\x03*\x93\x01\n" +
+	"\x11PullRequestFilter\x12#\n" +
+	"\x1fPULL_REQUEST_FILTER_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18PULL_REQUEST_FILTER_OPEN\x10\x01\x12\x1e\n" +
+	"\x1aPULL_REQUEST_FILTER_CLOSED\x10\x02\x12\x1b\n" +
+	"\x17PULL_REQUEST_FILTER_ALL\x10\x032\xac\x02\n" +
 	"\x05Forge\x126\n" +
 	"\x04Info\x12\x14.swm.plugin.v1.Empty\x1a\x18.swm.plugin.v1.ForgeInfo\x12O\n" +
 	"\x10ListPullRequests\x12\x1d.swm.plugin.v1.ListPRsRequest\x1a\x1a.swm.plugin.v1.PullRequest0\x01\x12O\n" +
@@ -435,37 +550,41 @@ func file_swm_plugin_v1_forge_proto_rawDescGZIP() []byte {
 }
 
 var (
-	file_swm_plugin_v1_forge_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
-	file_swm_plugin_v1_forge_proto_goTypes  = []any{
-		(*ForgeInfo)(nil),       // 0: swm.plugin.v1.ForgeInfo
-		(*PullRequest)(nil),     // 1: swm.plugin.v1.PullRequest
-		(*ListPRsRequest)(nil),  // 2: swm.plugin.v1.ListPRsRequest
-		(*CreatePRRequest)(nil), // 3: swm.plugin.v1.CreatePRRequest
-		(*GetPRRequest)(nil),    // 4: swm.plugin.v1.GetPRRequest
-		(*PluginInfo)(nil),      // 5: swm.plugin.v1.PluginInfo
-		(*ProjectID)(nil),       // 6: swm.plugin.v1.ProjectID
-		(*Empty)(nil),           // 7: swm.plugin.v1.Empty
+	file_swm_plugin_v1_forge_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+	file_swm_plugin_v1_forge_proto_msgTypes  = make([]protoimpl.MessageInfo, 5)
+	file_swm_plugin_v1_forge_proto_goTypes   = []any{
+		PullRequestState(0),     // 0: swm.plugin.v1.PullRequestState
+		PullRequestFilter(0),    // 1: swm.plugin.v1.PullRequestFilter
+		(*ForgeInfo)(nil),       // 2: swm.plugin.v1.ForgeInfo
+		(*PullRequest)(nil),     // 3: swm.plugin.v1.PullRequest
+		(*ListPRsRequest)(nil),  // 4: swm.plugin.v1.ListPRsRequest
+		(*CreatePRRequest)(nil), // 5: swm.plugin.v1.CreatePRRequest
+		(*GetPRRequest)(nil),    // 6: swm.plugin.v1.GetPRRequest
+		(*PluginInfo)(nil),      // 7: swm.plugin.v1.PluginInfo
+		(*ProjectID)(nil),       // 8: swm.plugin.v1.ProjectID
+		(*Empty)(nil),           // 9: swm.plugin.v1.Empty
 	}
 )
-
 var file_swm_plugin_v1_forge_proto_depIdxs = []int32{
-	5, // 0: swm.plugin.v1.ForgeInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
-	6, // 1: swm.plugin.v1.ListPRsRequest.project_id:type_name -> swm.plugin.v1.ProjectID
-	6, // 2: swm.plugin.v1.CreatePRRequest.project_id:type_name -> swm.plugin.v1.ProjectID
-	6, // 3: swm.plugin.v1.GetPRRequest.project_id:type_name -> swm.plugin.v1.ProjectID
-	7, // 4: swm.plugin.v1.Forge.Info:input_type -> swm.plugin.v1.Empty
-	2, // 5: swm.plugin.v1.Forge.ListPullRequests:input_type -> swm.plugin.v1.ListPRsRequest
-	3, // 6: swm.plugin.v1.Forge.CreatePullRequest:input_type -> swm.plugin.v1.CreatePRRequest
-	4, // 7: swm.plugin.v1.Forge.GetPullRequest:input_type -> swm.plugin.v1.GetPRRequest
-	0, // 8: swm.plugin.v1.Forge.Info:output_type -> swm.plugin.v1.ForgeInfo
-	1, // 9: swm.plugin.v1.Forge.ListPullRequests:output_type -> swm.plugin.v1.PullRequest
-	1, // 10: swm.plugin.v1.Forge.CreatePullRequest:output_type -> swm.plugin.v1.PullRequest
-	1, // 11: swm.plugin.v1.Forge.GetPullRequest:output_type -> swm.plugin.v1.PullRequest
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	7,  // 0: swm.plugin.v1.ForgeInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
+	0,  // 1: swm.plugin.v1.PullRequest.state:type_name -> swm.plugin.v1.PullRequestState
+	8,  // 2: swm.plugin.v1.ListPRsRequest.project_id:type_name -> swm.plugin.v1.ProjectID
+	1,  // 3: swm.plugin.v1.ListPRsRequest.state:type_name -> swm.plugin.v1.PullRequestFilter
+	8,  // 4: swm.plugin.v1.CreatePRRequest.project_id:type_name -> swm.plugin.v1.ProjectID
+	8,  // 5: swm.plugin.v1.GetPRRequest.project_id:type_name -> swm.plugin.v1.ProjectID
+	9,  // 6: swm.plugin.v1.Forge.Info:input_type -> swm.plugin.v1.Empty
+	4,  // 7: swm.plugin.v1.Forge.ListPullRequests:input_type -> swm.plugin.v1.ListPRsRequest
+	5,  // 8: swm.plugin.v1.Forge.CreatePullRequest:input_type -> swm.plugin.v1.CreatePRRequest
+	6,  // 9: swm.plugin.v1.Forge.GetPullRequest:input_type -> swm.plugin.v1.GetPRRequest
+	2,  // 10: swm.plugin.v1.Forge.Info:output_type -> swm.plugin.v1.ForgeInfo
+	3,  // 11: swm.plugin.v1.Forge.ListPullRequests:output_type -> swm.plugin.v1.PullRequest
+	3,  // 12: swm.plugin.v1.Forge.CreatePullRequest:output_type -> swm.plugin.v1.PullRequest
+	3,  // 13: swm.plugin.v1.Forge.GetPullRequest:output_type -> swm.plugin.v1.PullRequest
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_swm_plugin_v1_forge_proto_init() }
@@ -479,13 +598,14 @@ func file_swm_plugin_v1_forge_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swm_plugin_v1_forge_proto_rawDesc), len(file_swm_plugin_v1_forge_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      2,
 			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_swm_plugin_v1_forge_proto_goTypes,
 		DependencyIndexes: file_swm_plugin_v1_forge_proto_depIdxs,
+		EnumInfos:         file_swm_plugin_v1_forge_proto_enumTypes,
 		MessageInfos:      file_swm_plugin_v1_forge_proto_msgTypes,
 	}.Build()
 	File_swm_plugin_v1_forge_proto = out.File

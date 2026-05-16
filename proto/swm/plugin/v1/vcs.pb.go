@@ -598,7 +598,6 @@ var (
 		(*Empty)(nil),                 // 11: swm.plugin.v1.Empty
 	}
 )
-
 var file_swm_plugin_v1_vcs_proto_depIdxs = []int32{
 	9,  // 0: swm.plugin.v1.VCSInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
 	10, // 1: swm.plugin.v1.CloneResponse.project_id:type_name -> swm.plugin.v1.ProjectID

@@ -215,7 +215,6 @@ var (
 		(*Empty)(nil),      // 4: swm.plugin.v1.Empty
 	}
 )
-
 var file_swm_plugin_v1_picker_proto_depIdxs = []int32{
 	3, // 0: swm.plugin.v1.PickerInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
 	4, // 1: swm.plugin.v1.Picker.Info:input_type -> swm.plugin.v1.Empty

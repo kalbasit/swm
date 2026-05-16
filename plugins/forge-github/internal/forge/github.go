@@ -134,8 +134,14 @@ func (g *GitHub) ListPullRequests(req *pluginv1.ListPRsRequest, stream pluginv1.
 		return err
 	}
 
-	state := req.GetState()
-	if state == "" {
+	var state string
+
+	switch req.GetState() {
+	case pluginv1.PullRequestFilter_PULL_REQUEST_FILTER_CLOSED:
+		state = "closed"
+	case pluginv1.PullRequestFilter_PULL_REQUEST_FILTER_ALL:
+		state = "all"
+	case pluginv1.PullRequestFilter_PULL_REQUEST_FILTER_UNSPECIFIED, pluginv1.PullRequestFilter_PULL_REQUEST_FILTER_OPEN:
 		state = "open"
 	}
 
@@ -232,10 +238,24 @@ func ghPRToProto(pr *github.PullRequest) *pluginv1.PullRequest {
 		Number:     int64(pr.GetNumber()),
 		Title:      pr.GetTitle(),
 		Body:       pr.GetBody(),
-		State:      pr.GetState(),
+		State:      prStateFromString(pr.GetState()),
 		Url:        pr.GetHTMLURL(),
 		HeadBranch: pr.GetHead().GetRef(),
 		BaseBranch: pr.GetBase().GetRef(),
 		Draft:      pr.GetDraft(),
+	}
+}
+
+// prStateFromString maps a GitHub API state string to a PullRequestState enum value.
+func prStateFromString(s string) pluginv1.PullRequestState {
+	switch s {
+	case "open":
+		return pluginv1.PullRequestState_PULL_REQUEST_STATE_OPEN
+	case "closed":
+		return pluginv1.PullRequestState_PULL_REQUEST_STATE_CLOSED
+	case "merged":
+		return pluginv1.PullRequestState_PULL_REQUEST_STATE_MERGED
+	default:
+		return pluginv1.PullRequestState_PULL_REQUEST_STATE_UNSPECIFIED
 	}
 }
