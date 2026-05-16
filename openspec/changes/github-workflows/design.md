@@ -9,7 +9,7 @@ those workflows is low-effort and high-value.
 Notable differences from ncps:
 - Default branch is `master` (not `main`)
 - No database, no Docker images, no Helm chart, no docs site
-- Six separate Go packages each with their own `vendorHash` in `nix/packages/`
+- Five separate Go packages each with their own vendorHash in nix/packages/
 - No existing Cachix cache — one must be created and named (convention: `swm`)
 
 ## Goals / Non-Goals
@@ -45,7 +45,7 @@ only would never fire on the primary branch.
 `nix/packages/<pkg>/default.nix`. The ncps approach (single `sed` replacement in
 one file) cannot be applied verbatim.
 
-**Decision**: In the `generate` CI job, loop over all six package names, run
+**Decision**: In the generate CI job, loop over all five package names, run
 `nix build .#<pkg>.goModules` per package, extract the new hash from stderr, and
 `sed` the matching file.
 
@@ -99,7 +99,7 @@ triggered by the flake-update PR, not inline in the flake-update workflow itself
 - **Cachix secret not yet provisioned** → CI cache steps will fail (non-blocking
   for correctness, but slow). Mitigation: set up Cachix org and secret before
   merging. Workflows should degrade gracefully if the cache miss happens.
-- **Six-package vendor-hash loop is verbose** → Mitigation: encapsulate in a
+- **Five-package vendor-hash loop is verbose** → Mitigation: encapsulate in a
   reusable shell script called from the workflow step.
 - **`release-*` branch pattern assumed** → `swm` has no release branches yet.
   Backport and multi-branch workflows are forward-compatible and harmless until
