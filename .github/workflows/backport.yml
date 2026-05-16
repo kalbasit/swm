@@ -1,0 +1,42 @@
+name: Backport
+on:
+  pull_request_target:
+    types: [closed, labeled]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+defaults:
+  run:
+    shell: bash
+jobs:
+  backport:
+    name: Backport Pull Request
+    if: github.event.pull_request.merged == true && (github.event.action != 'labeled' || startsWith(github.event.label.name, 'backport'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GHA_PAT_TOKEN }}
+      - name: Log current API rate limits
+        env:
+          GH_TOKEN: ${{ secrets.GHA_PAT_TOKEN }}
+        run: gh api /rate_limit | jq
+      - name: Create backport PRs
+        id: backport
+        uses: korthout/backport-action@v4
+        with:
+          github_token: ${{ secrets.GHA_PAT_TOKEN }}
+          auto_merge_enabled: true
+          auto_merge_method: squash
+          pull_title: "${pull_title} [backport #${pull_number}]"
+          pull_description: |-
+            Bot-based backport to `${target_branch}`, triggered by a label in #${pull_number}.
+
+            ${pull_description}
+      - name: Log current API rate limits
+        env:
+          GH_TOKEN: ${{ secrets.GHA_PAT_TOKEN }}
+        run: gh api /rate_limit | jq

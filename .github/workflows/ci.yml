@@ -1,0 +1,122 @@
+name: CI
+permissions:
+  contents: read
+  packages: write
+on:
+  pull_request:
+    branches:
+      - master
+      - "release-*"
+  push:
+    branches:
+      - master
+      - "release-*"
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  filter:
+    runs-on: ubuntu-24.04
+    outputs:
+      go_deps: ${{ steps.filter.outputs.go_deps }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            go_deps:
+              - "go.mod"
+              - "go.sum"
+  generate:
+    needs: filter
+    if: (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)) && needs.filter.outputs.go_deps == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GHA_PAT_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v17
+        with:
+          name: swm
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Update vendor hashes
+        run: |
+          go mod tidy
+
+          for pkg in swm swm-plugin-forge-github swm-plugin-picker-fzf swm-plugin-session-tmux swm-plugin-vcs-git; do
+            set +e
+            nix build --print-build-logs ".#${pkg}.goModules" 2> /tmp/log
+            ret=$?
+            set -e
+
+            if [[ "$ret" -eq 0 ]]; then
+              set +e
+              nix build --print-build-logs ".#${pkg}.goModules" --rebuild 2> /tmp/log
+              ret=$?
+              set -e
+            fi
+
+            if [[ "$ret" -eq 0 ]]; then
+              echo "::notice::Hash is up to date for $pkg"
+              continue
+            fi
+
+            hash="$(grep 'got:' /tmp/log | awk '{print $2}')"
+            echo "hash=$hash for $pkg"
+
+            if [[ -z "$hash" ]]; then
+              cat /tmp/log
+              echo "::error::hash is empty for $pkg"
+              exit 1
+            fi
+
+            sed -e "s#vendorHash =.*\$#vendorHash = \"${hash}\";#g" -i "nix/packages/${pkg}/default.nix"
+          done
+      - run: git diff
+      - uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore: update vendor hashes"
+  flake-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/flake-checker-action@main
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v17
+        with:
+          name: swm
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Flake check
+        run: nix flake check -L
+  ci:
+    runs-on: ubuntu-24.04
+    if: always()
+    needs:
+      - filter
+      - generate
+      - flake-check
+    steps:
+      - name: Check Workflow Status
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          results=(
+            "${{ needs.filter.result }}"
+            "${{ needs.generate.result }}"
+            "${{ needs.flake-check.result }}"
+          )
+
+          for result in "${results[@]}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "::error::Job failed with result: $result"
+              exit 1
+            fi
+          done
+
+          echo "All jobs passed"
