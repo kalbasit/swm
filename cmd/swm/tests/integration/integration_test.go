@@ -20,6 +20,8 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/pluginmgr"
 )
 
+const pickerPluginName = "fzf"
+
 const (
 	vcsPluginName     = "git"
 	sessionPluginName = "tmux"
@@ -142,6 +144,77 @@ func TestStoryRemove(t *testing.T) {
 	// Story should be gone.
 	_, err = store.Get(t.Context(), testStoryName)
 	require.Error(t, err)
+}
+
+func TestWorkspaceOpenWithPicker(t *testing.T) {
+	// Override PATH so session-tmux finds faketmux as "tmux" and
+	// picker-fzf finds fakefzf as "fzf".
+	if _, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err != nil {
+		t.Skip("no TTY available; skipping picker integration test")
+	}
+
+	oldPath := os.Getenv("PATH")
+	t.Setenv("PATH", filepath.Dir(faketmuxBin)+":"+oldPath) // faketmuxBin IS named "tmux"
+	// fakefzfBin is already named "fzf" in tmpDir, which is the same dir as faketmuxBin.
+
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	// Set up config with both session and picker plugins.
+	codeRoot := t.TempDir()
+	storiesDir := filepath.Join(t.TempDir(), "stories")
+	require.NoError(t, os.MkdirAll(storiesDir, 0o750))
+
+	cfg := &config.Config{
+		CodeRoot:     codeRoot,
+		DefaultStory: "_default",
+		Plugins: config.Plugins{
+			VCS:     vcsPluginName,
+			Session: sessionPluginName,
+			Picker:  pickerPluginName,
+			Paths: map[string]string{
+				vcsPluginName:     vcsGitBin,
+				sessionPluginName: sessionTmuxBin,
+				pickerPluginName:  pickerFzfBin,
+			},
+		},
+	}
+
+	store := story.NewJSONStore(storiesDir)
+	resolver := layout.NewResolver(codeRoot)
+
+	srv, err := hostsvc.NewServer(cfg, resolver, store)
+	require.NoError(t, err)
+
+	t.Cleanup(srv.Stop)
+
+	mgr := pluginmgr.New(cfg, srv.SocketPath())
+
+	t.Cleanup(func() { mgr.Close() }) //nolint:errcheck,gosec // best-effort in test cleanup
+
+	// Clone a local repo so it appears in the candidate list.
+	srcRepo := initLocalRepo(t)
+	fileURL := "file://" + srcRepo
+
+	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root.SetArgs([]string{"clone", fileURL})
+	require.NoError(t, root.Execute())
+
+	// Create a story with no projects yet (lazy attach will happen).
+	_, err = store.Create(t.Context(), testStoryName, "feat/"+testStoryName)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+
+	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root2.SetArgs([]string{"workspace", "open", "--story", testStoryName})
+	root2.SetOut(&buf)
+	require.NoError(t, root2.Execute())
+
+	// Verify that faketmux received a new-session call (pane group opened).
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	require.Contains(t, string(logBytes), "new-session", "expected new-session in faketmux log")
 }
 
 func TestWorkspaceOpen(t *testing.T) {

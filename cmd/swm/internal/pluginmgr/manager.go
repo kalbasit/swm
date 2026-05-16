@@ -14,6 +14,7 @@ import (
 
 	goplugin "github.com/hashicorp/go-plugin"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
+	sdkpicker "github.com/kalbasit/swm/sdk/go/picker"
 	sdksession "github.com/kalbasit/swm/sdk/go/session"
 	sdkvcs "github.com/kalbasit/swm/sdk/go/vcs"
 
@@ -225,6 +226,15 @@ func (m *Manager) validateDeps(ctx context.Context, capability string, raw any) 
 
 			info = resp.GetPluginInfo()
 		}
+	case capabilityPicker:
+		if c, ok := raw.(pluginv1.PickerClient); ok {
+			resp, err := c.Info(ctx, &pluginv1.Empty{})
+			if err != nil {
+				return fmt.Errorf("calling Info on picker plugin: %w", err)
+			}
+
+			info = resp.GetPluginInfo()
+		}
 	}
 
 	if info == nil {
@@ -244,6 +254,8 @@ func (m *Manager) validateDeps(ctx context.Context, capability string, raw any) 
 // pluginSet returns the go-plugin PluginSet for the given capability.
 func pluginSet(capability string) goplugin.PluginSet {
 	switch capability {
+	case capabilityPicker:
+		return goplugin.PluginSet{capabilityPicker: &sdkpicker.GRPCPlugin{}}
 	case capabilitySession:
 		return goplugin.PluginSet{capabilitySession: &sdksession.GRPCPlugin{}}
 	case capabilityVCS:

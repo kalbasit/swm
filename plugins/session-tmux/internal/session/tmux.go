@@ -11,7 +11,10 @@ import (
 	"strings"
 
 	"github.com/adrg/xdg"
+	"github.com/pelletier/go-toml/v2"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
@@ -20,28 +23,66 @@ import (
 // buildVersion is set via -ldflags at build time.
 var buildVersion = "dev" //nolint:gochecknoglobals // set via ldflags at link time
 
+// tmuxConfig holds the plugin-specific config read from the host.
+type tmuxConfig struct {
+	PaneGroupCommand string `toml:"pane_group_command"`
+}
+
 // Tmux implements pluginv1.SessionServer by shelling out to the system tmux.
 type Tmux struct {
-	tmuxBin   string
-	socketDir string
+	tmuxBin    string
+	socketDir  string
+	hostClient pluginv1.HostClient
+	grpcConn   *grpc.ClientConn
 }
 
 // New returns a Tmux instance using the system tmux binary.
+// It connects to SWM_HOST_SOCKET if set, enabling host config lookups.
 func New() (*Tmux, error) {
 	bin, err := exec.LookPath("tmux")
 	if err != nil {
 		return nil, fmt.Errorf("tmux binary not found in PATH: %w", err)
 	}
 
-	return &Tmux{
+	t := &Tmux{
 		tmuxBin:   bin,
 		socketDir: filepath.Join(xdg.RuntimeDir, "swm", "tmux"),
-	}, nil
+	}
+
+	if sock := os.Getenv("SWM_HOST_SOCKET"); sock != "" {
+		conn, err := grpc.NewClient(
+			"unix://"+sock,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("connecting to host socket: %w", err)
+		}
+
+		t.grpcConn = conn
+		t.hostClient = pluginv1.NewHostClient(conn)
+	}
+
+	return t, nil
 }
 
 // NewWithBin returns a Tmux instance with an injected binary path and socket dir (for tests).
 func NewWithBin(tmuxBin, socketDir string) *Tmux {
 	return &Tmux{tmuxBin: tmuxBin, socketDir: socketDir}
+}
+
+// NewWithBinAndClient returns a Tmux instance with an injected binary, socket dir,
+// and host client (for tests that exercise pane_group_command).
+func NewWithBinAndClient(tmuxBin, socketDir string, client pluginv1.HostClient) *Tmux {
+	return &Tmux{tmuxBin: tmuxBin, socketDir: socketDir, hostClient: client}
+}
+
+// Close releases the gRPC connection to the host service.
+func (t *Tmux) Close() error {
+	if t.grpcConn != nil {
+		return t.grpcConn.Close()
+	}
+
+	return nil
 }
 
 // CloseWorkspace tears down the tmux server for the given workspace.
@@ -148,9 +189,17 @@ func (t *Tmux) OpenPaneGroup(ctx context.Context, req *pluginv1.OpenPaneGroupReq
 
 	name := segments[len(segments)-1]
 
+	// Determine the initial command for the session.
+	initialCmd := t.paneGroupCommand(ctx, req)
+
 	// Create session if it doesn't exist yet.
 	if _, err := t.run(ctx, "-S", sock, "has-session", "-t", name); err != nil {
-		if _, err := t.run(ctx, "-S", sock, "new-session", "-d", "-s", name, "-c", req.GetWorktreePath()); err != nil {
+		args := []string{"-S", sock, "new-session", "-d", "-s", name, "-c", req.GetWorktreePath()}
+		if initialCmd != "" {
+			args = append(args, initialCmd)
+		}
+
+		if _, err := t.run(ctx, args...); err != nil {
 			return nil, err
 		}
 	}
@@ -221,6 +270,39 @@ func (t *Tmux) SwitchTo(ctx context.Context, req *pluginv1.SwitchToRequest) (*pl
 	}
 
 	return &pluginv1.Empty{}, nil
+}
+
+// paneGroupCommand returns the command string for a new pane group session, applying
+// template substitutions if pane_group_command is configured.
+// Returns empty string if no command is configured or if config cannot be fetched.
+func (t *Tmux) paneGroupCommand(ctx context.Context, req *pluginv1.OpenPaneGroupRequest) string {
+	if t.hostClient == nil {
+		return ""
+	}
+
+	resp, err := t.hostClient.GetConfig(ctx, &pluginv1.GetConfigRequest{PluginName: "tmux"})
+	if err != nil {
+		return ""
+	}
+
+	var cfg tmuxConfig
+	if err := toml.Unmarshal(resp.GetToml(), &cfg); err != nil || cfg.PaneGroupCommand == "" {
+		return ""
+	}
+
+	// Derive story name from the socket path basename.
+	storyName := strings.TrimSuffix(filepath.Base(req.GetWorkspaceId()), ".sock")
+
+	// Build project_id string: host/seg1/seg2/...
+	pid := req.GetProjectId()
+	projectID := pid.GetHost() + "/" + strings.Join(pid.GetSegments(), "/")
+
+	cmd := cfg.PaneGroupCommand
+	cmd = strings.ReplaceAll(cmd, "{{worktree_path}}", req.GetWorktreePath())
+	cmd = strings.ReplaceAll(cmd, "{{story_name}}", storyName)
+	cmd = strings.ReplaceAll(cmd, "{{project_id}}", projectID)
+
+	return cmd
 }
 
 func (t *Tmux) run(ctx context.Context, args ...string) (string, error) {
