@@ -7,7 +7,7 @@ Cachix + GitHub Actions. `swm` shares the same Nix-based toolchain, so adapting
 those workflows is low-effort and high-value.
 
 Notable differences from ncps:
-- Default branch is `master` (not `main`)
+- Default branch is `main` (not `main`)
 - No database, no Docker images, no Helm chart, no docs site
 - Five separate Go packages each with their own vendorHash in nix/packages/
 - No existing Cachix cache — one must be created and named (convention: `swm`)
@@ -15,7 +15,7 @@ Notable differences from ncps:
 ## Goals / Non-Goals
 
 **Goals**
-- Automated lint/test/build on every PR and push to `master`/`release-*`
+- Automated lint/test/build on every PR and push to `main`/`release-*`
 - Automated vendor hash updates when `go.mod`/`go.sum` change
 - GitHub Releases on `v*.*.*` tags
 - Semantic PR title enforcement
@@ -31,12 +31,12 @@ Notable differences from ncps:
 
 ## Decisions
 
-### 1. Default branch: `master`
+### 1. Default branch: `main`
 
-The repository's canonical default branch is `master`. All workflows target
-`master` (and `release-*`) instead of `main` as in ncps.
+The repository's canonical default branch is `main`. All workflows target
+`main` (and `release-*`) instead of `main` as in ncps.
 
-**Why**: `origin/HEAD → origin/master` per git config; a workflow targeting `main`
+**Why**: `origin/HEAD → origin/main` per git config; a workflow targeting `main`
 only would never fire on the primary branch.
 
 ### 2. Vendor hash update strategy: loop all packages
@@ -85,7 +85,7 @@ to the cache.
 ### 6. Semantic PR: adopt as-is
 
 The `amannn/action-semantic-pull-request` action is project-agnostic. Targeting
-`master` (and `release-*`) is the only adaptation needed.
+`main` (and `release-*`) is the only adaptation needed.
 
 ### 7. Flake update: adapt for swm, no sqlc/go generate
 

@@ -16,15 +16,15 @@
 
 ## 3. Semantic PR Workflow
 
-- [x] 3.1 Create `.github/workflows/semantic-pull-request.yml` targeting `master` and `release-*`
+- [x] 3.1 Create `.github/workflows/semantic-pull-request.yml` targeting `main` and `release-*`
 
 ## 4. DevSkim Security Scan
 
-- [x] 4.1 Create `.github/workflows/devskim.yml` targeting `master` branch; include weekly cron schedule
+- [x] 4.1 Create `.github/workflows/devskim.yml` targeting `main` branch; include weekly cron schedule
 
 ## 5. Flake Update Workflow
 
-- [x] 5.1 Create `.github/workflows/flake-update.yml` — runs `nix flake update` + `go mod tidy`, commits to `update-flake-lock` branch, opens PR targeting `master`, enables auto-merge (squash)
+- [x] 5.1 Create `.github/workflows/flake-update.yml` — runs `nix flake update` + `go mod tidy`, commits to `update-flake-lock` branch, opens PR targeting `main`, enables auto-merge (squash)
 
 ## 6. Release Workflow
 

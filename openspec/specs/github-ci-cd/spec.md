@@ -10,14 +10,14 @@ repository.
 
 ### Requirement: CI runs on pull requests and pushes to primary branches
 The CI workflow SHALL run `nix flake check` on every pull request targeting
-`master` or `release-*`, and on every direct push to those branches.
+`main` or `release-*`, and on every direct push to those branches.
 
-#### Scenario: Pull request opened against master
-- **WHEN** a pull request is opened, synchronized, or reopened targeting `master`
+#### Scenario: Pull request opened against main
+- **WHEN** a pull request is opened, synchronized, or reopened targeting `main`
 - **THEN** the CI workflow triggers and runs `nix flake check`
 
-#### Scenario: Push to master branch
-- **WHEN** a commit is pushed directly to `master`
+#### Scenario: Push to main branch
+- **WHEN** a commit is pushed directly to `main`
 - **THEN** the CI workflow triggers and runs `nix flake check`
 
 #### Scenario: Concurrent runs are cancelled
@@ -78,11 +78,11 @@ to the Conventional Commits specification.
 
 ### Requirement: Security scan runs on schedule and on changes
 The DevSkim workflow SHALL scan the repository for security issues on push to
-`master`, on PRs targeting `master`, and on a weekly schedule. Results SHALL be
+`main`, on PRs targeting `main`, and on a weekly schedule. Results SHALL be
 uploaded to the GitHub Security tab.
 
-#### Scenario: Push to master triggers security scan
-- **WHEN** code is pushed to `master`
+#### Scenario: Push to main triggers security scan
+- **WHEN** code is pushed to `main`
 - **THEN** DevSkim scans the repository and uploads SARIF results to GitHub Security
 
 #### Scenario: Weekly scheduled scan
@@ -98,7 +98,7 @@ The flake-update workflow SHALL run weekly, update `flake.lock`, run
 #### Scenario: Scheduled weekly flake update
 - **WHEN** the weekly cron triggers
 - **THEN** the workflow runs `nix flake update` and `go mod tidy`, commits to a
-  `update-flake-lock` branch, opens a PR targeting `master`, and enables auto-merge
+  `update-flake-lock` branch, opens a PR targeting `main`, and enables auto-merge
 
 #### Scenario: Manual dispatch of flake update
 - **WHEN** the workflow is triggered manually via `workflow_dispatch`

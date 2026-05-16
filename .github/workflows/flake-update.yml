@@ -40,7 +40,7 @@ jobs:
         with:
           github_token: ${{ secrets.GHA_PAT_TOKEN }}
           head: "update-flake-lock"
-          base: master
+          base: main
           title: "chore: update flake.lock and run go mod tidy"
       - name: Enable automerge
         if: ${{ steps.create_pr.outputs.created }}
