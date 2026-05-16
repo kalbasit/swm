@@ -447,6 +447,7 @@ var (
 		(*Empty)(nil),           // 7: swm.plugin.v1.Empty
 	}
 )
+
 var file_swm_plugin_v1_forge_proto_depIdxs = []int32{
 	5, // 0: swm.plugin.v1.ForgeInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
 	6, // 1: swm.plugin.v1.ListPRsRequest.project_id:type_name -> swm.plugin.v1.ProjectID

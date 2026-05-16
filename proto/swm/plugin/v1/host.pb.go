@@ -386,6 +386,7 @@ var (
 		(*Story)(nil),                  // 11: swm.plugin.v1.Story
 	}
 )
+
 var file_swm_plugin_v1_host_proto_depIdxs = []int32{
 	6,  // 0: swm.plugin.v1.LogRequest.fields:type_name -> swm.plugin.v1.LogRequest.FieldsEntry
 	7,  // 1: swm.plugin.v1.CallCapabilityRequest.capability:type_name -> swm.plugin.v1.CapabilityType
