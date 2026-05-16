@@ -89,17 +89,18 @@ Before opening the workspace the command SHALL run `hookexec.Run` for event `pre
 1. Run `pre-workspace-open` hooks; abort if any fail.
 2. Resolve story from `--story` flag, `$SWM_STORY` env var, or `_default`.
 3. Build a candidate list: all projects already attached to the story plus all repositories discovered under `$CODE_ROOT/repositories/` via `host.ListProjects`.
-4. Stream candidates to `picker.Pick`; each candidate's `display` is its project ID string (e.g. `github.com/kalbasit/swm`) and `id` is the same string.
+4. Stream candidates to `picker.Pick`; each candidate's `display` is its project ID string (e.g. `github.com/kalbasit/swm`) and `key` is the same string.
 5. Receive the selected project ID from the picker.
 6. If the selected project is NOT already attached to the story: call `vcs.CreateWorktree` for that project and attach it to the story in the story store.
-7. Call `session.OpenPaneGroup` with the derived worktree path for the selected project.
-8. Run `post-workspace-open` hooks.
+7. Call `session.OpenWorkspace` to ensure the workspace is active.
+8. Call `session.OpenPaneGroup` with the derived worktree path for the selected project.
+9. Run `post-workspace-open` hooks.
 
 **Without picker configured (fallback):**
 1. Run `pre-workspace-open` hooks; abort if any fail.
 2. Resolve story.
 3. Load all attached projects from the story store.
-4. Call `session.OpenWorkspace({story_name, worktree_paths: [derived paths for each project]})`.
+4. Call `session.OpenWorkspace({story_name, worktree_paths: {project_key: derived_path}})`.
 5. If the workspace was already open, call `session.SwitchTo` for the first pane group.
 6. Run `post-workspace-open` hooks.
 
@@ -133,7 +134,7 @@ Before opening the workspace the command SHALL run `hookexec.Run` for event `pre
 
 #### Scenario: Story with no projects and no picker
 - **WHEN** `swm workspace open --story feat-x` is run, no picker is configured, and `feat-x` has no attached projects
-- **THEN** `session.OpenWorkspace` is called with an empty `worktree_paths` list; the session plugin opens an empty workspace
+- **THEN** `session.OpenWorkspace` is called with an empty `worktree_paths` map; the session plugin opens an empty workspace
 
 #### Scenario: pre-workspace-open hook aborts open
 - **WHEN** a `pre-workspace-open` hook exits non-zero

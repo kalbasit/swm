@@ -1,9 +1,9 @@
 ### Requirement: Picker.Pick bidirectional streaming RPC
-The `picker-fzf` plugin SHALL implement the `Picker.Pick` bidirectional gRPC streaming RPC. The host streams `PickItem` messages (each with a `display` string and an opaque `id`), and the plugin streams back a single `PickResult` message containing the `id` of the item the user selected.
+The `picker-fzf` plugin SHALL implement the `Picker.Pick` bidirectional gRPC streaming RPC. The host streams `PickItem` messages (each with a `display` string and an opaque `key`), and the plugin streams back a single `PickResult` message containing the `key` of the item the user selected.
 
 #### Scenario: Single item selected
 - **WHEN** the host streams five `PickItem` messages and the user selects one item in fzf
-- **THEN** the plugin streams exactly one `PickResult` with the `id` of the selected item and closes the response stream
+- **THEN** the plugin streams exactly one `PickResult` with the `key` of the selected item and closes the response stream
 
 #### Scenario: User cancels (no selection)
 - **WHEN** the host streams candidates and the user presses `Escape` or `Ctrl-C` in fzf
