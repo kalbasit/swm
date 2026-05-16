@@ -1,0 +1,62 @@
+version: "3"
+
+includes:
+  proto:
+    taskfile: ./proto/tasks.yml
+    dir: ./proto
+  sdk:
+    taskfile: ./sdk/go/tasks.yml
+    dir: ./sdk/go
+  swm:
+    taskfile: ./cmd/swm/tasks.yml
+    dir: ./cmd/swm
+  vcs-git:
+    taskfile: ./plugins/vcs-git/tasks.yml
+    dir: ./plugins/vcs-git
+  session-tmux:
+    taskfile: ./plugins/session-tmux/tasks.yml
+    dir: ./plugins/session-tmux
+  picker-fzf:
+    taskfile: ./plugins/picker-fzf/tasks.yml
+    dir: ./plugins/picker-fzf
+  forge-github:
+    taskfile: ./plugins/forge-github/tasks.yml
+    dir: ./plugins/forge-github
+
+set:
+  - errexit
+  - nounset
+  - pipefail
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  fmt:
+    desc: Format all files (Nix, Go, YAML, Markdown) via treefmt
+    cmds:
+      - nix fmt
+
+  lint:
+    desc: Lint all modules (sequential — golangci-lint uses a file lock)
+    cmds:
+      - task: proto:lint
+      - task: sdk:lint
+      - task: swm:lint
+      - task: vcs-git:lint
+      - task: session-tmux:lint
+      - task: picker-fzf:lint
+      - task: forge-github:lint
+
+  test:
+    desc: Run all module tests in dependency order
+    cmds:
+      - task: proto:test
+      - task: sdk:test
+      - task: swm:test
+      - task: vcs-git:test
+      - task: session-tmux:test
+      - task: picker-fzf:test
+      - task: forge-github:test

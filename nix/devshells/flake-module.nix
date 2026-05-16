@@ -9,11 +9,14 @@
     {
       devShells.default = pkgs.mkShell {
         buildInputs = [
+          pkgs.buf
           pkgs.delve
           pkgs.go
           pkgs.go-task
           pkgs.golangci-lint
           pkgs.pre-commit
+          pkgs.protoc-gen-go
+          pkgs.protoc-gen-go-grpc
         ];
 
         _GO_VERSION = "${pkgs.go.version}";
@@ -29,7 +32,7 @@
             ${config.pre-commit.installationScript}
 
             (
-              for __go_mod__ in cmd/**/go.mod sdk/**/go.mod; do
+              for __go_mod__ in cmd/**/go.mod sdk/**/go.mod plugins/**/go.mod; do
                 if [[ "$(${pkgs.gnugrep}/bin/grep '^\(go \)[0-9.]*$' "$__go_mod__")" != "go ${goVersion}" ]]; then
                   ${pkgs.gnused}/bin/sed -e "s:^\(go \)[0-9.]*$:\1${goVersion}:" -i "$__go_mod__"
                 fi

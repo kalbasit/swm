@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package swm.plugin.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/kalbasit/swm/proto/swm/plugin/v1;pluginv1";
+
+// Empty is used for RPCs with no request or response fields.
+message Empty {}
+
+// BoolValue wraps a bool for RPCs that return a single boolean.
+message BoolValue {
+  bool value = 1;
+}
+
+// PathResponse wraps a filesystem path string.
+message PathResponse {
+  string path = 1;
+}
+
+// ProjectID uniquely identifies a source repository by its URL-derived tuple.
+// The host composes on-disk paths from this tuple; plugins never choose layout.
+message ProjectID {
+  string host = 1;
+  repeated string segments = 2;
+}
+
+// CapabilityType enumerates the capability surfaces a plugin may provide.
+enum CapabilityType {
+  CAPABILITY_TYPE_UNSPECIFIED = 0;
+  CAPABILITY_TYPE_SESSION = 1;
+  CAPABILITY_TYPE_VCS = 2;
+  CAPABILITY_TYPE_FORGE = 3;
+  CAPABILITY_TYPE_PICKER = 4;
+  CAPABILITY_TYPE_HOOK = 5;
+}
+
+// Capability describes a single capability surface.
+message Capability {
+  CapabilityType type = 1;
+}
+
+// CapabilityDep declares a required dependency on another capability.
+message CapabilityDep {
+  CapabilityType capability = 1;
+  string min_version = 2;
+}
+
+// PluginInfo is returned by every plugin's Info RPC and describes itself.
+message PluginInfo {
+  string name = 1;
+  string version = 2;
+  repeated Capability provides = 3;
+  repeated CapabilityDep requires = 4;
+  repeated string optional = 5;
+}
+
+// Project records a source repository attached to a story.
+message Project {
+  string host = 1;
+  repeated string segments = 2;
+  string vcs = 3;
+  google.protobuf.Timestamp attached_at = 4;
+}
+
+// Story represents a unit of work with attached projects.
+message Story {
+  string name = 1;
+  string branch_name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  string vcs = 4;
+  repeated Project projects = 5;
+  map<string, bytes> metadata = 6;
+}

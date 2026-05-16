@@ -1,0 +1,21 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build swm-plugin-picker-fzf binary
+    sources:
+      - "**/*.go"
+    generates:
+      - swm-plugin-picker-fzf
+    cmds:
+      - go build -o swm-plugin-picker-fzf .
+
+  lint:
+    desc: Lint plugins/picker-fzf packages
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run plugins/picker-fzf tests
+    cmds:
+      - go test ./...

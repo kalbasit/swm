@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package swm.plugin.v1;
+
+import "swm/plugin/v1/common.proto";
+
+option go_package = "github.com/kalbasit/swm/proto/swm/plugin/v1;pluginv1";
+
+// PickerInfo is returned by Picker.Info.
+message PickerInfo {
+  PluginInfo plugin_info = 1;
+}
+
+// PickItem is a single candidate streamed from host to picker plugin.
+message PickItem {
+  string key = 1;
+  string display = 2;
+  string preview = 3;
+}
+
+// PickResult is a selected item streamed from picker plugin back to host.
+message PickResult {
+  string key = 1;
+}
+
+// Picker is implemented by interactive-selection plugins (e.g. picker-fzf).
+service Picker {
+  rpc Info(Empty) returns (PickerInfo);
+  // Pick is bidirectional streaming: host sends candidates, plugin returns selections.
+  rpc Pick(stream PickItem) returns (stream PickResult);
+}

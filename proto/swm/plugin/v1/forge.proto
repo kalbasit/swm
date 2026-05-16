@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package swm.plugin.v1;
+
+import "swm/plugin/v1/common.proto";
+
+option go_package = "github.com/kalbasit/swm/proto/swm/plugin/v1;pluginv1";
+
+// ForgeInfo is returned by Forge.Info.
+message ForgeInfo {
+  PluginInfo plugin_info = 1;
+  // claimed_hosts are the hostnames this plugin handles (e.g. ["github.com"]).
+  repeated string claimed_hosts = 2;
+}
+
+// PullRequest describes a pull/merge request on a forge.
+message PullRequest {
+  string id = 1;
+  int64 number = 2;
+  string title = 3;
+  string body = 4;
+  string state = 5;
+  string url = 6;
+  string head_branch = 7;
+  string base_branch = 8;
+  bool draft = 9;
+}
+
+// ListPRsRequest asks for pull requests on a project.
+message ListPRsRequest {
+  ProjectID project_id = 1;
+  // state filters by PR state: "open", "closed", or "all".
+  string state = 2;
+}
+
+// CreatePRRequest asks the plugin to open a new pull request.
+message CreatePRRequest {
+  ProjectID project_id = 1;
+  string title = 2;
+  string body = 3;
+  string head_branch = 4;
+  string base_branch = 5;
+  bool draft = 6;
+}
+
+// GetPRRequest asks the plugin to fetch a single pull request.
+message GetPRRequest {
+  ProjectID project_id = 1;
+  int64 number = 2;
+}
+
+// Forge is implemented by code-host plugins (e.g. forge-github).
+service Forge {
+  rpc Info(Empty) returns (ForgeInfo);
+  rpc ListPullRequests(ListPRsRequest) returns (stream PullRequest);
+  rpc CreatePullRequest(CreatePRRequest) returns (PullRequest);
+  rpc GetPullRequest(GetPRRequest) returns (PullRequest);
+}

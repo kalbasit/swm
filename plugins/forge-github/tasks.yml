@@ -1,0 +1,21 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build swm-plugin-forge-github binary
+    sources:
+      - "**/*.go"
+    generates:
+      - swm-plugin-forge-github
+    cmds:
+      - go build -o swm-plugin-forge-github .
+
+  lint:
+    desc: Lint plugins/forge-github packages
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run plugins/forge-github tests
+    cmds:
+      - go test ./...

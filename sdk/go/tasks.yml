@@ -1,0 +1,17 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build all sdk/go packages
+    cmds:
+      - go build ./...
+
+  lint:
+    desc: Lint sdk/go packages
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run sdk/go tests
+    cmds:
+      - go test ./...
