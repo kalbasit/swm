@@ -188,6 +188,42 @@ func TestCurrentContext_NotInside(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestOpenWorkspace_EmptyWorktreePaths(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, _ := newTmux(t)
+
+	ws, err := tmux.OpenWorkspace(context.Background(), &pluginv1.OpenWorkspaceRequest{
+		StoryName:     "story-only",
+		WorktreePaths: map[string]string{},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "story-only", ws.GetStoryName())
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	lines := strings.Split(strings.TrimSpace(string(logBytes)), "\n")
+
+	var firstNewSession string
+
+	for _, line := range lines {
+		if strings.Contains(line, "new-session") {
+			firstNewSession = line
+
+			break
+		}
+	}
+
+	require.NotEmpty(t, firstNewSession, "expected a new-session invocation in log")
+	require.Contains(t, firstNewSession, "-s story-only",
+		"initial session name must be the story name when no worktree paths are provided")
+	require.NotContains(t, firstNewSession, "-c ",
+		"no -c flag should be present when there are no worktree paths")
+}
+
 func TestOpenWorkspace_DeterministicInitialSession(t *testing.T) {
 	// Cannot be parallel — uses FAKETMUX_LOG env var.
 	logFile := filepath.Join(t.TempDir(), "tmux.log")

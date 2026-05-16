@@ -232,13 +232,21 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 	// Probe whether the tmux server is already running.
 	if _, err := t.run(ctx, "-S", sock, "list-sessions"); err != nil {
 		// Server not running — start it with the alphabetically first worktree.
-		var firstName, firstPath string
+		firstName := req.GetStoryName()
+
+		var firstPath string
+
 		if len(keys) > 0 {
 			firstName = sessionName(keys[0])
 			firstPath = req.GetWorktreePaths()[keys[0]]
 		}
 
-		if _, err := t.run(ctx, "-S", sock, "new-session", "-d", "-s", firstName, "-c", firstPath); err != nil {
+		args := []string{"-S", sock, "new-session", "-d", "-s", firstName}
+		if firstPath != "" {
+			args = append(args, "-c", firstPath)
+		}
+
+		if _, err := t.run(ctx, args...); err != nil {
 			return nil, err
 		}
 	}
