@@ -8,6 +8,7 @@ package pluginv1
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -144,18 +145,23 @@ type UnimplementedHostServer struct{}
 func (UnimplementedHostServer) GetConfig(context.Context, *GetConfigRequest) (*Config, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetConfig not implemented")
 }
+
 func (UnimplementedHostServer) GetCodeRoot(context.Context, *Empty) (*PathResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCodeRoot not implemented")
 }
+
 func (UnimplementedHostServer) ListProjects(*ListProjectsRequest, grpc.ServerStreamingServer[Project]) error {
 	return status.Error(codes.Unimplemented, "method ListProjects not implemented")
 }
+
 func (UnimplementedHostServer) GetCurrentStory(context.Context, *Empty) (*Story, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCurrentStory not implemented")
 }
+
 func (UnimplementedHostServer) Log(context.Context, *LogRequest) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method Log not implemented")
 }
+
 func (UnimplementedHostServer) CallCapability(context.Context, *CallCapabilityRequest) (*CallCapabilityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CallCapability not implemented")
 }

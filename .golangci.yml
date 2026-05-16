@@ -108,6 +108,12 @@ linters:
       - path: (cmd/swm/main\.go|plugins/.*/main\.go)$
         linters:
           - forbidigo
+      # Test files may panic (in mock stubs) and use os.Exit in TestMain.
+      # They also legitimately use package-level vars for binary paths set in TestMain.
+      - path: _test\.go$
+        linters:
+          - forbidigo
+          - gochecknoglobals
     paths:
       # Generated proto Go code: skip linting entirely.
       - proto/swm/plugin/v1/.*\.pb\.go$
