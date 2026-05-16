@@ -36,6 +36,6 @@
 
 ## 8. Validation
 
-- [ ] 8.1 Open a test PR and verify CI workflow triggers and the `ci` status check appears
-- [ ] 8.2 Verify semantic-PR check fires on a PR with a non-conforming title
-- [ ] 8.3 Verify the flake-update workflow can be manually dispatched without error
+- [x] 8.1 Open a test PR and verify CI workflow triggers and the `ci` status check appears
+- [x] 8.2 Verify semantic-PR check fires on a PR with a non-conforming title
+- [x] 8.3 Verify the flake-update workflow can be manually dispatched without error
