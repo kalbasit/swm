@@ -1,0 +1,21 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build swm-plugin-session-tmux binary
+    sources:
+      - "**/*.go"
+    generates:
+      - swm-plugin-session-tmux
+    cmds:
+      - go build -o swm-plugin-session-tmux .
+
+  lint:
+    desc: Lint plugins/session-tmux packages
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run plugins/session-tmux tests
+    cmds:
+      - go test ./...

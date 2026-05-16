@@ -1,0 +1,27 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Compile proto definitions (buf build)
+    cmds:
+      - buf build
+
+  lint:
+    desc: Lint proto files (buf lint)
+    cmds:
+      - buf lint
+
+  gen:
+    desc: Generate Go code from proto definitions
+    sources:
+      - swm/plugin/v1/*.proto
+    generates:
+      - swm/plugin/v1/*.pb.go
+      - swm/plugin/v1/*_grpc.pb.go
+    cmds:
+      - buf generate
+
+  test:
+    desc: No test code in proto module; verifies buf build passes
+    cmds:
+      - buf build

@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package swm.plugin.v1;
+
+import "swm/plugin/v1/common.proto";
+
+option go_package = "github.com/kalbasit/swm/proto/swm/plugin/v1;pluginv1";
+
+// GetConfigRequest asks the host for the calling plugin's config block.
+message GetConfigRequest {
+  // plugin_name scopes the returned config (e.g. "session-tmux").
+  string plugin_name = 1;
+}
+
+// Config carries raw TOML bytes for a plugin's config namespace.
+message Config {
+  bytes toml = 1;
+}
+
+// ListProjectsRequest asks the host to enumerate known projects.
+message ListProjectsRequest {}
+
+// LogRequest sends a structured log entry to the host's logger.
+message LogRequest {
+  // level is "debug", "info", "warn", or "error".
+  string level = 1;
+  string message = 2;
+  map<string, string> fields = 3;
+}
+
+// CallCapabilityRequest routes a cross-plugin call through the host.
+message CallCapabilityRequest {
+  CapabilityType capability = 1;
+  // method is the RPC name (e.g. "CreateWorktree").
+  string method = 2;
+  // args_json is the request serialised as JSON.
+  string args_json = 3;
+}
+
+// CallCapabilityResponse carries the cross-plugin call's result.
+message CallCapabilityResponse {
+  // result_json is the response serialised as JSON.
+  string result_json = 1;
+}
+
+// Host provides callbacks from a plugin back into the swm host.
+// Plugins receive a Host client when launched; they never call each other directly.
+service Host {
+  rpc GetConfig(GetConfigRequest) returns (Config);
+  rpc GetCodeRoot(Empty) returns (PathResponse);
+  rpc ListProjects(ListProjectsRequest) returns (stream Project);
+  rpc GetCurrentStory(Empty) returns (Story);
+  rpc Log(LogRequest) returns (Empty);
+  rpc CallCapability(CallCapabilityRequest) returns (CallCapabilityResponse);
+}

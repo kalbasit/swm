@@ -1,0 +1,21 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build swm-plugin-vcs-git binary
+    sources:
+      - "**/*.go"
+    generates:
+      - swm-plugin-vcs-git
+    cmds:
+      - go build -o swm-plugin-vcs-git .
+
+  lint:
+    desc: Lint plugins/vcs-git packages
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run plugins/vcs-git tests
+    cmds:
+      - go test ./...

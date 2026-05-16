@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package swm.plugin.v1;
+
+import "swm/plugin/v1/common.proto";
+
+option go_package = "github.com/kalbasit/swm/proto/swm/plugin/v1;pluginv1";
+
+// SessionInfo is returned by Session.Info.
+message SessionInfo {
+  PluginInfo plugin_info = 1;
+}
+
+// Workspace represents an active multiplexer container (e.g. a tmux socket).
+message Workspace {
+  string workspace_id = 1;
+  string story_name = 2;
+  bool active = 3;
+}
+
+// PaneGroup represents a project's working environment inside a workspace.
+message PaneGroup {
+  string pane_group_id = 1;
+  string workspace_id = 2;
+  ProjectID project_id = 3;
+  string worktree_path = 4;
+}
+
+// CurrentContextResponse describes the session the caller is currently inside.
+message CurrentContextResponse {
+  string workspace_id = 1;
+  string story_name = 2;
+  string pane_group_id = 3;
+  ProjectID project_id = 4;
+}
+
+// OpenWorkspaceRequest asks the plugin to create or attach to a workspace.
+message OpenWorkspaceRequest {
+  string story_name = 1;
+  // worktree_paths maps project key (host/seg1/.../segN) to absolute path.
+  map<string, string> worktree_paths = 2;
+}
+
+// CloseWorkspaceRequest asks the plugin to tear down a workspace.
+message CloseWorkspaceRequest {
+  string workspace_id = 1;
+}
+
+// OpenPaneGroupRequest asks the plugin to open a project pane inside a workspace.
+message OpenPaneGroupRequest {
+  string workspace_id = 1;
+  ProjectID project_id = 2;
+  string worktree_path = 3;
+}
+
+// SwitchToRequest asks the plugin to bring a pane group into focus.
+message SwitchToRequest {
+  string workspace_id = 1;
+  string pane_group_id = 2;
+}
+
+// Session is implemented by terminal-multiplexer plugins (e.g. session-tmux).
+service Session {
+  rpc Info(Empty) returns (SessionInfo);
+  rpc OpenWorkspace(OpenWorkspaceRequest) returns (Workspace);
+  rpc CloseWorkspace(CloseWorkspaceRequest) returns (Empty);
+  rpc ListWorkspaces(Empty) returns (stream Workspace);
+  rpc OpenPaneGroup(OpenPaneGroupRequest) returns (PaneGroup);
+  rpc SwitchTo(SwitchToRequest) returns (Empty);
+  rpc IsInsideWorkspace(Empty) returns (BoolValue);
+  rpc CurrentContext(Empty) returns (CurrentContextResponse);
+}

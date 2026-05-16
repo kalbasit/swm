@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package swm.plugin.v1;
+
+import "swm/plugin/v1/common.proto";
+
+option go_package = "github.com/kalbasit/swm/proto/swm/plugin/v1;pluginv1";
+
+// VCSInfo is returned by VCS.Info.
+message VCSInfo {
+  PluginInfo plugin_info = 1;
+  // project_markers are filenames whose presence marks a directory as a project
+  // root (e.g. [".git"] for git, [".jj"] for jujutsu).
+  repeated string project_markers = 2;
+}
+
+// CloneRequest asks the plugin to clone a remote URL.
+message CloneRequest {
+  string url = 1;
+  string destination_path = 2;
+}
+
+// CloneResponse returns the resolved project identity after cloning.
+message CloneResponse {
+  ProjectID project_id = 1;
+}
+
+// ParseRemoteURLRequest asks the plugin to parse a URL into a ProjectID.
+message ParseRemoteURLRequest {
+  string url = 1;
+}
+
+// CreateWorktreeRequest asks the plugin to create a per-story worktree.
+message CreateWorktreeRequest {
+  ProjectID project_id = 1;
+  string story_name = 2;
+  string branch_name = 3;
+  string repo_path = 4;
+  string worktree_path = 5;
+}
+
+// RemoveWorktreeRequest asks the plugin to remove a story's worktree.
+message RemoveWorktreeRequest {
+  ProjectID project_id = 1;
+  string story_name = 2;
+  string worktree_path = 3;
+}
+
+// DetectAtPathRequest asks the plugin to identify the project at a path.
+message DetectAtPathRequest {
+  string path = 1;
+}
+
+// ListBranchesRequest asks for all branches in a repository.
+message ListBranchesRequest {
+  ProjectID project_id = 1;
+  string repo_path = 2;
+}
+
+// Branch describes a single VCS branch.
+message Branch {
+  string name = 1;
+  bool is_remote = 2;
+  bool is_current = 3;
+}
+
+// VCS is implemented by version-control plugins (e.g. vcs-git).
+service VCS {
+  rpc Info(Empty) returns (VCSInfo);
+  rpc Clone(CloneRequest) returns (CloneResponse);
+  rpc ParseRemoteURL(ParseRemoteURLRequest) returns (ProjectID);
+  rpc CreateWorktree(CreateWorktreeRequest) returns (Empty);
+  rpc RemoveWorktree(RemoveWorktreeRequest) returns (Empty);
+  rpc DetectProjectAtPath(DetectAtPathRequest) returns (ProjectID);
+  rpc ListBranches(ListBranchesRequest) returns (stream Branch);
+}

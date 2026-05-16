@@ -1,0 +1,21 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build the swm binary
+    sources:
+      - "**/*.go"
+    generates:
+      - swm
+    cmds:
+      - go build -o swm .
+
+  lint:
+    desc: Lint cmd/swm packages
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run cmd/swm tests
+    cmds:
+      - go test ./...

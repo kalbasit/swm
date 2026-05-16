@@ -1,0 +1,114 @@
+version: "2"
+formatters:
+  enable:
+    - gci
+    - gofumpt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - alias
+        - prefix(github.com/kalbasit/swm)
+        - blank
+        - dot
+      custom-order: true
+linters:
+  enable:
+    - canonicalheader
+    - contextcheck
+    - durationcheck
+    - err113
+    - errcheck
+    - errname
+    - exhaustive
+    - forbidigo
+    - forcetypeassert
+    - funcorder
+    - gocheckcompilerdirectives
+    - gochecknoglobals
+    - gochecknoinits
+    - goconst
+    - godot
+    - gosec
+    - govet
+    - importas
+    - iotamixing
+    - lll
+    - makezero
+    - misspell
+    - modernize
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnil
+    - nlreturn
+    - nolintlint
+    - nosprintfhostport
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - predeclared
+    - revive
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - testifylint
+    - testpackage
+    - thelper
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+    - wsl_v5
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    forbidigo:
+      forbid:
+        - pattern: ^panic$
+          msg: "panic is forbidden outside the main package; return an error instead"
+        - pattern: ^os\.Exit$
+          msg: "os.Exit is forbidden outside the main package; return an error instead"
+        - pattern: ^log\.Fatal
+          msg: "log.Fatal* is forbidden outside the main package; return an error instead"
+    funcorder:
+      constructor: true
+      struct-method: true
+      alphabetical: true
+    nestif:
+      min-complexity: 25
+    prealloc:
+      for-loops: true
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+    testifylint:
+      enable-all: true
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+  exclusions:
+    generated: lax
+    rules:
+      # Proto-generated files use init() for registration — exclude from gochecknoinits.
+      - path: \.pb\.go$
+        linters:
+          - gochecknoinits
+          - gochecknoglobals
+          - forbidigo
+      # cmd/swm/main.go and plugin main packages are the only entry points where
+      # os.Exit is legitimate — it is the main package, the one place allowed.
+      - path: (cmd/swm/main\.go|plugins/.*/main\.go)$
+        linters:
+          - forbidigo
+    paths:
+      # Generated proto Go code: skip linting entirely.
+      - proto/swm/plugin/v1/.*\.pb\.go$
+      - proto/swm/plugin/v1/.*\.pb\.grpc\.go$
