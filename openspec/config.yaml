@@ -1,0 +1,97 @@
+schema: spec-driven
+
+context: |
+  Project: swm v2 (Story-based Workflow Manager)
+  Repository: github.com/kalbasit/swm
+
+  What it is:
+    A plugin-host CLI that organizes code into per-story git worktrees and
+    launches isolated terminal-multiplexer environments. The original v1
+    was tightly coupled to tmux, git, and GitHub; v2 is a rewrite where
+    every integration is an external plugin.
+
+  Architecture:
+    - Monorepo with Go workspaces (go.work).
+    - One module per buildable artifact: cmd/swm, sdk/go, each plugin under plugins/*.
+    - Host (cmd/swm) owns: filesystem layout, story JSON store, plugin lifecycle, CLI.
+    - Plugins are external executables speaking gRPC via HashiCorp go-plugin.
+    - Five capability surfaces: session, vcs, forge, picker, hook.
+    - Hooks are plain executables (not gRPC) for low-friction scripting.
+
+  Tech stack:
+    - Language: Go (latest stable).
+    - CLI framework: cobra.
+    - Config: TOML via pelletier/go-toml/v2 (NOT viper, NOT YAML).
+    - Plugin system: github.com/hashicorp/go-plugin over gRPC.
+    - Proto: protobuf v3, schemas under proto/swm/plugin/v1/.
+    - State: JSON files per story at $XDG_DATA_HOME/swm/stories/<name>.json.
+    - File locking: flock on story JSON files during writes.
+
+  Domain model:
+    - Code root: $CODE_ROOT (default ~/code), contains repositories/ and stories/.
+    - Project: a source repo, identified by ProjectID = (host, segments[]).
+      Example: ("github.com", ["kalbasit","swm"]) -> ~/code/repositories/github.com/kalbasit/swm.
+      The on-disk layout is a host invariant — VCS plugins return the tuple,
+      the host composes the path. Plugins never choose layout.
+    - Story: a unit of work with a name, branch name, timestamp, and list of attached projects.
+    - Workspace: swm's abstraction for a multiplexer container. Maps 1:1 to a story.
+    - Pane group: swm's abstraction for a project's working environment within a workspace.
+      Maps 1:1 to a project. (For tmux specifically: workspace=socket, pane-group=session.)
+
+  Naming conventions:
+    - Plugin binaries: swm-plugin-<capability>-<name> (e.g. swm-plugin-session-tmux).
+    - Monorepo plugin directories: plugins/<capability>-<name>/.
+    - Plugin version tags: plugins/<name>/vX.Y.Z (independent from host tags).
+    - Host version tags: vX.Y.Z at repo root.
+
+  Plugin discovery order (first match per capability wins):
+    1. Explicit paths in config.toml under [plugins.paths].
+    2. $XDG_DATA_HOME/swm/plugins/<name>/swm-plugin-<capability>-<name>.
+    3. $PATH lookup of swm-plugin-<capability>-<name>.
+
+  Hook resolution (composing, not overriding — all applicable tiers run):
+    1. Global: $XDG_CONFIG_HOME/swm/hooks/<event>.d/*
+    2. Per-repository: <canonical-repo>/.swm/hooks/<event>.d/*  (lives in canonical clone, not worktree)
+    3. Per-story: $XDG_CONFIG_HOME/swm/stories/<story>/hooks/<event>.d/*
+
+  Cross-plugin communication:
+    - Plugins never talk to each other directly.
+    - All cross-plugin calls go through the host's CallCapability service.
+    - Plugins declare required and optional capability dependencies in Info().
+    - Host validates the dep graph at startup; missing required deps = startup error.
+
+  Conventions:
+    - Conventional Commits for all commit messages.
+    - One concept per package; avoid catch-all packages like `util` or `common`.
+    - Interfaces defined in the consumer package, not a shared ifaces/ package
+      (the v1 ifaces/ package leaked concrete deps; do not recreate that pattern).
+    - Errors wrapped with %w and a contextual message; never log-and-return.
+    - No global state outside main(); pass dependencies explicitly.
+    - Table-driven tests; testify/require for assertions.
+    - Integration tests use real plugin binaries against a temp $CODE_ROOT.
+
+  Out of scope for v2.0:
+    - Plugin sandboxing.
+    - Non-Go SDKs (Rust/Python come later).
+    - GUI / network-distributed operation / telemetry.
+
+rules:
+  proposal:
+    - Keep proposals under 500 words
+    - Always include a "Non-goals" section
+    - State which capability surface(s) the proposal affects (session/vcs/forge/picker/hook/none)
+    - Note any proto changes — these require a version bump under proto/swm/plugin/vN/
+    - Reference the relevant TDD section (e.g. "see TDD §6.3") rather than restating decisions
+
+  tasks:
+    - Break tasks into chunks of max 2 hours
+    - Each task names the Go module it touches (cmd/swm, sdk/go, plugins/<name>, or proto)
+    - Tasks that change a .proto file must also list the regen step and every downstream plugin to rebuild
+    - Tasks that change capability interfaces must include updating the contract tests in sdk/go/contract/
+    - Filesystem-layout changes are host-only — never assigned to a plugin task
+
+  spec:
+    - Use the ProjectID tuple form (host, segments[]) — never a flat string like "github.com/foo/bar"
+    - Capability names are lowercase singular: session, vcs, forge, picker, hook
+    - Plugin binary names in examples must follow swm-plugin-<capability>-<name>
+    - When showing config, use TOML, not YAML
