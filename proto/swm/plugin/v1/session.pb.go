@@ -562,6 +562,7 @@ var (
 		(*BoolValue)(nil),              // 12: swm.plugin.v1.BoolValue
 	}
 )
+
 var file_swm_plugin_v1_session_proto_depIdxs = []int32{
 	9,  // 0: swm.plugin.v1.SessionInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
 	10, // 1: swm.plugin.v1.PaneGroup.project_id:type_name -> swm.plugin.v1.ProjectID
