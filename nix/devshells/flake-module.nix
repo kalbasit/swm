@@ -29,7 +29,7 @@
             ${config.pre-commit.installationScript}
 
             (
-              for __go_mod__ in cmd/**/go.mod sd/**/go.mod; do
+              for __go_mod__ in cmd/**/go.mod sdk/**/go.mod; do
                 if [[ "$(${pkgs.gnugrep}/bin/grep '^\(go \)[0-9.]*$' "$__go_mod__")" != "go ${goVersion}" ]]; then
                   ${pkgs.gnused}/bin/sed -e "s:^\(go \)[0-9.]*$:\1${goVersion}:" -i "$__go_mod__"
                 fi
