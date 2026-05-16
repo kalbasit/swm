@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -45,6 +46,11 @@ type RunConfig struct {
 	// hook tiers. When empty, xdg.ConfigHome is used. Inject in tests to avoid
 	// relying on the xdg package's cached (init-time) value.
 	ConfigHome string
+
+	// Stdout and Stderr are the writers for hook output. When nil, os.Stdout
+	// and os.Stderr are used respectively.
+	Stdout io.Writer
+	Stderr io.Writer
 }
 
 // Runner can execute lifecycle hooks for a given event.
@@ -185,8 +191,18 @@ func runHook(ctx context.Context, hookPath string, cfg RunConfig) error {
 	})
 
 	cmd.Stdin = bytes.NewReader(stdinJSON)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	if cfg.Stdout != nil {
+		cmd.Stdout = cfg.Stdout
+	} else {
+		cmd.Stdout = os.Stdout
+	}
+
+	if cfg.Stderr != nil {
+		cmd.Stderr = cfg.Stderr
+	} else {
+		cmd.Stderr = os.Stderr
+	}
 
 	return cmd.Run()
 }

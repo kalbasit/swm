@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -185,6 +186,83 @@ func TestCurrentContext_NotInside(t *testing.T) {
 	tmux, _ := newTmux(t)
 	_, err := tmux.CurrentContext(context.Background(), &pluginv1.Empty{})
 	require.Error(t, err)
+}
+
+func TestOpenWorkspace_EmptyWorktreePaths(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, _ := newTmux(t)
+
+	ws, err := tmux.OpenWorkspace(context.Background(), &pluginv1.OpenWorkspaceRequest{
+		StoryName:     "story-only",
+		WorktreePaths: map[string]string{},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "story-only", ws.GetStoryName())
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	lines := strings.Split(strings.TrimSpace(string(logBytes)), "\n")
+
+	var firstNewSession string
+
+	for _, line := range lines {
+		if strings.Contains(line, "new-session") {
+			firstNewSession = line
+
+			break
+		}
+	}
+
+	require.NotEmpty(t, firstNewSession, "expected a new-session invocation in log")
+	require.Contains(t, firstNewSession, "-s story-only",
+		"initial session name must be the story name when no worktree paths are provided")
+	require.NotContains(t, firstNewSession, "-c ",
+		"no -c flag should be present when there are no worktree paths")
+}
+
+func TestOpenWorkspace_DeterministicInitialSession(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, _ := newTmux(t)
+
+	_, err := tmux.OpenWorkspace(context.Background(), &pluginv1.OpenWorkspaceRequest{
+		StoryName: "feat-order",
+		WorktreePaths: map[string]string{
+			"github.com/z-repo": "/tmp/stories/feat-order/z-repo",
+			"github.com/a-repo": "/tmp/stories/feat-order/a-repo",
+			"github.com/m-repo": "/tmp/stories/feat-order/m-repo",
+		},
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	lines := strings.Split(strings.TrimSpace(string(logBytes)), "\n")
+
+	// Find the first "new-session" invocation. This is the call that starts the
+	// tmux server; it must use the alphabetically first key "github.com/a-repo"
+	// (session name "a-repo"). Non-deterministic map iteration could produce
+	// "m-repo" or "z-repo" instead.
+	var firstNewSession string
+
+	for _, line := range lines {
+		if strings.Contains(line, "new-session") {
+			firstNewSession = line
+
+			break
+		}
+	}
+
+	require.NotEmpty(t, firstNewSession, "expected at least one new-session invocation in log")
+	require.Contains(t, firstNewSession, "-s a-repo",
+		"initial session must be alphabetically first key")
 }
 
 func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {

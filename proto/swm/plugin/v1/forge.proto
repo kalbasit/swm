@@ -13,13 +13,29 @@ message ForgeInfo {
   repeated string claimed_hosts = 2;
 }
 
+// PullRequestState enumerates the possible states of a pull request.
+enum PullRequestState {
+  PULL_REQUEST_STATE_UNSPECIFIED = 0;
+  PULL_REQUEST_STATE_OPEN = 1;
+  PULL_REQUEST_STATE_CLOSED = 2;
+  PULL_REQUEST_STATE_MERGED = 3;
+}
+
+// PullRequestFilter enumerates the valid filter values for listing pull requests.
+enum PullRequestFilter {
+  PULL_REQUEST_FILTER_UNSPECIFIED = 0;
+  PULL_REQUEST_FILTER_OPEN = 1;
+  PULL_REQUEST_FILTER_CLOSED = 2;
+  PULL_REQUEST_FILTER_ALL = 3;
+}
+
 // PullRequest describes a pull/merge request on a forge.
 message PullRequest {
   string id = 1;
   int64 number = 2;
   string title = 3;
   string body = 4;
-  string state = 5;
+  PullRequestState state = 5;
   string url = 6;
   string head_branch = 7;
   string base_branch = 8;
@@ -29,8 +45,7 @@ message PullRequest {
 // ListPRsRequest asks for pull requests on a project.
 message ListPRsRequest {
   ProjectID project_id = 1;
-  // state filters by PR state: "open", "closed", or "all".
-  string state = 2;
+  PullRequestFilter state = 2;
 }
 
 // CreatePRRequest asks the plugin to open a new pull request.

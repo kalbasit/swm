@@ -22,6 +22,62 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// LogLevel enumerates the supported log severity levels.
+type LogLevel int32
+
+const (
+	LogLevel_LOG_LEVEL_UNSPECIFIED LogLevel = 0
+	LogLevel_LOG_LEVEL_DEBUG       LogLevel = 1
+	LogLevel_LOG_LEVEL_INFO        LogLevel = 2
+	LogLevel_LOG_LEVEL_WARN        LogLevel = 3
+	LogLevel_LOG_LEVEL_ERROR       LogLevel = 4
+)
+
+// Enum value maps for LogLevel.
+var (
+	LogLevel_name = map[int32]string{
+		0: "LOG_LEVEL_UNSPECIFIED",
+		1: "LOG_LEVEL_DEBUG",
+		2: "LOG_LEVEL_INFO",
+		3: "LOG_LEVEL_WARN",
+		4: "LOG_LEVEL_ERROR",
+	}
+	LogLevel_value = map[string]int32{
+		"LOG_LEVEL_UNSPECIFIED": 0,
+		"LOG_LEVEL_DEBUG":       1,
+		"LOG_LEVEL_INFO":        2,
+		"LOG_LEVEL_WARN":        3,
+		"LOG_LEVEL_ERROR":       4,
+	}
+)
+
+func (x LogLevel) Enum() *LogLevel {
+	p := new(LogLevel)
+	*p = x
+	return p
+}
+
+func (x LogLevel) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LogLevel) Descriptor() protoreflect.EnumDescriptor {
+	return file_swm_plugin_v1_host_proto_enumTypes[0].Descriptor()
+}
+
+func (LogLevel) Type() protoreflect.EnumType {
+	return &file_swm_plugin_v1_host_proto_enumTypes[0]
+}
+
+func (x LogLevel) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LogLevel.Descriptor instead.
+func (LogLevel) EnumDescriptor() ([]byte, []int) {
+	return file_swm_plugin_v1_host_proto_rawDescGZIP(), []int{0}
+}
+
 // GetConfigRequest asks the host for the calling plugin's config block.
 type GetConfigRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -152,11 +208,10 @@ func (*ListProjectsRequest) Descriptor() ([]byte, []int) {
 
 // LogRequest sends a structured log entry to the host's logger.
 type LogRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// level is "debug", "info", "warn", or "error".
-	Level         string            `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
-	Message       string            `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	Fields        map[string]string `protobuf:"bytes,3,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Level         LogLevel               `protobuf:"varint,1,opt,name=level,proto3,enum=swm.plugin.v1.LogLevel" json:"level,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Fields        map[string]string      `protobuf:"bytes,3,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -191,11 +246,11 @@ func (*LogRequest) Descriptor() ([]byte, []int) {
 	return file_swm_plugin_v1_host_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *LogRequest) GetLevel() string {
+func (x *LogRequest) GetLevel() LogLevel {
 	if x != nil {
 		return x.Level
 	}
-	return ""
+	return LogLevel_LOG_LEVEL_UNSPECIFIED
 }
 
 func (x *LogRequest) GetMessage() string {
@@ -331,10 +386,10 @@ const file_swm_plugin_v1_host_proto_rawDesc = "" +
 	"pluginName\"\x1c\n" +
 	"\x06Config\x12\x12\n" +
 	"\x04toml\x18\x01 \x01(\fR\x04toml\"\x15\n" +
-	"\x13ListProjectsRequest\"\xb6\x01\n" +
+	"\x13ListProjectsRequest\"\xcf\x01\n" +
 	"\n" +
-	"LogRequest\x12\x14\n" +
-	"\x05level\x18\x01 \x01(\tR\x05level\x12\x18\n" +
+	"LogRequest\x12-\n" +
+	"\x05level\x18\x01 \x01(\x0e2\x17.swm.plugin.v1.LogLevelR\x05level\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12=\n" +
 	"\x06fields\x18\x03 \x03(\v2%.swm.plugin.v1.LogRequest.FieldsEntryR\x06fields\x1a9\n" +
 	"\vFieldsEntry\x12\x10\n" +
@@ -348,7 +403,13 @@ const file_swm_plugin_v1_host_proto_rawDesc = "" +
 	"\targs_json\x18\x03 \x01(\tR\bargsJson\"9\n" +
 	"\x16CallCapabilityResponse\x12\x1f\n" +
 	"\vresult_json\x18\x01 \x01(\tR\n" +
-	"resultJson2\xb1\x03\n" +
+	"resultJson*w\n" +
+	"\bLogLevel\x12\x19\n" +
+	"\x15LOG_LEVEL_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fLOG_LEVEL_DEBUG\x10\x01\x12\x12\n" +
+	"\x0eLOG_LEVEL_INFO\x10\x02\x12\x12\n" +
+	"\x0eLOG_LEVEL_WARN\x10\x03\x12\x13\n" +
+	"\x0fLOG_LEVEL_ERROR\x10\x042\xb1\x03\n" +
 	"\x04Host\x12C\n" +
 	"\tGetConfig\x12\x1f.swm.plugin.v1.GetConfigRequest\x1a\x15.swm.plugin.v1.Config\x12@\n" +
 	"\vGetCodeRoot\x12\x14.swm.plugin.v1.Empty\x1a\x1b.swm.plugin.v1.PathResponse\x12L\n" +
@@ -370,43 +431,46 @@ func file_swm_plugin_v1_host_proto_rawDescGZIP() []byte {
 }
 
 var (
-	file_swm_plugin_v1_host_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
-	file_swm_plugin_v1_host_proto_goTypes  = []any{
-		(*GetConfigRequest)(nil),       // 0: swm.plugin.v1.GetConfigRequest
-		(*Config)(nil),                 // 1: swm.plugin.v1.Config
-		(*ListProjectsRequest)(nil),    // 2: swm.plugin.v1.ListProjectsRequest
-		(*LogRequest)(nil),             // 3: swm.plugin.v1.LogRequest
-		(*CallCapabilityRequest)(nil),  // 4: swm.plugin.v1.CallCapabilityRequest
-		(*CallCapabilityResponse)(nil), // 5: swm.plugin.v1.CallCapabilityResponse
-		nil,                            // 6: swm.plugin.v1.LogRequest.FieldsEntry
-		CapabilityType(0),              // 7: swm.plugin.v1.CapabilityType
-		(*Empty)(nil),                  // 8: swm.plugin.v1.Empty
-		(*PathResponse)(nil),           // 9: swm.plugin.v1.PathResponse
-		(*Project)(nil),                // 10: swm.plugin.v1.Project
-		(*Story)(nil),                  // 11: swm.plugin.v1.Story
+	file_swm_plugin_v1_host_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+	file_swm_plugin_v1_host_proto_msgTypes  = make([]protoimpl.MessageInfo, 7)
+	file_swm_plugin_v1_host_proto_goTypes   = []any{
+		LogLevel(0),                    // 0: swm.plugin.v1.LogLevel
+		(*GetConfigRequest)(nil),       // 1: swm.plugin.v1.GetConfigRequest
+		(*Config)(nil),                 // 2: swm.plugin.v1.Config
+		(*ListProjectsRequest)(nil),    // 3: swm.plugin.v1.ListProjectsRequest
+		(*LogRequest)(nil),             // 4: swm.plugin.v1.LogRequest
+		(*CallCapabilityRequest)(nil),  // 5: swm.plugin.v1.CallCapabilityRequest
+		(*CallCapabilityResponse)(nil), // 6: swm.plugin.v1.CallCapabilityResponse
+		nil,                            // 7: swm.plugin.v1.LogRequest.FieldsEntry
+		CapabilityType(0),              // 8: swm.plugin.v1.CapabilityType
+		(*Empty)(nil),                  // 9: swm.plugin.v1.Empty
+		(*PathResponse)(nil),           // 10: swm.plugin.v1.PathResponse
+		(*Project)(nil),                // 11: swm.plugin.v1.Project
+		(*Story)(nil),                  // 12: swm.plugin.v1.Story
 	}
 )
 
 var file_swm_plugin_v1_host_proto_depIdxs = []int32{
-	6,  // 0: swm.plugin.v1.LogRequest.fields:type_name -> swm.plugin.v1.LogRequest.FieldsEntry
-	7,  // 1: swm.plugin.v1.CallCapabilityRequest.capability:type_name -> swm.plugin.v1.CapabilityType
-	0,  // 2: swm.plugin.v1.Host.GetConfig:input_type -> swm.plugin.v1.GetConfigRequest
-	8,  // 3: swm.plugin.v1.Host.GetCodeRoot:input_type -> swm.plugin.v1.Empty
-	2,  // 4: swm.plugin.v1.Host.ListProjects:input_type -> swm.plugin.v1.ListProjectsRequest
-	8,  // 5: swm.plugin.v1.Host.GetCurrentStory:input_type -> swm.plugin.v1.Empty
-	3,  // 6: swm.plugin.v1.Host.Log:input_type -> swm.plugin.v1.LogRequest
-	4,  // 7: swm.plugin.v1.Host.CallCapability:input_type -> swm.plugin.v1.CallCapabilityRequest
-	1,  // 8: swm.plugin.v1.Host.GetConfig:output_type -> swm.plugin.v1.Config
-	9,  // 9: swm.plugin.v1.Host.GetCodeRoot:output_type -> swm.plugin.v1.PathResponse
-	10, // 10: swm.plugin.v1.Host.ListProjects:output_type -> swm.plugin.v1.Project
-	11, // 11: swm.plugin.v1.Host.GetCurrentStory:output_type -> swm.plugin.v1.Story
-	8,  // 12: swm.plugin.v1.Host.Log:output_type -> swm.plugin.v1.Empty
-	5,  // 13: swm.plugin.v1.Host.CallCapability:output_type -> swm.plugin.v1.CallCapabilityResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	0,  // 0: swm.plugin.v1.LogRequest.level:type_name -> swm.plugin.v1.LogLevel
+	7,  // 1: swm.plugin.v1.LogRequest.fields:type_name -> swm.plugin.v1.LogRequest.FieldsEntry
+	8,  // 2: swm.plugin.v1.CallCapabilityRequest.capability:type_name -> swm.plugin.v1.CapabilityType
+	1,  // 3: swm.plugin.v1.Host.GetConfig:input_type -> swm.plugin.v1.GetConfigRequest
+	9,  // 4: swm.plugin.v1.Host.GetCodeRoot:input_type -> swm.plugin.v1.Empty
+	3,  // 5: swm.plugin.v1.Host.ListProjects:input_type -> swm.plugin.v1.ListProjectsRequest
+	9,  // 6: swm.plugin.v1.Host.GetCurrentStory:input_type -> swm.plugin.v1.Empty
+	4,  // 7: swm.plugin.v1.Host.Log:input_type -> swm.plugin.v1.LogRequest
+	5,  // 8: swm.plugin.v1.Host.CallCapability:input_type -> swm.plugin.v1.CallCapabilityRequest
+	2,  // 9: swm.plugin.v1.Host.GetConfig:output_type -> swm.plugin.v1.Config
+	10, // 10: swm.plugin.v1.Host.GetCodeRoot:output_type -> swm.plugin.v1.PathResponse
+	11, // 11: swm.plugin.v1.Host.ListProjects:output_type -> swm.plugin.v1.Project
+	12, // 12: swm.plugin.v1.Host.GetCurrentStory:output_type -> swm.plugin.v1.Story
+	9,  // 13: swm.plugin.v1.Host.Log:output_type -> swm.plugin.v1.Empty
+	6,  // 14: swm.plugin.v1.Host.CallCapability:output_type -> swm.plugin.v1.CallCapabilityResponse
+	9,  // [9:15] is the sub-list for method output_type
+	3,  // [3:9] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_swm_plugin_v1_host_proto_init() }
@@ -420,13 +484,14 @@ func file_swm_plugin_v1_host_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swm_plugin_v1_host_proto_rawDesc), len(file_swm_plugin_v1_host_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_swm_plugin_v1_host_proto_goTypes,
 		DependencyIndexes: file_swm_plugin_v1_host_proto_depIdxs,
+		EnumInfos:         file_swm_plugin_v1_host_proto_enumTypes,
 		MessageInfos:      file_swm_plugin_v1_host_proto_msgTypes,
 	}.Build()
 	File_swm_plugin_v1_host_proto = out.File

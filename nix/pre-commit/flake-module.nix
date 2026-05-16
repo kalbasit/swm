@@ -19,7 +19,7 @@
           # Wrapped with bash -c because language:unsupported runs the entry as a direct
           # executable, which cannot handle shell builtins like `for`.
           # Use $dir/go.mod (not ${dir}go.mod) to avoid Nix string interpolation.
-          entry = "${pkgs.bash}/bin/bash -c 'for dir in cmd/ sdk/go/ proto/ plugins/*/; do if [ -f \"$dir/go.mod\" ]; then (cd \"$dir\" && ${pkgs.golangci-lint}/bin/golangci-lint run ./...); fi; done'";
+          entry = "${pkgs.bash}/bin/bash -c 'for dir in cmd/*/ sdk/go/ proto/ plugins/*/; do if [ -f \"$dir/go.mod\" ]; then (cd \"$dir\" && ${pkgs.golangci-lint}/bin/golangci-lint run ./...); fi; done'";
         };
         no-commit-to-branch.enable = true;
         no-commit-to-branch.settings.branch = [ "main" ];

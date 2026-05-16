@@ -4,6 +4,8 @@
 *.dll
 *.so
 *.dylib
+cmd/swm/swm
+plugins/*/swm-plugin-*
 
 # Test binary, built with `go test -c`
 *.test

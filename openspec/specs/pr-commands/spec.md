@@ -1,5 +1,5 @@
 ### Requirement: swm pr list
-`swm pr list [--story <name>]` SHALL list open pull requests for all projects attached to the given story (resolved from `--story` flag, `$SWM_STORY`, or `_default`). For each attached project it SHALL look up the forge plugin for the project's host and call `forge.ListPullRequests`. Output SHALL be one line per PR formatted as: `#<number>  <title>  <url>`. If no forge plugin is registered for a project's host, that project is silently skipped. If no PRs exist across all projects, the command prints nothing and exits 0.
+`swm pr list [--story <name>]` SHALL list open pull requests for all projects attached to the given story (resolved from `--story` flag, `$SWM_STORY`, or `_default`). For each attached project it SHALL look up the forge plugin for the project's host and call `forge.ListPullRequests`. Output SHALL be one line per PR formatted as: `#<number>\t<title>\t<url>`. If no forge plugin is registered for a project's host, that project is silently skipped. If no PRs exist across all projects, the command prints nothing and exits 0.
 
 #### Scenario: Open PRs listed for all attached projects
 - **WHEN** `swm pr list --story feat-x` is run and `feat-x` has two attached projects each with open PRs

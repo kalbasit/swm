@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/adrg/xdg"
@@ -220,25 +221,41 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 		return nil, status.Errorf(codes.Internal, "creating socket dir: %v", err)
 	}
 
+	// Sort keys for deterministic session ordering.
+	keys := make([]string, 0, len(req.GetWorktreePaths()))
+	for k := range req.GetWorktreePaths() {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
 	// Probe whether the tmux server is already running.
 	if _, err := t.run(ctx, "-S", sock, "list-sessions"); err != nil {
-		// Server not running — start it with the first worktree as the initial session.
-		var firstName, firstPath string
-		for key, path := range req.GetWorktreePaths() {
-			firstName = sessionName(key)
-			firstPath = path
+		// Server not running — start it with the alphabetically first worktree.
+		firstName := req.GetStoryName()
 
-			break
+		var firstPath string
+
+		if len(keys) > 0 {
+			firstName = sessionName(keys[0])
+			firstPath = req.GetWorktreePaths()[keys[0]]
 		}
 
-		if _, err := t.run(ctx, "-S", sock, "new-session", "-d", "-s", firstName, "-c", firstPath); err != nil {
+		args := []string{"-S", sock, "new-session", "-d", "-s", firstName}
+		if firstPath != "" {
+			args = append(args, "-c", firstPath)
+		}
+
+		if _, err := t.run(ctx, args...); err != nil {
 			return nil, err
 		}
 	}
 
-	// Ensure a session exists for every worktree path.
-	for key, path := range req.GetWorktreePaths() {
+	// Ensure a session exists for every worktree path (sorted order).
+	for _, key := range keys {
+		path := req.GetWorktreePaths()[key]
 		name := sessionName(key)
+
 		if _, err := t.run(ctx, "-S", sock, "has-session", "-t", name); err != nil {
 			// Session absent — create it.
 			if _, err := t.run(ctx, "-S", sock, "new-session", "-d", "-s", name, "-c", path); err != nil {

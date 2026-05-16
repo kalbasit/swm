@@ -1,9 +1,11 @@
 // fakehook logs its environment variables and stdin to a file for test inspection.
 // Set FAKEHOOK_LOG to the path where output should be written.
 // Set FAKEHOOK_EXIT to "1" to simulate a failing hook.
+// Set FAKEHOOK_STDOUT to a message to write to stdout.
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 )
@@ -11,6 +13,10 @@ import (
 func main() {
 	if os.Getenv("FAKEHOOK_EXIT") == "1" {
 		os.Exit(1)
+	}
+
+	if msg := os.Getenv("FAKEHOOK_STDOUT"); msg != "" {
+		fmt.Fprint(os.Stdout, msg) //nolint:errcheck // best-effort write in test helper
 	}
 
 	logPath := os.Getenv("FAKEHOOK_LOG")
