@@ -337,6 +337,37 @@ func TestGitHub_GetPullRequest_NotFound(t *testing.T) {
 	require.Equal(t, codes.NotFound, status.Code(err))
 }
 
+func TestGitHub_GetPullRequest_Merged(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("/repos/owner/repo/pulls/10", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		pr := prJSON(10, "Merged PR", "closed", "https://github.com/owner/repo/pull/10", "merged-branch", false)
+		pr["merged"] = true
+
+		//nolint:errcheck // test mock, response write failure is non-critical
+		_ = json.NewEncoder(w).Encode(pr)
+	})
+
+	tokenFile := writeTokenFile(t)
+	hc := &fakeHostClient{toml: fmt.Appendf(nil, "token_path = %q", tokenFile)}
+	g := forge.NewWithBaseURL(hc, server.URL+"/")
+
+	pr, err := g.GetPullRequest(context.Background(), &pluginv1.GetPRRequest{
+		ProjectId: &pluginv1.ProjectID{Host: testGitHubHost, Segments: []string{testOwner, testRepo}},
+		Number:    10,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(10), pr.GetNumber())
+	require.Equal(t, pluginv1.PullRequestState_PULL_REQUEST_STATE_MERGED, pr.GetState())
+}
+
 func TestGitHub_TokenMissing_FailedPrecondition(t *testing.T) {
 	t.Parallel()
 

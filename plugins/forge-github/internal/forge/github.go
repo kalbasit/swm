@@ -234,11 +234,18 @@ func (g *GitHub) tokenFromConfig(ctx context.Context) (string, error) {
 // ghPRToProto converts a go-github PullRequest to a proto PullRequest message.
 func ghPRToProto(pr *github.PullRequest) *pluginv1.PullRequest {
 	return &pluginv1.PullRequest{
-		Id:         strconv.Itoa(pr.GetNumber()),
-		Number:     int64(pr.GetNumber()),
-		Title:      pr.GetTitle(),
-		Body:       pr.GetBody(),
-		State:      prStateFromString(pr.GetState()),
+		Id:     strconv.Itoa(pr.GetNumber()),
+		Number: int64(pr.GetNumber()),
+		Title:  pr.GetTitle(),
+		Body:   pr.GetBody(),
+		State: func() pluginv1.PullRequestState {
+			s := prStateFromString(pr.GetState())
+			if s == pluginv1.PullRequestState_PULL_REQUEST_STATE_CLOSED && pr.GetMerged() {
+				return pluginv1.PullRequestState_PULL_REQUEST_STATE_MERGED
+			}
+
+			return s
+		}(),
 		Url:        pr.GetHTMLURL(),
 		HeadBranch: pr.GetHead().GetRef(),
 		BaseBranch: pr.GetBase().GetRef(),
