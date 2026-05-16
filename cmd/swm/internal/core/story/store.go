@@ -215,6 +215,7 @@ func (s *JSONStore) writeWithLock(p string, story *Story) error {
 	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return fmt.Errorf("writing story file: %w", err)
 	}
+	defer os.Remove(tmp) //nolint:errcheck // best-effort cleanup if Rename fails
 
 	if err := os.Rename(tmp, p); err != nil {
 		return fmt.Errorf("finalizing story file: %w", err)
