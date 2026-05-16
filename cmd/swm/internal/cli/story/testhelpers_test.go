@@ -13,8 +13,11 @@ import (
 )
 
 const (
-	testStoryName = "feat-x"
-	testForceFlag = "--force"
+	testGitHubHost  = "github.com"
+	testKalbasitOrg = "kalbasit"
+	testSWMRepo     = "swm"
+	testStoryName   = "feat-x"
+	testForceFlag   = "--force"
 )
 
 // errNotFound is a sentinel used in tests.
@@ -147,7 +150,7 @@ func (s *stubVCSClient) ParseRemoteURL(
 		return s.parseRemoteURLFn(req)
 	}
 
-	return &pluginv1.ProjectID{Host: "github.com", Segments: []string{"kalbasit", "swm"}}, nil
+	return &pluginv1.ProjectID{Host: testGitHubHost, Segments: []string{testKalbasitOrg, testSWMRepo}}, nil
 }
 
 func (s *stubVCSClient) RemoveWorktree(

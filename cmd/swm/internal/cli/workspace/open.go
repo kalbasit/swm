@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/kalbasit/swm/cmd/swm/internal/config"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
+	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
 // pluginManager is the subset of the CLI plugin manager used by this command.
@@ -38,6 +40,7 @@ func NewOpenCmd(
 	store coreStory.Store,
 	mgr pluginManager,
 	resolver *layout.Resolver,
+	hooks hookexec.Runner,
 ) *cobra.Command {
 	var storyName string
 
@@ -74,6 +77,14 @@ func NewOpenCmd(
 				return fmt.Errorf("%w: %T", errUnexpectedPluginType, raw)
 			}
 
+			if err := hooks.Run(ctx, hookexec.RunConfig{
+				Event:     "pre-workspace-open",
+				CodeRoot:  cfg.CodeRoot,
+				StoryName: storyName,
+			}); err != nil {
+				return fmt.Errorf("pre-workspace-open hook: %w", err)
+			}
+
 			// Attempt to load the picker plugin (optional — no error if absent).
 			var pickerClient pluginv1.PickerClient
 
@@ -83,11 +94,26 @@ func NewOpenCmd(
 				}
 			}
 
+			var openErr error
 			if pickerClient != nil {
-				return openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, storyName)
+				openErr = openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, storyName)
+			} else {
+				openErr = openAllAttached(ctx, cmd, st, sess, resolver, storyName)
 			}
 
-			return openAllAttached(ctx, cmd, st, sess, resolver, storyName)
+			if openErr != nil {
+				return openErr
+			}
+
+			if err := hooks.Run(ctx, hookexec.RunConfig{
+				Event:     "post-workspace-open",
+				CodeRoot:  cfg.CodeRoot,
+				StoryName: storyName,
+			}); err != nil {
+				slog.WarnContext(ctx, "post-workspace-open hook failed (ignored)", "err", err)
+			}
+
+			return nil
 		},
 	}
 

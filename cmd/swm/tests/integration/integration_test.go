@@ -2,6 +2,10 @@ package integration_test
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,6 +30,11 @@ const (
 	vcsPluginName     = "git"
 	sessionPluginName = "tmux"
 	testStoryName     = "feat-x"
+	testDefaultStory  = "_default"
+	cmdCreate         = "create"
+	cmdGroupStory     = "story"
+	cmdOpen           = "open"
+	flagStory         = "--story"
 )
 
 // setupEnv creates an isolated environment for an integration test.
@@ -38,7 +47,7 @@ func setupEnv(t *testing.T) (*config.Config, *layout.Resolver, story.Store, *plu
 
 	cfg := &config.Config{
 		CodeRoot:     codeRoot,
-		DefaultStory: "_default",
+		DefaultStory: testDefaultStory,
 		Plugins: config.Plugins{
 			VCS:     vcsPluginName,
 			Session: sessionPluginName,
@@ -114,7 +123,7 @@ func TestCloneAndStoryCreate(t *testing.T) {
 
 	// Create a story.
 	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
-	root2.SetArgs([]string{"story", "create", testStoryName})
+	root2.SetArgs([]string{cmdGroupStory, cmdCreate, testStoryName})
 	require.NoError(t, root2.Execute())
 
 	st, err := store.Get(t.Context(), testStoryName)
@@ -138,7 +147,7 @@ func TestStoryRemove(t *testing.T) {
 
 	// Remove story (no projects, so no VCS calls needed).
 	root := cli.NewRootCmd(cfg, mgr, store, resolver)
-	root.SetArgs([]string{"story", "remove", "--force", testStoryName})
+	root.SetArgs([]string{cmdGroupStory, "remove", "--force", testStoryName})
 	require.NoError(t, root.Execute())
 
 	// Story should be gone.
@@ -167,7 +176,7 @@ func TestWorkspaceOpenWithPicker(t *testing.T) {
 
 	cfg := &config.Config{
 		CodeRoot:     codeRoot,
-		DefaultStory: "_default",
+		DefaultStory: testDefaultStory,
 		Plugins: config.Plugins{
 			VCS:     vcsPluginName,
 			Session: sessionPluginName,
@@ -207,7 +216,7 @@ func TestWorkspaceOpenWithPicker(t *testing.T) {
 	var buf bytes.Buffer
 
 	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
-	root2.SetArgs([]string{"workspace", "open", "--story", testStoryName})
+	root2.SetArgs([]string{"workspace", cmdOpen, flagStory, testStoryName})
 	root2.SetOut(&buf)
 	require.NoError(t, root2.Execute())
 
@@ -231,9 +240,151 @@ func TestWorkspaceOpen(t *testing.T) {
 	var buf bytes.Buffer
 
 	root := cli.NewRootCmd(cfg, mgr, store, resolver)
-	root.SetArgs([]string{"workspace", "open", "--story", testStoryName})
+	root.SetArgs([]string{"workspace", cmdOpen, flagStory, testStoryName})
 	root.SetOut(&buf)
 	require.NoError(t, root.Execute())
 
 	require.Contains(t, buf.String(), testStoryName)
+}
+
+const forgePluginName = "github"
+
+// fakePR builds the minimal GitHub API JSON for a pull request.
+func fakePR(number int, title, htmlURL, head, base string) map[string]any {
+	return map[string]any{
+		"number":   number,
+		"title":    title,
+		"html_url": htmlURL,
+		"state":    "open",
+		"draft":    false,
+		"body":     "",
+		"head":     map[string]any{"ref": head, "sha": "abc123"},
+		"base":     map[string]any{"ref": base, "sha": "def456"},
+	}
+}
+
+func TestPRListAndCreate(t *testing.T) {
+	// GitHub API mock server.
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/kalbasit/swm/pulls", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.Method {
+		case http.MethodGet:
+			prs := []map[string]any{
+				fakePR(42, "Test PR", "https://github.com/kalbasit/swm/pull/42", "feat/test", "main"),
+			}
+
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(prs) //nolint:errcheck // test mock, response write failure is non-critical
+		case http.MethodPost:
+			pr := fakePR(43, "New PR", "https://github.com/kalbasit/swm/pull/43", "feat/new", "main")
+
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(pr) //nolint:errcheck // test mock, response write failure is non-critical
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	apiServer := httptest.NewServer(mux)
+	t.Cleanup(apiServer.Close)
+
+	// Tell the forge-github subprocess to use the test server instead of api.github.com.
+	t.Setenv("FORGE_GITHUB_API_URL", apiServer.URL+"/")
+
+	// Token file the forge-github plugin will read.
+	tokenFile := filepath.Join(t.TempDir(), "github_token")
+	require.NoError(t, os.WriteFile(tokenFile, []byte("fake-token"), 0o600))
+
+	codeRoot := t.TempDir()
+	storiesDir := filepath.Join(t.TempDir(), "stories")
+	require.NoError(t, os.MkdirAll(storiesDir, 0o750))
+
+	cfg := &config.Config{
+		CodeRoot:     codeRoot,
+		DefaultStory: testDefaultStory,
+		Plugins: config.Plugins{
+			VCS:    vcsPluginName,
+			Forges: []string{forgePluginName},
+			Paths: map[string]string{
+				vcsPluginName:   vcsGitBin,
+				forgePluginName: forgeGithubBin,
+			},
+			Config: map[string]map[string]any{
+				"forge-github": {"token_path": tokenFile},
+			},
+		},
+	}
+
+	st := story.NewJSONStore(storiesDir)
+	resolver := layout.NewResolver(codeRoot)
+
+	srv, err := hostsvc.NewServer(cfg, resolver, st)
+	require.NoError(t, err)
+	t.Cleanup(srv.Stop)
+
+	mgr := pluginmgr.New(cfg, srv.SocketPath())
+
+	t.Cleanup(func() { mgr.Close() }) //nolint:errcheck,gosec // best-effort cleanup
+
+	// Create a story with a github.com project attached so pr list has something to query.
+	s, err := st.Create(t.Context(), "feat-pr", "feat/feat-pr")
+	require.NoError(t, err)
+
+	s.Projects = []story.Project{{Host: "github.com", Segments: []string{"kalbasit", "swm"}}}
+	require.NoError(t, st.Update(t.Context(), s))
+
+	// --- pr list ---
+	var listBuf bytes.Buffer
+
+	root := cli.NewRootCmd(cfg, mgr, st, resolver)
+	root.SetArgs([]string{"pr", "list", flagStory, "feat-pr"})
+	root.SetOut(&listBuf)
+	require.NoError(t, root.Execute())
+
+	listOut := listBuf.String()
+	require.Contains(t, listOut, "#42")
+	require.Contains(t, listOut, "Test PR")
+	require.Contains(t, listOut, "https://github.com/kalbasit/swm/pull/42")
+
+	// --- pr create (from inside a project directory that resolves to github.com/kalbasit/swm) ---
+	projectDir := filepath.Join(codeRoot, "repositories", "github.com", "kalbasit", "swm")
+	require.NoError(t, os.MkdirAll(projectDir, 0o750))
+	t.Chdir(projectDir)
+
+	var createBuf bytes.Buffer
+
+	root2 := cli.NewRootCmd(cfg, mgr, st, resolver)
+	root2.SetArgs([]string{"pr", "create", "--title", "New PR", "--head", "feat/new"})
+	root2.SetOut(&createBuf)
+	require.NoError(t, root2.Execute())
+
+	require.Contains(t, createBuf.String(), "https://github.com/kalbasit/swm/pull/43")
+}
+
+func TestHooksRunOnStoryCreate(t *testing.T) {
+	hooksConfigHome := t.TempDir()
+
+	// Create the global pre-story-create hook directory.
+	hookDir := filepath.Join(hooksConfigHome, "swm", "hooks", "pre-story-create.d")
+	require.NoError(t, os.MkdirAll(hookDir, 0o750))
+
+	// Write a small shell script that creates a sentinel file.
+	sentinelFile := filepath.Join(t.TempDir(), "hook_ran")
+	t.Setenv("HOOK_SENTINEL_FILE", sentinelFile)
+
+	hookScript := filepath.Join(hookDir, "01-sentinel.sh")
+	//nolint:gosec // G306: hook script must be executable
+	require.NoError(t, os.WriteFile(hookScript,
+		fmt.Appendf(nil, "#!/bin/sh\ntouch %q\n", sentinelFile), 0o750))
+
+	cfg, resolver, st, mgr := setupEnv(t)
+	cfg.HooksConfigHome = hooksConfigHome
+
+	root := cli.NewRootCmd(cfg, mgr, st, resolver)
+	root.SetArgs([]string{cmdGroupStory, cmdCreate, testStoryName})
+	require.NoError(t, root.Execute())
+
+	require.FileExists(t, sentinelFile, "expected pre-story-create hook to create sentinel file")
 }

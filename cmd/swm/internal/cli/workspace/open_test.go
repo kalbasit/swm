@@ -19,6 +19,7 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/cli/workspace"
 	"github.com/kalbasit/swm/cmd/swm/internal/config"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
+	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
 const (
@@ -40,7 +41,7 @@ func TestOpenCmd_WithStoryFlag(t *testing.T) {
 	mgr := &stubMgr{sess: sess}
 	resolver := layout.NewResolver(testCodeRoot)
 
-	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryFlag, testStoryName})
 
 	require.NoError(t, cmd.Execute())
@@ -56,7 +57,7 @@ func TestOpenCmd_DefaultStory(t *testing.T) {
 	mgr := &stubMgr{sess: sess}
 	resolver := layout.NewResolver(testCodeRoot)
 
-	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{})
 
 	require.NoError(t, cmd.Execute())
@@ -71,7 +72,7 @@ func TestOpenCmd_StoryNotFound(t *testing.T) {
 	mgr := &stubMgr{}
 	resolver := layout.NewResolver(testCodeRoot)
 
-	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryFlag, "nonexistent"})
 
 	require.Error(t, cmd.Execute())
@@ -86,7 +87,7 @@ func TestOpenCmd_NoProjects(t *testing.T) {
 	mgr := &stubMgr{sess: sess}
 	resolver := layout.NewResolver(testCodeRoot)
 
-	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryFlag, testStoryName})
 
 	require.NoError(t, cmd.Execute())
@@ -111,7 +112,7 @@ func TestOpenCmd_WithPicker_ProjectAlreadyAttached(t *testing.T) {
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
 	resolver := layout.NewResolver(testCodeRoot)
 
-	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryFlag, testStoryName})
 
 	require.NoError(t, cmd.Execute())
@@ -141,7 +142,7 @@ func TestOpenCmd_WithPicker_ProjectNotAttached(t *testing.T) {
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
 	resolver := layout.NewResolver(testCodeRoot)
 
-	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryFlag, testStoryName})
 
 	require.NoError(t, cmd.Execute())
@@ -168,7 +169,7 @@ func TestOpenCmd_WithPicker_Cancelled(t *testing.T) {
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
 	resolver := layout.NewResolver(testCodeRoot)
 
-	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryFlag, testStoryName})
 
 	// Cancellation is not an error.
@@ -190,7 +191,7 @@ func TestOpenCmd_NoPicker_FallsBackToPhase1(t *testing.T) {
 	mgr := &stubMgr{sess: sess} // no picker configured
 	resolver := layout.NewResolver(testCodeRoot)
 
-	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver)
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryFlag, testStoryName})
 
 	require.NoError(t, cmd.Execute())

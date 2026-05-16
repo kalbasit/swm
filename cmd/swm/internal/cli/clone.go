@@ -5,19 +5,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
+	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
 // errUnexpectedVCSPlugin is returned when the vcs plugin is not the expected type.
 var errUnexpectedVCSPlugin = errors.New("unexpected vcs plugin type")
 
 // NewCloneCmd returns the `swm clone` command.
-func NewCloneCmd(mgr PluginManager, resolver *layout.Resolver) *cobra.Command {
+func NewCloneCmd(mgr PluginManager, resolver *layout.Resolver, hooks hookexec.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "clone <url>",
 		Short: "Clone a repository to its canonical path",
@@ -49,11 +51,34 @@ func NewCloneCmd(mgr PluginManager, resolver *layout.Resolver) *cobra.Command {
 				return nil
 			}
 
+			projectPath := strings.Join(id.GetSegments(), "/")
+			codeRoot := resolver.CodeRoot()
+
+			if err := hooks.Run(ctx, hookexec.RunConfig{
+				Event:       "pre-clone",
+				CodeRoot:    codeRoot,
+				ProjectHost: id.GetHost(),
+				ProjectPath: projectPath,
+			}); err != nil {
+				return fmt.Errorf("pre-clone hook: %w", err)
+			}
+
 			if _, err := vcs.Clone(ctx, &pluginv1.CloneRequest{
 				Url:             url,
 				DestinationPath: canonical,
 			}); err != nil {
 				return fmt.Errorf("cloning %q: %w", url, err)
+			}
+
+			if err := hooks.Run(ctx, hookexec.RunConfig{
+				Event:       "post-clone",
+				CodeRoot:    codeRoot,
+				ProjectHost: id.GetHost(),
+				ProjectPath: projectPath,
+				RepoPath:    canonical,
+			}); err != nil {
+				// post-clone hooks are informational; log the failure but don't abort.
+				cmd.PrintErrf("post-clone hook failed (ignored): %v\n", err)
 			}
 
 			cmd.Printf("cloned to %s\n", canonical)

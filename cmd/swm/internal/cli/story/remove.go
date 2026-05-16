@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -15,6 +16,7 @@ import (
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
+	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
 // pluginManager is the subset of the CLI plugin manager used by this command.
@@ -26,7 +28,12 @@ type pluginManager interface {
 var errRemovalFailed = errors.New("removal failed")
 
 // NewRemoveCmd returns the `swm story remove` command.
-func NewRemoveCmd(store coreStory.Store, mgr pluginManager, resolver *layout.Resolver) *cobra.Command {
+func NewRemoveCmd(
+	store coreStory.Store,
+	mgr pluginManager,
+	resolver *layout.Resolver,
+	hooks hookexec.Runner,
+) *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
@@ -65,7 +72,7 @@ func NewRemoveCmd(store coreStory.Store, mgr pluginManager, resolver *layout.Res
 				}
 			}
 
-			return removeStory(ctx, cmd, name, st, mgr, store, resolver)
+			return removeStory(ctx, cmd, name, st, mgr, store, resolver, hooks)
 		},
 	}
 
@@ -82,7 +89,18 @@ func removeStory(
 	mgr pluginManager,
 	store coreStory.Store,
 	resolver *layout.Resolver,
+	hooks hookexec.Runner,
 ) error {
+	codeRoot := resolver.CodeRoot()
+
+	if err := hooks.Run(ctx, hookexec.RunConfig{
+		Event:     "pre-story-remove",
+		CodeRoot:  codeRoot,
+		StoryName: name,
+	}); err != nil {
+		return fmt.Errorf("pre-story-remove hook: %w", err)
+	}
+
 	var errs []error
 
 	// Remove all worktrees — best-effort, collect failures.
@@ -95,6 +113,22 @@ func removeStory(
 				p := &st.Projects[i]
 				pid := &pluginv1.ProjectID{Host: p.Host, Segments: p.Segments}
 				worktreePath := resolver.WorktreePath(name, pid)
+				repoPath := resolver.CanonicalPath(pid)
+				projectPath := strings.Join(p.Segments, "/")
+
+				preWT := hookexec.RunConfig{
+					Event:        "pre-worktree-remove",
+					CodeRoot:     codeRoot,
+					StoryName:    name,
+					ProjectHost:  p.Host,
+					ProjectPath:  projectPath,
+					WorktreePath: worktreePath,
+					RepoPath:     repoPath,
+				}
+
+				if err := hooks.Run(ctx, preWT); err != nil {
+					slog.WarnContext(ctx, "pre-worktree-remove hook failed (continuing)", "err", err)
+				}
 
 				if _, err := vcs.RemoveWorktree(ctx, &pluginv1.RemoveWorktreeRequest{
 					WorktreePath: worktreePath,
@@ -102,6 +136,20 @@ func removeStory(
 					if status.Code(err) != codes.NotFound {
 						errs = append(errs, fmt.Errorf("removing worktree %s: %w", worktreePath, err))
 					}
+				}
+
+				postWT := hookexec.RunConfig{
+					Event:        "post-worktree-remove",
+					CodeRoot:     codeRoot,
+					StoryName:    name,
+					ProjectHost:  p.Host,
+					ProjectPath:  projectPath,
+					WorktreePath: worktreePath,
+					RepoPath:     repoPath,
+				}
+
+				if err := hooks.Run(ctx, postWT); err != nil {
+					slog.WarnContext(ctx, "post-worktree-remove hook failed (continuing)", "err", err)
 				}
 			}
 		}
@@ -125,6 +173,14 @@ func removeStory(
 		}
 
 		return fmt.Errorf("%w: %d error(s)", errRemovalFailed, len(errs))
+	}
+
+	if err := hooks.Run(ctx, hookexec.RunConfig{
+		Event:     "post-story-remove",
+		CodeRoot:  codeRoot,
+		StoryName: name,
+	}); err != nil {
+		slog.WarnContext(ctx, "post-story-remove hook failed", "err", err)
 	}
 
 	cmd.Printf("removed story %q\n", name)

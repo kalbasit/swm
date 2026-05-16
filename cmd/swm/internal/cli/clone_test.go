@@ -17,6 +17,7 @@ import (
 
 	"github.com/kalbasit/swm/cmd/swm/internal/cli"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
+	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
 const testSSHURL = "git@github.com:kalbasit/swm.git"
@@ -34,7 +35,7 @@ func TestCloneCmd_Success(t *testing.T) {
 	vcs := &stubVCS{}
 	mgr := &stubMgr{vcs: vcs}
 
-	cmd := cli.NewCloneCmd(mgr, resolver)
+	cmd := cli.NewCloneCmd(mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testSSHURL})
 
 	require.NoError(t, cmd.Execute())
@@ -56,7 +57,7 @@ func TestCloneCmd_AlreadyCloned(t *testing.T) {
 	vcs := &stubVCS{}
 	mgr := &stubMgr{vcs: vcs}
 
-	cmd := cli.NewCloneCmd(mgr, resolver)
+	cmd := cli.NewCloneCmd(mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testSSHURL})
 
 	require.NoError(t, cmd.Execute())
@@ -71,7 +72,7 @@ func TestCloneCmd_CloneError(t *testing.T) {
 	vcs := &stubVCS{cloneErr: errNetworkError}
 	mgr := &stubMgr{vcs: vcs}
 
-	cmd := cli.NewCloneCmd(mgr, resolver)
+	cmd := cli.NewCloneCmd(mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testSSHURL})
 
 	require.Error(t, cmd.Execute())
@@ -96,6 +97,10 @@ func (s *stubMgr) Get(_ context.Context, capability string) (any, error) {
 	}
 
 	return nil, fmt.Errorf("%w: %s", errNoPlugin, capability)
+}
+
+func (s *stubMgr) GetForge(_ context.Context, _ string) (pluginv1.ForgeClient, error) {
+	return nil, fmt.Errorf("%w: no forge configured", errNoPlugin)
 }
 
 // stubVCS is a minimal VCSClient for clone tests.

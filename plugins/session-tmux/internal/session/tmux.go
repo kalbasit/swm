@@ -51,7 +51,7 @@ func New() (*Tmux, error) {
 
 	if sock := os.Getenv("SWM_HOST_SOCKET"); sock != "" {
 		conn, err := grpc.NewClient(
-			"unix://"+sock,
+			sock,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
 		if err != nil {
