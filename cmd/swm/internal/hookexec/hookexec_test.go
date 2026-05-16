@@ -239,17 +239,18 @@ func TestRun_StdinJSON(t *testing.T) {
 }
 
 func TestRun_CustomStdout(t *testing.T) {
-	t.Parallel()
+	// Cannot be parallel — uses t.Setenv to pass output to fakehook.
+	t.Setenv("FAKEHOOK_STDOUT", "hello")
 
 	configHome := t.TempDir()
 
 	globalDir := filepath.Join(configHome, "swm", "hooks")
-	installScript(t, globalDir, eventPostStory, "00-print", "printf hello\n")
+	installFakehook(t, globalDir, "pre-story-create", "00-print")
 
 	var buf bytes.Buffer
 
 	cfg := hookexec.RunConfig{
-		Event:      eventPostStory,
+		Event:      "pre-story-create",
 		CodeRoot:   t.TempDir(),
 		StoryName:  testStoryName,
 		ConfigHome: configHome,
