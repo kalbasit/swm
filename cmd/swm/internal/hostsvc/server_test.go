@@ -4,8 +4,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/adrg/xdg"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -38,6 +40,25 @@ func setupServer(t *testing.T, cfg *config.Config, codeRoot string) pluginv1.Hos
 	t.Cleanup(func() { conn.Close() }) //nolint:errcheck,gosec // best-effort in test cleanup
 
 	return pluginv1.NewHostClient(conn)
+}
+
+func TestNewServer_SocketInXDGRuntimeDir(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: t.TempDir()}
+	storiesDir := t.TempDir()
+	store := story.NewJSONStore(storiesDir)
+	resolver := layout.NewResolver(cfg.CodeRoot)
+
+	srv, err := hostsvc.NewServer(cfg, resolver, store)
+	require.NoError(t, err)
+	t.Cleanup(func() { srv.Stop() })
+
+	socketPath := srv.SocketPath()
+	// Strip "unix://" prefix to get the filesystem path.
+	fsPath := strings.TrimPrefix(socketPath, "unix://")
+	require.True(t, strings.HasPrefix(fsPath, xdg.RuntimeDir),
+		"socket %q should be under XDG_RUNTIME_DIR %q", fsPath, xdg.RuntimeDir)
 }
 
 func TestGetConfig_Scoping(t *testing.T) {

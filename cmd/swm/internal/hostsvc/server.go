@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -32,21 +33,29 @@ type Server struct {
 
 	grpcSrv    *grpc.Server
 	socketPath string
+	fsPath     string
 }
 
-// NewServer starts a Host gRPC server on a temporary Unix socket.
+// NewServer starts a Host gRPC server on a Unix socket under XDG_RUNTIME_DIR.
 func NewServer(cfg *config.Config, resolver *layout.Resolver, store story.Store) (*Server, error) {
-	sock, err := os.CreateTemp("", "swm-hostsvc-*.sock")
-	if err != nil {
-		return nil, fmt.Errorf("creating socket file: %w", err)
+	base := filepath.Join(xdg.RuntimeDir, "swm")
+	if err := os.MkdirAll(base, 0o700); err != nil {
+		return nil, fmt.Errorf("creating socket base dir: %w", err)
 	}
 
-	socketPath := sock.Name()
-	sock.Close()          //nolint:errcheck,gosec // closing temp file before replacing with socket
-	os.Remove(socketPath) //nolint:errcheck,gosec // remove temp file so Unix listener can create the socket
+	// os.MkdirTemp creates a uniquely-named subdirectory atomically, avoiding
+	// the TOCTOU race of creating a temp file and replacing it with a socket.
+	sockDir, err := os.MkdirTemp(base, "hostsvc-")
+	if err != nil {
+		return nil, fmt.Errorf("creating socket dir: %w", err)
+	}
+
+	socketPath := filepath.Join(sockDir, "hostsvc.sock")
 
 	lis, err := net.Listen("unix", socketPath)
 	if err != nil {
+		os.RemoveAll(sockDir) //nolint:errcheck,gosec // best-effort cleanup on listen failure
+
 		return nil, fmt.Errorf("listening on unix socket: %w", err)
 	}
 
@@ -56,6 +65,7 @@ func NewServer(cfg *config.Config, resolver *layout.Resolver, store story.Store)
 		store:      store,
 		grpcSrv:    grpc.NewServer(),
 		socketPath: "unix://" + socketPath,
+		fsPath:     sockDir,
 	}
 
 	pluginv1.RegisterHostServer(srv.grpcSrv, srv)
@@ -173,9 +183,10 @@ func (s *Server) SocketPath() string {
 	return s.socketPath
 }
 
-// Stop gracefully stops the gRPC server.
+// Stop gracefully stops the gRPC server and cleans up the socket directory.
 func (s *Server) Stop() {
 	s.grpcSrv.GracefulStop()
+	os.RemoveAll(s.fsPath) //nolint:errcheck,gosec // best-effort cleanup; dir may already be gone
 }
 
 func storyToProto(s *story.Story) *pluginv1.Story {

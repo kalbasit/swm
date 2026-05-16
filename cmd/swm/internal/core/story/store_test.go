@@ -21,9 +21,7 @@ const (
 func newTestStore(t *testing.T) story.Store {
 	t.Helper()
 
-	dir := t.TempDir()
-
-	return story.NewJSONStore(filepath.Join(dir, "stories"))
+	return story.NewJSONStore(filepath.Join(t.TempDir(), "stories"))
 }
 
 func TestCreate_PersistsJSON(t *testing.T) {
@@ -77,6 +75,42 @@ func TestGet_UnknownStory(t *testing.T) {
 	store := newTestStore(t)
 	_, err := store.Get(context.Background(), "nonexistent")
 	require.ErrorIs(t, err, story.ErrStoryNotFound)
+}
+
+func TestGet_DefaultStory_BootstrapsWithoutPriorList(t *testing.T) {
+	t.Parallel()
+
+	// Never call List — Get("_default") must still succeed.
+	store := newTestStore(t)
+	got, err := store.Get(context.Background(), "_default")
+	require.NoError(t, err)
+	require.Equal(t, "_default", got.Name)
+}
+
+func TestWrite_AtomicNoLeftoverTmpFile(t *testing.T) {
+	t.Parallel()
+
+	dir := filepath.Join(t.TempDir(), "stories")
+	store := story.NewJSONStore(dir)
+
+	s, err := store.Create(context.Background(), "feat-x", "feat/feat-x")
+	require.NoError(t, err)
+
+	// Update to trigger writeWithLock a second time.
+	require.NoError(t, store.Update(context.Background(), s))
+
+	// The written file must be readable and correct.
+	got, err := store.Get(context.Background(), "feat-x")
+	require.NoError(t, err)
+	require.Equal(t, "feat-x", got.Name)
+
+	// No temporary file should remain next to the story file.
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+
+	for _, e := range entries {
+		require.NotContains(t, e.Name(), ".tmp", "unexpected .tmp file left after write: %s", e.Name())
+	}
 }
 
 func TestList_ReturnsSorted(t *testing.T) {

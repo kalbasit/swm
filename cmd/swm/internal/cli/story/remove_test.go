@@ -1,7 +1,9 @@
 package story_test
 
 import (
+	"bytes"
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -60,6 +62,53 @@ func TestRemoveCmd_Force_WithProjects(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 	require.True(t, vcs.removeWorktreeCalled)
 	require.True(t, store.deleted)
+}
+
+func TestRemoveCmd_Confirm_Yes_Accepted(t *testing.T) {
+	t.Parallel()
+
+	st := &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testGitHubHost, Segments: []string{testKalbasitOrg, testSWMRepo}},
+		},
+	}
+	store := &stubStore{getStory: st}
+	mgr := &stubManager{vcs: &stubVCSClient{}}
+	resolver := layout.NewResolver("/code")
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+	cmd.SetIn(strings.NewReader("yes\n"))
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.True(t, store.deleted, "story should be deleted after 'yes' confirmation")
+}
+
+func TestRemoveCmd_Confirm_ScanError_Aborts(t *testing.T) {
+	t.Parallel()
+
+	st := &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testGitHubHost, Segments: []string{testKalbasitOrg, testSWMRepo}},
+		},
+	}
+	store := &stubStore{getStory: st}
+	mgr := &stubManager{vcs: &stubVCSClient{}}
+	resolver := layout.NewResolver("/code")
+
+	var out bytes.Buffer
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+	cmd.SetIn(strings.NewReader("")) // EOF on read
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.False(t, store.deleted, "story should NOT be deleted when stdin is EOF")
+	require.Contains(t, out.String(), "aborted")
 }
 
 func TestRemoveCmd_HooksCalledInOrder(t *testing.T) {

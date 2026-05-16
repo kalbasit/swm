@@ -64,8 +64,14 @@ func NewRemoveCmd(
 
 				var resp string
 
-				_, _ = fmt.Fscan(cmd.InOrStdin(), &resp) //nolint:errcheck // scan failure (e.g. EOF) treats as abort
-				if resp != "y" {
+				if _, err := fmt.Fscan(cmd.InOrStdin(), &resp); err != nil {
+					cmd.Println("aborted")
+
+					return nil //nolint:nilerr // scan failure (e.g. EOF) is an intentional abort, not a caller error
+				}
+
+				resp = strings.ToLower(strings.TrimSpace(resp))
+				if resp != "y" && resp != "yes" {
 					cmd.Println("aborted")
 
 					return nil

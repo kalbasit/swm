@@ -83,7 +83,13 @@ func (s *JSONStore) Delete(_ context.Context, name string) error {
 }
 
 // Get returns the story with the given name.
-func (s *JSONStore) Get(_ context.Context, name string) (*Story, error) {
+func (s *JSONStore) Get(ctx context.Context, name string) (*Story, error) {
+	if name == "_default" {
+		if err := s.ensureDefault(ctx); err != nil {
+			return nil, err
+		}
+	}
+
 	p := s.path(name)
 
 	data, err := os.ReadFile(p) //nolint:gosec // path is constructed from trusted store directory
@@ -205,8 +211,13 @@ func (s *JSONStore) writeWithLock(p string, story *Story) error {
 		return fmt.Errorf("marshaling story: %w", err)
 	}
 
-	if err := os.WriteFile(p, data, 0o600); err != nil {
+	tmp := p + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return fmt.Errorf("writing story file: %w", err)
+	}
+
+	if err := os.Rename(tmp, p); err != nil {
+		return fmt.Errorf("finalizing story file: %w", err)
 	}
 
 	return nil
