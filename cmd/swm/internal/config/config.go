@@ -22,6 +22,11 @@ type Config struct {
 	CodeRoot     string  `toml:"code_root"`
 	DefaultStory string  `toml:"default_story"`
 	Plugins      Plugins `toml:"plugins"`
+
+	// HooksConfigHome overrides the XDG config home used for hook discovery.
+	// When empty, the system XDG config home is used. Set in tests to avoid
+	// writing hooks into the real user config directory.
+	HooksConfigHome string `toml:"-"`
 }
 
 // Defaults returns a Config populated with default values (no file required).

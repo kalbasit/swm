@@ -8,12 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"github.com/adrg/xdg"
 
 	goplugin "github.com/hashicorp/go-plugin"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
+	sdkforge "github.com/kalbasit/swm/sdk/go/forge"
 	sdkpicker "github.com/kalbasit/swm/sdk/go/picker"
 	sdksession "github.com/kalbasit/swm/sdk/go/session"
 	sdkvcs "github.com/kalbasit/swm/sdk/go/vcs"
@@ -29,6 +31,7 @@ type VCSClient = pluginv1.VCSClient
 type SessionClient = pluginv1.SessionClient
 
 const (
+	capabilityForge   = "forge"
 	capabilityPicker  = "picker"
 	capabilitySession = "session"
 	capabilityVCS     = "vcs"
@@ -36,13 +39,15 @@ const (
 
 // Sentinel errors for plugin capability configuration.
 var (
-	errNoPickerPlugin    = errors.New("no picker plugin configured")
-	errNoSessionPlugin   = errors.New("no session plugin configured")
-	errNoVCSPlugin       = errors.New("no vcs plugin configured")
-	errPluginNotFound    = errors.New("plugin binary not found")
-	errPluginMissingDep  = errors.New("plugin missing required capability")
-	errUnknownCapability = errors.New("unknown capability")
-	errUnsupported       = errors.New("unsupported capability")
+	errInvalidForgePlugin = errors.New("forge plugin did not return a ForgeClient")
+	errNoForgePlugin      = errors.New("no forge plugin configured for hostname")
+	errNoPickerPlugin     = errors.New("no picker plugin configured")
+	errNoSessionPlugin    = errors.New("no session plugin configured")
+	errNoVCSPlugin        = errors.New("no vcs plugin configured")
+	errPluginNotFound     = errors.New("plugin binary not found")
+	errPluginMissingDep   = errors.New("plugin missing required capability")
+	errUnknownCapability  = errors.New("unknown capability")
+	errUnsupported        = errors.New("unsupported capability")
 )
 
 type entry struct {
@@ -50,13 +55,21 @@ type entry struct {
 	raw    any
 }
 
+type forgeEntry struct {
+	client    *goplugin.Client
+	forge     pluginv1.ForgeClient
+	hostnames []string
+}
+
 // Manager discovers, launches, and provides typed access to swm plugins.
 type Manager struct {
 	cfg        *config.Config
 	hostSocket string
 
-	mu       sync.Mutex
-	launched map[string]*entry
+	mu           sync.Mutex
+	launched     map[string]*entry
+	forgeClients []*forgeEntry
+	forgesLoaded bool
 }
 
 // New returns a Manager. Plugins are not launched until Get is called.
@@ -80,6 +93,13 @@ func (m *Manager) Close() error {
 	}
 
 	m.launched = make(map[string]*entry)
+
+	for _, fe := range m.forgeClients {
+		fe.client.Kill()
+	}
+
+	m.forgeClients = nil
+	m.forgesLoaded = false
 
 	return errors.Join(errs...)
 }
@@ -151,6 +171,29 @@ func (m *Manager) Get(ctx context.Context, capability string) (any, error) {
 	return raw, nil
 }
 
+// GetForge returns the ForgeClient for the plugin claiming the given hostname.
+// All configured forge plugins are lazily launched on the first call.
+func (m *Manager) GetForge(ctx context.Context, hostname string) (pluginv1.ForgeClient, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if !m.forgesLoaded {
+		if err := m.loadForges(ctx); err != nil {
+			return nil, err
+		}
+
+		m.forgesLoaded = true
+	}
+
+	for _, fe := range m.forgeClients {
+		if slices.Contains(fe.hostnames, hostname) {
+			return fe.forge, nil
+		}
+	}
+
+	return nil, fmt.Errorf("%w: %q", errNoForgePlugin, hostname)
+}
+
 // capabilityName returns the plugin name from config for the given capability.
 func (m *Manager) capabilityName(capability string) (string, error) {
 	switch capability {
@@ -203,6 +246,69 @@ func (m *Manager) discover(capability, name string) (string, error) {
 	return "", fmt.Errorf("%w: %q not in config paths, %s, or PATH", errPluginNotFound, binary, xdgPath)
 }
 
+// loadForges launches all configured forge plugins and populates m.forgeClients.
+// Must be called with m.mu held.
+func (m *Manager) loadForges(ctx context.Context) error {
+	for _, name := range m.cfg.Plugins.Forges {
+		binary, err := m.discover(capabilityForge, name)
+		if err != nil {
+			return err
+		}
+
+		pluginCmd := exec.Command(binary) //nolint:gosec // binary is discovered from trusted sources
+		if m.hostSocket != "" {
+			pluginCmd.Env = []string{"SWM_HOST_SOCKET=" + m.hostSocket}
+		}
+
+		set := goplugin.PluginSet{capabilityForge: &sdkforge.GRPCPlugin{}}
+
+		client := goplugin.NewClient(&goplugin.ClientConfig{
+			HandshakeConfig: handshake.Config,
+			Plugins:         set,
+			Cmd:             pluginCmd,
+			AllowedProtocols: []goplugin.Protocol{
+				goplugin.ProtocolGRPC,
+			},
+		})
+
+		rpcClient, err := client.Client()
+		if err != nil {
+			client.Kill()
+
+			return fmt.Errorf("connecting to forge plugin %s: %w", binary, err)
+		}
+
+		raw, err := rpcClient.Dispense(capabilityForge)
+		if err != nil {
+			client.Kill()
+
+			return fmt.Errorf("dispensing forge capability from %s: %w", binary, err)
+		}
+
+		fc, ok := raw.(pluginv1.ForgeClient)
+		if !ok {
+			client.Kill()
+
+			return fmt.Errorf("%w: %s", errInvalidForgePlugin, binary)
+		}
+
+		info, err := fc.Info(ctx, &pluginv1.Empty{})
+		if err != nil {
+			client.Kill()
+
+			return fmt.Errorf("calling Info on forge plugin %s: %w", binary, err)
+		}
+
+		m.forgeClients = append(m.forgeClients, &forgeEntry{
+			client:    client,
+			forge:     fc,
+			hostnames: info.GetClaimedHosts(),
+		})
+	}
+
+	return nil
+}
+
 // validateDeps calls Info() on the plugin and checks required capability deps.
 func (m *Manager) validateDeps(ctx context.Context, capability string, raw any) error {
 	var info *pluginv1.PluginInfo
@@ -235,6 +341,15 @@ func (m *Manager) validateDeps(ctx context.Context, capability string, raw any) 
 
 			info = resp.GetPluginInfo()
 		}
+	case capabilityForge:
+		if c, ok := raw.(pluginv1.ForgeClient); ok {
+			resp, err := c.Info(ctx, &pluginv1.Empty{})
+			if err != nil {
+				return fmt.Errorf("calling Info on forge plugin: %w", err)
+			}
+
+			info = resp.GetPluginInfo()
+		}
 	}
 
 	if info == nil {
@@ -254,6 +369,8 @@ func (m *Manager) validateDeps(ctx context.Context, capability string, raw any) 
 // pluginSet returns the go-plugin PluginSet for the given capability.
 func pluginSet(capability string) goplugin.PluginSet {
 	switch capability {
+	case capabilityForge:
+		return goplugin.PluginSet{capabilityForge: &sdkforge.GRPCPlugin{}}
 	case capabilityPicker:
 		return goplugin.PluginSet{capabilityPicker: &sdkpicker.GRPCPlugin{}}
 	case capabilitySession:

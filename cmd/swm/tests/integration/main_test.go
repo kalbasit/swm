@@ -17,6 +17,7 @@ var (
 	faketmuxBin    string
 	pickerFzfBin   string
 	fakefzfBin     string
+	forgeGithubBin string
 )
 
 func TestMain(m *testing.M) {
@@ -62,6 +63,12 @@ func TestMain(m *testing.M) {
 	fakefzfSrc := filepath.Join(repoRoot, "plugins/picker-fzf/internal/picker/testdata/fakefzf")
 	if err := buildBin(repoRoot, fakefzfBin, fakefzfSrc); err != nil {
 		panic("build fakefzf: " + err.Error())
+	}
+
+	// Compile forge-github plugin.
+	forgeGithubBin = filepath.Join(tmpDir, "swm-plugin-forge-github")
+	if err := buildBin(repoRoot, forgeGithubBin, filepath.Join(repoRoot, "plugins/forge-github")); err != nil {
+		panic("build forge-github: " + err.Error())
 	}
 
 	os.Exit(m.Run())

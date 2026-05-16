@@ -4,24 +4,54 @@
 package forge
 
 import (
-	"errors"
+	"context"
 
+	"google.golang.org/grpc"
+
+	goplugin "github.com/hashicorp/go-plugin"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
-)
 
-// ErrNotImplemented is returned by Serve when the gRPC transport has not been
-// wired up yet (Phase 0 stub). Replaced with real logic in Phase 1.
-var ErrNotImplemented = errors.New("forge.Serve: not yet implemented")
+	"github.com/kalbasit/swm/sdk/go/handshake"
+)
 
 // Plugin is the interface a forge plugin must implement.
 // It is identical to pluginv1.ForgeServer, so implementors can embed
 // pluginv1.UnimplementedForgeServer and override only the methods they need.
 type Plugin = pluginv1.ForgeServer
 
+// GRPCPlugin implements go-plugin's GRPCPlugin interface for the Forge capability.
+type GRPCPlugin struct {
+	goplugin.NetRPCUnsupportedPlugin
+	Impl Plugin
+}
+
+// GRPCClient returns a ForgeClient backed by the provided connection.
+func (p *GRPCPlugin) GRPCClient(_ context.Context, _ *goplugin.GRPCBroker, conn *grpc.ClientConn) (any, error) {
+	return pluginv1.NewForgeClient(conn), nil
+}
+
+// GRPCServer registers the Forge gRPC server with the provided gRPC server instance.
+func (p *GRPCPlugin) GRPCServer(_ *goplugin.GRPCBroker, s *grpc.Server) error {
+	pluginv1.RegisterForgeServer(s, p.Impl)
+
+	return nil
+}
+
+// NewClient returns a ForgeClient backed by the provided connection.
+func NewClient(conn *grpc.ClientConn) pluginv1.ForgeClient {
+	return pluginv1.NewForgeClient(conn)
+}
+
 // Serve starts the go-plugin gRPC server for the given Plugin implementation.
 // It blocks until the host signals the plugin to exit.
-//
-// Phase-0 stub: returns ErrNotImplemented. Phase 1 wires the go-plugin transport.
-func Serve(_ Plugin) error {
-	return ErrNotImplemented
+func Serve(impl Plugin) error {
+	goplugin.Serve(&goplugin.ServeConfig{
+		HandshakeConfig: handshake.Config,
+		Plugins: goplugin.PluginSet{
+			"forge": &GRPCPlugin{Impl: impl},
+		},
+		GRPCServer: goplugin.DefaultGRPCServer,
+	})
+
+	return nil
 }
