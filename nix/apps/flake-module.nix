@@ -4,7 +4,7 @@ _: {
     let
       swmApp = {
         type = "app";
-        program = lib.getExe config.packages.swm;
+        program = lib.getExe config.packages.swm-full;
       };
     in
     {
