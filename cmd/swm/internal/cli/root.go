@@ -56,8 +56,8 @@ func NewRootCmd(
 	root.AddCommand(wsGroup)
 
 	prGroup := &cobra.Command{Use: "pr", Short: "Manage pull requests"}
-	prGroup.AddCommand(pr.NewListCmd(store, mgr))
-	prGroup.AddCommand(pr.NewCreateCmd(mgr, resolver))
+	prGroup.AddCommand(pr.NewListCmd(store, mgr, cfg))
+	prGroup.AddCommand(pr.NewCreateCmd(mgr, resolver, store, cfg))
 	root.AddCommand(prGroup)
 
 	return root

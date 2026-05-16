@@ -3,7 +3,6 @@ package pr
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,9 +12,9 @@ import (
 
 	coreStory "github.com/kalbasit/swm/cmd/swm/internal/core/story"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
-)
 
-var errNoStoryName = errors.New("story name required: pass --story or set SWM_STORY")
+	"github.com/kalbasit/swm/cmd/swm/internal/config"
+)
 
 // forgeManager is the subset of the plugin manager used by pr commands.
 type forgeManager interface {
@@ -23,7 +22,7 @@ type forgeManager interface {
 }
 
 // NewListCmd returns the `swm pr list` command.
-func NewListCmd(store coreStory.Store, mgr forgeManager) *cobra.Command {
+func NewListCmd(store coreStory.Store, mgr forgeManager, cfg *config.Config) *cobra.Command {
 	var storyName string
 
 	cmd := &cobra.Command{
@@ -37,7 +36,7 @@ func NewListCmd(store coreStory.Store, mgr forgeManager) *cobra.Command {
 			}
 
 			if storyName == "" {
-				return errNoStoryName
+				storyName = cfg.DefaultStory
 			}
 
 			s, err := store.Get(ctx, storyName)

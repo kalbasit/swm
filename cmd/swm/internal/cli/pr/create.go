@@ -7,16 +7,24 @@ import (
 
 	"github.com/spf13/cobra"
 
+	coreStory "github.com/kalbasit/swm/cmd/swm/internal/core/story"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
+	"github.com/kalbasit/swm/cmd/swm/internal/config"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
 )
 
 var errNotInCodeRoot = errors.New("current directory is not under the swm code root")
 
 // NewCreateCmd returns the `swm pr create` command.
-func NewCreateCmd(mgr forgeManager, resolver *layout.Resolver) *cobra.Command {
+func NewCreateCmd(
+	mgr forgeManager,
+	resolver *layout.Resolver,
+	store coreStory.Store,
+	cfg *config.Config,
+) *cobra.Command {
 	var (
+		storyName  string
 		title      string
 		body       string
 		base       string
@@ -30,6 +38,14 @@ func NewCreateCmd(mgr forgeManager, resolver *layout.Resolver) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
+			if storyName == "" {
+				storyName = os.Getenv("SWM_STORY")
+			}
+
+			if storyName == "" {
+				storyName = cfg.DefaultStory
+			}
+
 			cwd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("getting working directory: %w", err)
@@ -38,6 +54,16 @@ func NewCreateCmd(mgr forgeManager, resolver *layout.Resolver) *cobra.Command {
 			pid := resolver.ProjectIDFromPath(cwd)
 			if pid == nil {
 				return fmt.Errorf("%w: %q", errNotInCodeRoot, cwd)
+			}
+
+			// Derive head branch from story when not explicitly provided.
+			if headBranch == "" {
+				st, err := store.Get(ctx, storyName)
+				if err != nil {
+					return fmt.Errorf("loading story %q: %w", storyName, err)
+				}
+
+				headBranch = st.BranchName
 			}
 
 			forge, err := mgr.GetForge(ctx, pid.GetHost())
@@ -64,10 +90,11 @@ func NewCreateCmd(mgr forgeManager, resolver *layout.Resolver) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVarP(&storyName, "story", "s", "", "story name (default: $SWM_STORY or default story)")
 	cmd.Flags().StringVar(&title, "title", "", "pull request title (required)")
 	cmd.Flags().StringVar(&body, "body", "", "pull request body")
 	cmd.Flags().StringVar(&base, "base", "main", "base branch")
-	cmd.Flags().StringVar(&headBranch, "head", "", "head branch")
+	cmd.Flags().StringVar(&headBranch, "head", "", "head branch (default: story branch name)")
 	cmd.Flags().BoolVar(&draft, "draft", false, "create as draft pull request")
 
 	if err := cmd.MarkFlagRequired("title"); err != nil {

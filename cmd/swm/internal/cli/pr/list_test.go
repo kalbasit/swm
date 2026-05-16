@@ -16,12 +16,14 @@ import (
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
 	"github.com/kalbasit/swm/cmd/swm/internal/cli/pr"
+	"github.com/kalbasit/swm/cmd/swm/internal/config"
 )
 
 const (
-	testPRStoryName = "feat-x"
-	testGitHubHost  = "github.com"
-	flagStory       = "--story"
+	testPRStoryName  = "feat-x"
+	testGitHubHost   = "github.com"
+	testDefaultStory = "_default"
+	flagStory        = "--story"
 )
 
 // errNoForge is returned by stubForgeManager when no forge is configured.
@@ -153,9 +155,11 @@ func TestPRList_Success(t *testing.T) {
 		testGitHubHost: &stubForgeClient{prs: prs},
 	}}
 
+	cfg := &config.Config{DefaultStory: testDefaultStory}
+
 	var out bytes.Buffer
 
-	cmd := pr.NewListCmd(store, mgr)
+	cmd := pr.NewListCmd(store, mgr, cfg)
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetArgs([]string{flagStory, testPRStoryName})
@@ -178,9 +182,11 @@ func TestPRList_NoPRs(t *testing.T) {
 		testGitHubHost: &stubForgeClient{prs: nil},
 	}}
 
+	cfg := &config.Config{DefaultStory: testDefaultStory}
+
 	var out bytes.Buffer
 
-	cmd := pr.NewListCmd(store, mgr)
+	cmd := pr.NewListCmd(store, mgr, cfg)
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetArgs([]string{flagStory, testPRStoryName})
@@ -201,9 +207,11 @@ func TestPRList_NoForgeForHost(t *testing.T) {
 	// No forges configured.
 	mgr := &stubForgeManager{forges: map[string]pluginv1.ForgeClient{}}
 
+	cfg := &config.Config{DefaultStory: testDefaultStory}
+
 	var out bytes.Buffer
 
-	cmd := pr.NewListCmd(store, mgr)
+	cmd := pr.NewListCmd(store, mgr, cfg)
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetArgs([]string{flagStory, testPRStoryName})
@@ -211,4 +219,31 @@ func TestPRList_NoForgeForHost(t *testing.T) {
 	// Should succeed silently (skip unknown hosts).
 	require.NoError(t, cmd.Execute())
 	require.Empty(t, out.String())
+}
+
+func TestPRList_FallsBackToDefaultStory(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{story: &coreStory.Story{
+		Name:     testDefaultStory,
+		Projects: []coreStory.Project{{Host: testGitHubHost, Segments: []string{"o", "r"}}},
+	}}
+
+	mgr := &stubForgeManager{forges: map[string]pluginv1.ForgeClient{
+		testGitHubHost: &stubForgeClient{prs: []*pluginv1.PullRequest{
+			{Number: 1, Title: "Default PR", Url: "https://github.com/o/r/pull/1"},
+		}},
+	}}
+
+	cfg := &config.Config{DefaultStory: testDefaultStory}
+
+	var out bytes.Buffer
+
+	cmd := pr.NewListCmd(store, mgr, cfg)
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{}) // no --story flag, no $SWM_STORY
+
+	require.NoError(t, cmd.Execute())
+	require.Contains(t, out.String(), "Default PR")
 }

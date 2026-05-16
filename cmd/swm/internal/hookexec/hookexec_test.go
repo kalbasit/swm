@@ -1,6 +1,7 @@
 package hookexec_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -13,7 +14,10 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
-const testStoryName = "feat-x"
+const (
+	testStoryName  = "feat-x"
+	eventPostStory = "post-story-create"
+)
 
 var fakehookBin string
 
@@ -96,13 +100,13 @@ func TestRun_LexicalOrder(t *testing.T) {
 	secondFile := filepath.Join(sentinelDir, "10-second.ran")
 
 	globalDir := filepath.Join(configHome, "swm", "hooks")
-	installScript(t, globalDir, "post-story-create", "00-first",
+	installScript(t, globalDir, eventPostStory, "00-first",
 		"touch "+firstFile+"\n")
-	installScript(t, globalDir, "post-story-create", "10-second",
+	installScript(t, globalDir, eventPostStory, "10-second",
 		"touch "+secondFile+"\n")
 
 	cfg := hookexec.RunConfig{
-		Event:      "post-story-create",
+		Event:      eventPostStory,
 		CodeRoot:   t.TempDir(),
 		StoryName:  testStoryName,
 		ConfigHome: configHome,
@@ -151,12 +155,12 @@ func TestRun_PostHookFailsButContinues(t *testing.T) {
 
 	globalDir := filepath.Join(configHome, "swm", "hooks")
 	// 00-fail exits 1; 10-succeed should still run.
-	installScript(t, globalDir, "post-story-create", "00-fail", "exit 1\n")
-	installScript(t, globalDir, "post-story-create", "10-succeed",
+	installScript(t, globalDir, eventPostStory, "00-fail", "exit 1\n")
+	installScript(t, globalDir, eventPostStory, "10-succeed",
 		"touch "+sentinelFile+"\n")
 
 	cfg := hookexec.RunConfig{
-		Event:      "post-story-create",
+		Event:      eventPostStory,
 		CodeRoot:   t.TempDir(),
 		StoryName:  testStoryName,
 		ConfigHome: configHome,
@@ -232,4 +236,26 @@ func TestRun_StdinJSON(t *testing.T) {
 	require.Contains(t, log, `"hook":"post-clone"`)
 	require.Contains(t, log, `"story":"feat-x"`)
 	require.Contains(t, log, `"project_host":"github.com"`)
+}
+
+func TestRun_CustomStdout(t *testing.T) {
+	t.Parallel()
+
+	configHome := t.TempDir()
+
+	globalDir := filepath.Join(configHome, "swm", "hooks")
+	installScript(t, globalDir, eventPostStory, "00-print", "printf hello\n")
+
+	var buf bytes.Buffer
+
+	cfg := hookexec.RunConfig{
+		Event:      eventPostStory,
+		CodeRoot:   t.TempDir(),
+		StoryName:  testStoryName,
+		ConfigHome: configHome,
+		Stdout:     &buf,
+	}
+
+	require.NoError(t, hookexec.Run(context.Background(), cfg))
+	require.Contains(t, buf.String(), "hello")
 }
