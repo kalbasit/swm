@@ -1,0 +1,55 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Editor files
+/.vscode/**
+!/.vscode/settings.json
+!/.vscode/tasks.json
+!/.vscode/launch.json
+!/.vscode/extensions.json
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Go and Nix-related build result
+*.wasm
+/.direnv
+result*
+
+# Pre-commit configuration (auto-generated)
+/.pre-commit-config.yaml
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Node.js
+node_modules/
+
+# Agents
+/.claude/scheduled_tasks.lock
+/.claude/settings.local.json
+/.claude/worktrees/
+
+# testing
+coverage
+
+# misc
+.DS_Store
+*.pem
+
+# go-tasks
+Taskfile.yml
+/.task/
