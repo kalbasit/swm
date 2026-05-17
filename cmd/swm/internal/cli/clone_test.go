@@ -244,7 +244,7 @@ func (s *stubSessionClient) SwitchTo(
 	context.Context,
 	*pluginv1.SwitchToRequest,
 	...grpc.CallOption,
-) (*pluginv1.Empty, error) {
+) (*pluginv1.SwitchToResponse, error) {
 	panic("stub")
 }
 

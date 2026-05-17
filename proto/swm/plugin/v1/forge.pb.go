@@ -565,7 +565,6 @@ var (
 		(*Empty)(nil),           // 9: swm.plugin.v1.Empty
 	}
 )
-
 var file_swm_plugin_v1_forge_proto_depIdxs = []int32{
 	7,  // 0: swm.plugin.v1.ForgeInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
 	0,  // 1: swm.plugin.v1.PullRequest.state:type_name -> swm.plugin.v1.PullRequestState

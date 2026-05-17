@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	testProject  = "github.com/kalbasit/swm"
-	testWorktree = "/tmp/wt"
+	testProject   = "github.com/kalbasit/swm"
+	testWorktree  = "/tmp/wt"
+	testPaneGroup = "swm"
 )
 
 var faketmuxBin string
@@ -186,6 +187,58 @@ func TestCurrentContext_NotInside(t *testing.T) {
 	tmux, _ := newTmux(t)
 	_, err := tmux.CurrentContext(context.Background(), &pluginv1.Empty{})
 	require.Error(t, err)
+}
+
+func TestSwitchTo_OutsideTmux_ReturnsExecArgv(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+	t.Setenv("TMUX", "")
+
+	tmux, socketDir := newTmux(t)
+	sock := filepath.Join(socketDir, "feat-x.sock")
+
+	// Create the socket file so the workspace is considered open.
+	require.NoError(t, os.WriteFile(sock, nil, 0o600))
+
+	resp, err := tmux.SwitchTo(context.Background(), &pluginv1.SwitchToRequest{
+		WorkspaceId: sock,
+		PaneGroupId: testPaneGroup,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{faketmuxBin, "-S", sock, "attach-session", "-t", testPaneGroup}, resp.GetExecArgv())
+
+	// faketmux must NOT have been invoked — log file absent or empty.
+	logBytes, readErr := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	if readErr == nil {
+		require.Empty(t, strings.TrimSpace(string(logBytes)), "faketmux must not be called when returning exec_argv")
+	} else {
+		require.True(t, os.IsNotExist(readErr), "unexpected read error: %v", readErr)
+	}
+}
+
+func TestSwitchTo_InsideTmux_CallsSwitchClient(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sock := filepath.Join(socketDir, "feat-x.sock")
+	t.Setenv("TMUX", sock+",12345,0")
+
+	// Create the socket file so the workspace is considered open.
+	require.NoError(t, os.WriteFile(sock, nil, 0o600))
+
+	resp, err := tmux.SwitchTo(context.Background(), &pluginv1.SwitchToRequest{
+		WorkspaceId: sock,
+		PaneGroupId: testPaneGroup,
+	})
+	require.NoError(t, err)
+	require.Empty(t, resp.GetExecArgv(), "exec_argv must be empty when switch-client is used")
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	require.Contains(t, string(logBytes), "switch-client", "faketmux must be called with switch-client")
 }
 
 func TestOpenWorkspace_EmptyWorktreePaths(t *testing.T) {
