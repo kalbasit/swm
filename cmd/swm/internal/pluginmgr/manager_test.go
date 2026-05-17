@@ -3,6 +3,8 @@ package pluginmgr_test
 import (
 	"bytes"
 	"context"
+	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -231,5 +233,65 @@ func TestGet_PluginStderrForwarded(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		return bytes.Contains([]byte(sink.String()), []byte("FAKESTDERR_MARKER"))
+	}, 5*time.Second, 10*time.Millisecond)
+}
+
+func TestGet_NoDebugLogs_AtWarnLevel(t *testing.T) { //nolint:paralleltest // mutates slog.Default global state
+	original := slog.Default()
+
+	t.Cleanup(func() { slog.SetDefault(original) })
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelWarn})))
+
+	cfg := &config.Config{
+		Plugins: config.Plugins{
+			VCS: fakePluginName,
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	var sink syncBuffer
+
+	mgr := pluginmgr.New(cfg, "", pluginmgr.WithStderr(&sink))
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	_, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+
+	// Allow go-plugin startup to complete and flush any buffered log lines.
+	time.Sleep(200 * time.Millisecond)
+
+	require.NotContains(t, sink.String(), "[DEBUG]")
+	require.NotContains(t, sink.String(), "[TRACE]")
+	require.NotContains(t, sink.String(), `"@level":"debug"`)
+	require.NotContains(t, sink.String(), `"@level":"trace"`)
+}
+
+func TestGet_DebugLogs_AtDebugLevel(t *testing.T) { //nolint:paralleltest // mutates slog.Default global state
+	original := slog.Default()
+
+	t.Cleanup(func() { slog.SetDefault(original) })
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug})))
+
+	cfg := &config.Config{
+		Plugins: config.Plugins{
+			VCS: fakePluginName,
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	var sink syncBuffer
+
+	mgr := pluginmgr.New(cfg, "", pluginmgr.WithStderr(&sink))
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	_, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		return bytes.Contains([]byte(sink.String()), []byte("[DEBUG]"))
 	}, 5*time.Second, 10*time.Millisecond)
 }

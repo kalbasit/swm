@@ -5,13 +5,16 @@ package forge
 
 import (
 	"context"
+	"os"
 
 	"google.golang.org/grpc"
 
+	hclog "github.com/hashicorp/go-hclog"
 	goplugin "github.com/hashicorp/go-plugin"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
 	"github.com/kalbasit/swm/sdk/go/handshake"
+	"github.com/kalbasit/swm/sdk/go/internal/pluginlog"
 )
 
 // Plugin is the interface a forge plugin must implement.
@@ -47,6 +50,11 @@ func NewClient(conn *grpc.ClientConn) pluginv1.ForgeClient {
 func Serve(impl Plugin) error {
 	goplugin.Serve(&goplugin.ServeConfig{
 		HandshakeConfig: handshake.Config,
+		Logger: hclog.New(&hclog.LoggerOptions{
+			Level:      pluginlog.Level(),
+			JSONFormat: true,
+			Output:     os.Stderr,
+		}),
 		Plugins: goplugin.PluginSet{
 			"forge": &GRPCPlugin{Impl: impl},
 		},
