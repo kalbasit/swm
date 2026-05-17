@@ -71,6 +71,7 @@ func NewRootCmd(
 
 	wsGroup := &cobra.Command{Use: "workspace", Short: "Manage workspaces"}
 	wsGroup.AddCommand(workspace.NewOpenCmd(cfg, store, mgr, resolver, hooks))
+	wsGroup.AddCommand(workspace.NewListCmd(store, cfg.DefaultStory))
 	root.AddCommand(wsGroup)
 
 	prGroup := &cobra.Command{Use: "pr", Short: "Manage pull requests"}
