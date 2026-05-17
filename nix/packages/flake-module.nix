@@ -7,6 +7,8 @@
     ./swm-plugin-session-tmux
     ./swm-plugin-vcs-git
     ./swm-full
+    ./swm-test-faketmux
+    ./swm-test-fakefzf
   ];
 
   perSystem =
