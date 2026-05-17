@@ -21,14 +21,32 @@ func TestLoad_FileNotFound(t *testing.T) {
 func TestLoad_Defaults(t *testing.T) {
 	t.Parallel()
 
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")
 	require.NoError(t, os.WriteFile(path, []byte(""), 0o600))
 
 	cfg, err := config.Load(path)
 	require.NoError(t, err)
-	require.Equal(t, "~/code", cfg.CodeRoot)
+	require.Equal(t, filepath.Join(home, "code"), cfg.CodeRoot)
 	require.Equal(t, "_default", cfg.DefaultStory)
+}
+
+func TestLoad_TildeInCodeRoot(t *testing.T) {
+	t.Parallel()
+
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`code_root = "~/mycode"`), 0o600))
+
+	cfg, err := config.Load(path)
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(home, "mycode"), cfg.CodeRoot)
 }
 
 func TestLoad_AllFields(t *testing.T) {
