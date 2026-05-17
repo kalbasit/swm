@@ -46,7 +46,10 @@ func NewOpenCmd(
 	cmd := &cobra.Command{
 		Use:   "open [story-name]",
 		Short: "Open (or attach to) the workspace for a story",
-		Args:  cobra.MaximumNArgs(1),
+		Long: "Open (or attach to) the workspace for a story. " +
+			"If [story-name] is omitted, the command falls back to the $SWM_STORY " +
+			"environment variable, and then to the default story configured in swm.",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 

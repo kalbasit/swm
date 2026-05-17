@@ -242,7 +242,7 @@ func TestOpenCmd_WithPicker_RecvFailedPrecondition_FallsBack(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
 	require.NotNil(t, sess.lastOpenReq, "expected OpenWorkspace to be called as fallback")
