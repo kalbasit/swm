@@ -276,6 +276,21 @@ func openWithPicker(
 
 	// Check whether this project is already attached to the story.
 	if !isAttached(st, selectedKey) {
+		repoPath := resolver.CanonicalPath(pid)
+		projectPath := strings.Join(pid.GetSegments(), "/")
+
+		if err := hooks.Run(ctx, hookexec.RunConfig{
+			Event:        "pre-worktree-create",
+			CodeRoot:     cfg.CodeRoot,
+			StoryName:    storyName,
+			ProjectHost:  pid.GetHost(),
+			ProjectPath:  projectPath,
+			WorktreePath: worktreePath,
+			RepoPath:     repoPath,
+		}); err != nil {
+			return fmt.Errorf("pre-worktree-create hook: %w", err)
+		}
+
 		rawVCS, err := mgr.Get(ctx, "vcs")
 		if err != nil {
 			return fmt.Errorf("loading vcs plugin: %w", err)
@@ -304,6 +319,18 @@ func openWithPicker(
 
 		if err := store.Update(ctx, st); err != nil {
 			return fmt.Errorf("attaching project to story: %w", err)
+		}
+
+		if err := hooks.Run(ctx, hookexec.RunConfig{
+			Event:        "post-worktree-create",
+			CodeRoot:     cfg.CodeRoot,
+			StoryName:    storyName,
+			ProjectHost:  pid.GetHost(),
+			ProjectPath:  projectPath,
+			WorktreePath: worktreePath,
+			RepoPath:     repoPath,
+		}); err != nil {
+			slog.WarnContext(ctx, "post-worktree-create hook failed (ignored)", "err", err)
 		}
 	}
 
