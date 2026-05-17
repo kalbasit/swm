@@ -696,11 +696,19 @@ func TestOpenCmd_StoryPickerFailedPrecondition_FallsBackToDefault(t *testing.T) 
 
 // ─── kill-pane flag tests ─────────────────────────────────────────────────────
 
-const testOriginWorkspaceID = "/tmp/origin.sock"
+const (
+	testOriginWorkspaceID = "/tmp/origin.sock"
+	// testTargetWorkspaceID matches what stubSess.OpenWorkspace returns.
+	testTargetWorkspaceID = "/tmp/feat-x.sock"
+	// testTargetPaneGroupID matches what stubSess.OpenPaneGroup returns.
+	testTargetPaneGroupID = "swm"
+)
 
 func TestOpenCmd_KillPane_TmuxPaneSet_PopulatesOriginFields(t *testing.T) {
 	// Cannot be parallel — sets env vars.
 	t.Setenv("TMUX_PANE", "%5")
+	// Workspace ID is read from $TMUX on the host, not from CurrentContext.
+	t.Setenv("TMUX", testOriginWorkspaceID+",12345,0")
 
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 	store := &stubStore{getStory: &coreStory.Story{
@@ -710,7 +718,9 @@ func TestOpenCmd_KillPane_TmuxPaneSet_PopulatesOriginFields(t *testing.T) {
 		},
 	}}
 	sess := &stubSess{
-		currentContextResp: &pluginv1.CurrentContextResponse{WorkspaceId: testOriginWorkspaceID},
+		// CurrentContext is consulted only for the safety guard (pane-group check).
+		// Origin workspace ID now comes from $TMUX, not from this response.
+		currentContextResp: &pluginv1.CurrentContextResponse{PaneGroupId: "some-other-pane-group"},
 	}
 	mgr := &stubMgr{sess: sess}
 	resolver := layout.NewResolver(testCodeRoot)
@@ -727,6 +737,7 @@ func TestOpenCmd_KillPane_TmuxPaneSet_PopulatesOriginFields(t *testing.T) {
 func TestOpenCmd_KillPane_TmuxPaneUnset_OmitsOriginFields(t *testing.T) {
 	// Cannot be parallel — sets env vars.
 	t.Setenv("TMUX_PANE", "")
+	t.Setenv("TMUX", testOriginWorkspaceID+",12345,0")
 
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 	store := &stubStore{getStory: &coreStory.Story{
@@ -735,9 +746,7 @@ func TestOpenCmd_KillPane_TmuxPaneUnset_OmitsOriginFields(t *testing.T) {
 			{Host: testHost, Segments: []string{testOwner, testSegment}},
 		},
 	}}
-	sess := &stubSess{
-		currentContextResp: &pluginv1.CurrentContextResponse{WorkspaceId: testOriginWorkspaceID},
-	}
+	sess := &stubSess{}
 	mgr := &stubMgr{sess: sess}
 	resolver := layout.NewResolver(testCodeRoot)
 
@@ -750,9 +759,12 @@ func TestOpenCmd_KillPane_TmuxPaneUnset_OmitsOriginFields(t *testing.T) {
 	require.Empty(t, sess.lastSwitchReq.GetCloseOriginPaneId())
 }
 
-func TestOpenCmd_KillPane_CurrentContextFails_OmitsOriginFields(t *testing.T) {
+func TestOpenCmd_KillPane_CurrentContextFails_StillPopulatesOriginFields(t *testing.T) {
 	// Cannot be parallel — sets env vars.
+	// Workspace ID now comes from $TMUX (not CurrentContext), so a CurrentContext
+	// failure no longer prevents the origin fields from being set.
 	t.Setenv("TMUX_PANE", "%5")
+	t.Setenv("TMUX", testOriginWorkspaceID+",12345,0")
 
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 	store := &stubStore{getStory: &coreStory.Story{
@@ -772,9 +784,98 @@ func TestOpenCmd_KillPane_CurrentContextFails_OmitsOriginFields(t *testing.T) {
 
 	require.NoError(t, cmd.Execute())
 	require.NotNil(t, sess.lastSwitchReq)
+	require.Equal(t, testOriginWorkspaceID, sess.lastSwitchReq.GetCloseOriginWorkspaceId(),
+		"origin workspace must be populated from $TMUX even when CurrentContext fails")
+	require.Equal(t, "%5", sess.lastSwitchReq.GetCloseOriginPaneId())
+}
+
+func TestOpenCmd_KillPane_AlreadyInTarget_OmitsOriginFields(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	// When the caller is already inside the target workspace and pane group,
+	// the switch is a no-op and we must not kill the current pane.
+	t.Setenv("TMUX_PANE", "%5")
+	t.Setenv("TMUX", testTargetWorkspaceID+",12345,0") // same socket as target workspace
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+	sess := &stubSess{
+		// PaneGroupId matches what stubSess.OpenPaneGroup returns.
+		currentContextResp: &pluginv1.CurrentContextResponse{PaneGroupId: testTargetPaneGroupID},
+	}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, flagKillPane})
+
+	require.NoError(t, cmd.Execute())
+	require.NotNil(t, sess.lastSwitchReq)
 	require.Empty(t, sess.lastSwitchReq.GetCloseOriginWorkspaceId(),
-		"origin fields must be empty when CurrentContext fails")
+		"origin fields must be empty when already in the target workspace and pane group")
 	require.Empty(t, sess.lastSwitchReq.GetCloseOriginPaneId())
+}
+
+func TestOpenCmd_KillPane_SameWorkspaceDifferentPaneGroup_PopulatesOriginFields(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	// Same workspace socket, different pane group — origin pane should be closed.
+	t.Setenv("TMUX_PANE", "%5")
+	t.Setenv("TMUX", testTargetWorkspaceID+",12345,0")
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+	sess := &stubSess{
+		currentContextResp: &pluginv1.CurrentContextResponse{PaneGroupId: "other-project"},
+	}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, flagKillPane})
+
+	require.NoError(t, cmd.Execute())
+	require.NotNil(t, sess.lastSwitchReq)
+	require.Equal(t, testTargetWorkspaceID, sess.lastSwitchReq.GetCloseOriginWorkspaceId())
+	require.Equal(t, "%5", sess.lastSwitchReq.GetCloseOriginPaneId())
+}
+
+func TestOpenCmd_KillPane_ZellijPaneSet_PopulatesOriginFields(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	// Clear tmux vars so Zellij detection is reached even when running inside tmux.
+	t.Setenv("TMUX_PANE", "")
+	t.Setenv("TMUX", "")
+	t.Setenv("ZELLIJ_PANE_ID", "42")
+	t.Setenv("ZELLIJ_SESSION_NAME", "/tmp/zellij-session")
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+	sess := &stubSess{
+		currentContextResp: &pluginv1.CurrentContextResponse{PaneGroupId: "some-other-pane-group"},
+	}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, flagKillPane})
+
+	require.NoError(t, cmd.Execute())
+	require.NotNil(t, sess.lastSwitchReq)
+	require.Equal(t, "/tmp/zellij-session", sess.lastSwitchReq.GetCloseOriginWorkspaceId())
+	require.Equal(t, "42", sess.lastSwitchReq.GetCloseOriginPaneId())
 }
 
 func TestOpenCmd_NoKillPane_OmitsOriginFields(t *testing.T) {

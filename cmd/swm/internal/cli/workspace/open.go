@@ -225,8 +225,11 @@ func NewOpenCmd(
 
 // buildSwitchToReq constructs a SwitchToRequest, adding origin-pane fields when
 // killPane is true and the caller is identifiably inside a multiplexer session.
-// Failures from CurrentContext are silently swallowed so --kill-pane degrades
-// gracefully (no-op) when not inside a supported session.
+// The origin workspace ID is read directly from the host environment (not from the
+// session plugin daemon, which may hold a stale environment). CurrentContext is
+// consulted only for the pane-group safety guard: if the caller is already inside
+// the target workspace and pane group the origin fields are left empty so the
+// switch does not kill the current pane.
 func buildSwitchToReq(
 	ctx context.Context, sess pluginv1.SessionClient, wsID, pgID string, killPane bool,
 ) *pluginv1.SwitchToRequest {
@@ -236,17 +239,40 @@ func buildSwitchToReq(
 	}
 
 	if killPane {
-		paneID := os.Getenv("TMUX_PANE")
+		paneID, originWorkspaceID := detectMultiplexerOrigin()
 		if paneID != "" {
+			// Safety guard: avoid killing the origin pane when already in the target
+			// workspace and pane group (the switch would be a no-op in that case).
 			ctxResp, err := sess.CurrentContext(ctx, &pluginv1.Empty{})
-			if err == nil && ctxResp.GetWorkspaceId() != "" {
-				req.CloseOriginWorkspaceId = ctxResp.GetWorkspaceId()
-				req.CloseOriginPaneId = paneID
+			if err == nil && originWorkspaceID == wsID && ctxResp.GetPaneGroupId() == pgID {
+				return req
 			}
+
+			req.CloseOriginWorkspaceId = originWorkspaceID
+			req.CloseOriginPaneId = paneID
 		}
 	}
 
 	return req
+}
+
+// detectMultiplexerOrigin returns the pane identifier and workspace identifier for
+// the current multiplexer session by inspecting known environment variables. The
+// workspace identifier is read from the host environment rather than from the
+// session plugin daemon, which may hold a stale copy of the environment. Returns
+// empty strings when no supported multiplexer is detected.
+func detectMultiplexerOrigin() (paneID, workspaceID string) {
+	// tmux: TMUX_PANE carries the pane reference; the socket path (workspace ID) is
+	// the first comma-separated field of $TMUX ("<socket-path>,<pid>,<session-id>").
+	if pane := os.Getenv("TMUX_PANE"); pane != "" {
+		return pane, strings.SplitN(os.Getenv("TMUX"), ",", 2)[0]
+	}
+	// Zellij: ZELLIJ_PANE_ID is the pane identifier; ZELLIJ_SESSION_NAME is the workspace.
+	if pane := os.Getenv("ZELLIJ_PANE_ID"); pane != "" {
+		return pane, os.Getenv("ZELLIJ_SESSION_NAME")
+	}
+
+	return "", ""
 }
 
 // openWithPicker runs the interactive picker flow: enumerate all candidates, let the
