@@ -26,12 +26,16 @@ const (
 	testCodeRoot     = "/code"
 	testDefaultStory = "_default"
 	testStoryName    = "feat-x"
+	testBranchName   = "feat/feat-x"
 	testHost         = "github.com"
 	testOwner        = "kalbasit"
 	testSegment      = "swm"
 )
 
-var errNoPlugin = errors.New("no plugin")
+var (
+	errNoPlugin = errors.New("no plugin")
+	errFakeHook = errors.New("hook error")
+)
 
 func TestOpenCmd_WithPositionalArg(t *testing.T) {
 	t.Parallel()
@@ -151,7 +155,7 @@ func TestOpenCmd_WithPicker_ProjectNotAttached(t *testing.T) {
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 	store := &stubStore{getStory: &coreStory.Story{
 		Name:       testStoryName,
-		BranchName: "feat/feat-x",
+		BranchName: testBranchName,
 	}}
 	sess := &stubSess{}
 	vcs := &stubVCS{}
@@ -172,6 +176,117 @@ func TestOpenCmd_WithPicker_ProjectNotAttached(t *testing.T) {
 
 	// Pane group was opened.
 	require.NotNil(t, sess.lastPaneGroupReq)
+}
+
+func TestOpenCmd_WithPicker_PreWorktreeCreateHookAborts(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/dotfiles"
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name:       testStoryName,
+		BranchName: testBranchName,
+	}}
+	sess := &stubSess{}
+	vcs := &stubVCS{}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	hooks := hookexec.RunnerFunc(func(_ context.Context, rc hookexec.RunConfig) error {
+		if rc.Event == "pre-worktree-create" {
+			return errFakeHook
+		}
+
+		return nil
+	})
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hooks)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.Error(t, cmd.Execute())
+
+	// Hook aborted — CreateWorktree must NOT have been called.
+	require.False(t, vcs.createCalled)
+}
+
+func TestOpenCmd_WithPicker_PostWorktreeCreateHookFailureContinues(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/dotfiles"
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name:       testStoryName,
+		BranchName: testBranchName,
+	}}
+	sess := &stubSess{}
+	vcs := &stubVCS{}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	var postHookCalled bool
+
+	hooks := hookexec.RunnerFunc(func(_ context.Context, rc hookexec.RunConfig) error {
+		if rc.Event == "post-worktree-create" {
+			postHookCalled = true
+
+			return errFakeHook
+		}
+
+		return nil
+	})
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hooks)
+	cmd.SetArgs([]string{testStoryName})
+
+	// Post-hook failure must not abort the command.
+	require.NoError(t, cmd.Execute())
+
+	// Hook must have been invoked despite its failure being ignored.
+	require.True(t, postHookCalled)
+
+	// Workspace was opened.
+	require.NotNil(t, sess.lastOpenReq)
+}
+
+func TestOpenCmd_WithPicker_PostWorktreeCreateHookReceivesContext(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/dotfiles"
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name:       testStoryName,
+		BranchName: testBranchName,
+	}}
+	sess := &stubSess{}
+	vcs := &stubVCS{}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	var capturedCfg hookexec.RunConfig
+
+	hooks := hookexec.RunnerFunc(func(_ context.Context, rc hookexec.RunConfig) error {
+		if rc.Event == "post-worktree-create" {
+			capturedCfg = rc
+		}
+
+		return nil
+	})
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hooks)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+
+	require.Equal(t, "github.com", capturedCfg.ProjectHost)
+	require.Equal(t, "kalbasit/dotfiles", capturedCfg.ProjectPath)
+	require.Equal(t, "/code/stories/feat-x/github.com/kalbasit/dotfiles", capturedCfg.WorktreePath)
+	require.Equal(t, "/code/repositories/github.com/kalbasit/dotfiles", capturedCfg.RepoPath)
 }
 
 func TestOpenCmd_WithPicker_Cancelled(t *testing.T) {

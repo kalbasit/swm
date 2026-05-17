@@ -116,16 +116,17 @@ Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recen
 
 **With picker configured and story resolved (from arg, env, or picker selection):**
 1. Run `pre-workspace-open` hooks; abort if any fail.
-2. Resolve story (see precedence above).
-3. Build a project candidate list: all projects attached to the resolved story plus all
-   repositories discovered under `$CODE_ROOT/repositories/`.
-4. Stream project candidates to `picker.Pick`; each candidate's `display` and `key` are its
-   project ID string (e.g. `github.com/kalbasit/swm`).
-5. Receive the selected project ID.
-6. If the selected project is NOT already attached to the story: call `vcs.CreateWorktree` and
-   attach to the story store.
-7. Call `session.OpenWorkspace`.
-8. Call `session.OpenPaneGroup` with the worktree path for the selected project.
+2. Resolve story from positional `<story-name>` argument, `$SWM_STORY` env var, or `_default`.
+3. Build a candidate list: all projects already attached to the story plus all repositories discovered under `$CODE_ROOT/repositories/` via `host.ListProjects`.
+4. Stream candidates to `picker.Pick`; each candidate's `display` is its project ID string (e.g. `github.com/kalbasit/swm`) and `key` is the same string.
+5. Receive the selected project ID from the picker.
+6. If the selected project is NOT already attached to the story:
+   a. Run `pre-worktree-create` hooks with full project context (`ProjectHost`, `ProjectPath`, `WorktreePath`, `RepoPath`); abort if any fail.
+   b. Call `vcs.CreateWorktree` for that project.
+   c. Attach the project to the story in the story store.
+   d. Run `post-worktree-create` hooks with the same project context; failures are logged but do not abort.
+7. Call `session.OpenWorkspace` to ensure the workspace is active.
+8. Call `session.OpenPaneGroup` with the derived worktree path for the selected project.
 9. Run `post-workspace-open` hooks.
 10. Call `session.SwitchTo`; if the response contains a non-empty `exec_argv`, call
     `syscall.Exec` to replace the host process.
@@ -184,7 +185,15 @@ Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recen
 
 #### Scenario: Interactive selection with picker — project not yet attached
 - **WHEN** `swm workspace open feat-x` is run and picker is configured and user selects `proj-b` (not yet attached)
-- **THEN** `vcs.CreateWorktree` is called for `proj-b`, `proj-b` is attached to the story in the store, then workspace and pane group are opened
+- **THEN** `pre-worktree-create` hooks run, `vcs.CreateWorktree` is called for `proj-b`, `proj-b` is attached to the story in the store, `post-worktree-create` hooks run, then workspace and pane group are opened
+
+#### Scenario: pre-worktree-create hook aborts worktree creation
+- **WHEN** `swm workspace open feat-x` is run and user selects an unattached project and a `pre-worktree-create` hook exits non-zero
+- **THEN** `vcs.CreateWorktree` is NOT called, the project is NOT attached to the story, and the command exits non-zero
+
+#### Scenario: post-worktree-create hook fails — logged, open continues
+- **WHEN** `swm workspace open feat-x` is run, a new worktree is created successfully, and a `post-worktree-create` hook exits non-zero
+- **THEN** the failure is logged, the workspace open proceeds, and the command exits 0
 
 #### Scenario: Project picker cancelled by user
 - **WHEN** a story is resolved and the project picker is shown but the user cancels selection
