@@ -32,6 +32,8 @@ type stubStore struct {
 	getErr            error
 	deleteErr         error
 	deleted           bool
+	listStories       []*coreStory.Story
+	listErr           error
 }
 
 func (s *stubStore) Create(_ context.Context, name, branch string) (*coreStory.Story, error) {
@@ -63,7 +65,9 @@ func (s *stubStore) Get(_ context.Context, _ string) (*coreStory.Story, error) {
 	return &coreStory.Story{}, nil
 }
 
-func (s *stubStore) List(_ context.Context) ([]*coreStory.Story, error) { return nil, nil }
+func (s *stubStore) List(_ context.Context) ([]*coreStory.Story, error) {
+	return s.listStories, s.listErr
+}
 
 func (s *stubStore) Update(_ context.Context, _ *coreStory.Story) error { return nil }
 
