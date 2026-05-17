@@ -18,6 +18,15 @@ func main() {
 		f.Close() //nolint:errcheck // best-effort log
 	}
 
+	// Record environment for env-isolation test assertions.
+	if envFile := os.Getenv("FAKETMUX_ENV_LOG"); envFile != "" {
+		f, _ := os.OpenFile(envFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644) //nolint:errcheck // best-effort log
+		for _, e := range os.Environ() {
+			fmt.Fprintln(f, e)
+		}
+		f.Close() //nolint:errcheck // best-effort log
+	}
+
 	// Parse -S <socket> and the subcommand.
 	socket, cmd := parseArgs(args)
 

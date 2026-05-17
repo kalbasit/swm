@@ -446,6 +446,58 @@ func TestOpenPaneGroup_CollisionPrevention(t *testing.T) {
 	require.NotEqual(t, "utils", pgB.GetPaneGroupId(), "session name must not be a bare basename")
 }
 
+func TestOpenWorkspace_EnvIsolation_PluginInternalVarsAbsent(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	envFile := filepath.Join(t.TempDir(), "env.log")
+	t.Setenv("FAKETMUX_ENV_LOG", envFile)
+
+	t.Setenv("SWM_HOST_SOCKET", "unix:///run/user/1000/swm/test.sock")
+	t.Setenv("SWM_LOG_LEVEL", "debug")
+	t.Setenv("SWM_PLUGIN_MAGIC_COOKIE", "swm-plugin-v1")
+
+	tmux, _ := newTmux(t)
+	_, err := tmux.OpenWorkspace(context.Background(), &pluginv1.OpenWorkspaceRequest{
+		StoryName:     "env-isolation-test",
+		WorktreePaths: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	envBytes, err := os.ReadFile(envFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	envContents := string(envBytes)
+	require.NotContains(t, envContents, "SWM_HOST_SOCKET=")
+	require.NotContains(t, envContents, "SWM_LOG_LEVEL=")
+	require.NotContains(t, envContents, "SWM_PLUGIN_MAGIC_COOKIE=")
+}
+
+func TestOpenWorkspace_EnvIsolation_UserEnvPreserved(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	envFile := filepath.Join(t.TempDir(), "env.log")
+	t.Setenv("FAKETMUX_ENV_LOG", envFile)
+
+	const (
+		sentinelKey = "SWM_TEST_USER_SENTINEL"
+		sentinelVal = "user-env-must-survive-12345"
+	)
+	t.Setenv(sentinelKey, sentinelVal)
+
+	tmux, _ := newTmux(t)
+	_, err := tmux.OpenWorkspace(context.Background(), &pluginv1.OpenWorkspaceRequest{
+		StoryName:     "user-env-test",
+		WorktreePaths: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	envBytes, err := os.ReadFile(envFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	envContents := string(envBytes)
+	require.Contains(t, envContents, sentinelKey+"="+sentinelVal)
+	require.Contains(t, envContents, "HOME=")
+	require.Contains(t, envContents, "PATH=")
+}
+
 // fakeHostClient implements pluginv1.HostClient for tests.
 type fakeHostClient struct {
 	toml []byte

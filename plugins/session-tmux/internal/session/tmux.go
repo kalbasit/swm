@@ -331,6 +331,7 @@ func (t *Tmux) run(ctx context.Context, args ...string) (string, error) {
 	var stderr bytes.Buffer
 
 	cmd := exec.CommandContext(ctx, t.tmuxBin, args...) //nolint:gosec // tmuxBin from LookPath, args are controlled
+	cmd.Env = filteredEnv()
 	cmd.Stderr = &stderr
 
 	out, err := cmd.Output()
