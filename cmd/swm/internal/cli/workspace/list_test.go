@@ -18,8 +18,6 @@ var errListStore = errors.New("store failure")
 func TestListCmd(t *testing.T) {
 	t.Parallel()
 
-	const defaultStory = "_default"
-
 	tests := []struct {
 		name    string
 		stories []*coreStory.Story
@@ -32,7 +30,7 @@ func TestListCmd(t *testing.T) {
 		},
 		{
 			name:    "only default story is excluded",
-			stories: []*coreStory.Story{{Name: "_default"}},
+			stories: []*coreStory.Story{{Name: testDefaultStory}},
 			want:    "",
 		},
 		{
@@ -56,14 +54,14 @@ func TestListCmd(t *testing.T) {
 			name: "multiple workspaces sorted with multiple projects sorted",
 			stories: []*coreStory.Story{
 				{
-					Name: "alpha",
+					Name: testSortStoryAlpha,
 					Projects: []coreStory.Project{
 						{Host: testHost, Segments: []string{"c", "d"}},
 						{Host: testHost, Segments: []string{"a", "b"}},
 					},
 				},
 				{
-					Name: "beta",
+					Name: testSortStoryBeta,
 					Projects: []coreStory.Project{
 						{Host: testHost, Segments: []string{"e", "f"}},
 					},
@@ -78,7 +76,7 @@ func TestListCmd(t *testing.T) {
 			t.Parallel()
 
 			store := &stubStore{listStories: tc.stories}
-			cmd := workspace.NewListCmd(store, defaultStory)
+			cmd := workspace.NewListCmd(store, testDefaultStory)
 
 			var out bytes.Buffer
 			cmd.SetOut(&out)
@@ -93,7 +91,7 @@ func TestListCmd_StoreError(t *testing.T) {
 	t.Parallel()
 
 	store := &stubStore{listErr: errListStore}
-	cmd := workspace.NewListCmd(store, "_default")
+	cmd := workspace.NewListCmd(store, testDefaultStory)
 
 	require.Error(t, cmd.Execute())
 }
@@ -127,7 +125,7 @@ func TestListCmd_Integration(t *testing.T) {
 	)
 	require.NoError(t, store.Update(ctx, s2))
 
-	cmd := workspace.NewListCmd(store, "_default")
+	cmd := workspace.NewListCmd(store, testDefaultStory)
 
 	var out bytes.Buffer
 	cmd.SetOut(&out)

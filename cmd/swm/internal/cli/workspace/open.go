@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
@@ -23,6 +24,7 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/config"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
 	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
+	"github.com/kalbasit/swm/cmd/swm/internal/termwidth"
 )
 
 // pluginManager is the subset of the CLI plugin manager used by this command.
@@ -34,6 +36,7 @@ type pluginManager interface {
 var (
 	errUnexpectedPluginType = errors.New("unexpected plugin type")
 	errInvalidProjectKey    = errors.New("invalid project key: must be host/seg1/.../segN")
+	errUnknownPickerKey     = errors.New("story picker returned unknown key")
 )
 
 // grpcStatuser is satisfied by any error that carries a gRPC status.
@@ -106,6 +109,43 @@ func NewOpenCmd(
 				storyName = os.Getenv("SWM_STORY")
 			}
 
+			// Attempt to load the picker plugin (optional — no error if absent).
+			// Loaded early so it can be used for story selection before project selection.
+			var pickerClient pluginv1.PickerClient
+
+			if rawPicker, pickErr := mgr.Get(ctx, "picker"); pickErr == nil {
+				if pc, ok := rawPicker.(pluginv1.PickerClient); ok {
+					pickerClient = pc
+
+					slog.DebugContext(ctx, "picker plugin loaded")
+				}
+			} else {
+				slog.DebugContext(ctx, "picker plugin unavailable", "err", pickErr)
+			}
+
+			// If no story resolved yet and picker is available, show a story picker.
+			if storyName == "" && pickerClient != nil {
+				width := termwidth.Detect()
+
+				selected, pickErr := pickStory(ctx, store, pickerClient, width)
+				if pickErr != nil {
+					code := grpcCode(pickErr)
+
+					switch code { //nolint:exhaustive // default case handles all unexpected gRPC codes
+					case codes.Aborted:
+						// User cancelled the story picker — exit cleanly.
+						return nil
+					case codes.FailedPrecondition:
+						// No TTY — fall through to default story.
+						slog.DebugContext(ctx, "story picker unavailable (no TTY), using default story")
+					default:
+						return fmt.Errorf("story picker: %w", pickErr)
+					}
+				} else if selected != nil {
+					storyName = selected.Name
+				}
+			}
+
 			if storyName == "" {
 				storyName = cfg.DefaultStory
 			}
@@ -142,19 +182,6 @@ func NewOpenCmd(
 				StoryName: storyName,
 			}); err != nil {
 				return fmt.Errorf("pre-workspace-open hook: %w", err)
-			}
-
-			// Attempt to load the picker plugin (optional — no error if absent).
-			var pickerClient pluginv1.PickerClient
-
-			if rawPicker, pickErr := mgr.Get(ctx, "picker"); pickErr == nil {
-				if pc, ok := rawPicker.(pluginv1.PickerClient); ok {
-					pickerClient = pc
-
-					slog.DebugContext(ctx, "picker plugin loaded")
-				}
-			} else {
-				slog.DebugContext(ctx, "picker plugin unavailable", "err", pickErr)
 			}
 
 			var openErr error
@@ -465,6 +492,56 @@ func isAttached(st *coreStory.Story, key string) bool {
 	}
 
 	return false
+}
+
+// pickStory shows a story picker and returns the story the user selected.
+// Errors are propagated as-is so the caller can inspect gRPC status codes
+// (codes.Aborted = user cancelled; codes.FailedPrecondition = no TTY).
+func pickStory(
+	ctx context.Context,
+	st coreStory.Store,
+	pickerClient pluginv1.PickerClient,
+	width int,
+) (*coreStory.Story, error) {
+	stories, err := st.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("listing stories for picker: %w", err)
+	}
+
+	sorted := SortStoriesForPicker(stories)
+
+	stream, err := pickerClient.Pick(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+
+	for _, s := range sorted {
+		display := BuildStoryDisplay(s, width, now)
+		if sendErr := stream.Send(&pluginv1.PickItem{Key: s.Name, Display: display}); sendErr != nil {
+			return nil, fmt.Errorf("sending story to picker: %w", sendErr)
+		}
+	}
+
+	if err := stream.CloseSend(); err != nil {
+		return nil, fmt.Errorf("closing story picker send: %w", err)
+	}
+
+	result, err := stream.Recv()
+	if err != nil {
+		return nil, err // caller inspects gRPC status
+	}
+
+	selectedKey := result.GetKey()
+
+	for _, s := range stories {
+		if s.Name == selectedKey {
+			return s, nil
+		}
+	}
+
+	return nil, fmt.Errorf("%q: %w", selectedKey, errUnknownPickerKey)
 }
 
 // projectIDFromKey parses a "host/seg1/.../segN" string into a ProjectID.
