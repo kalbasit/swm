@@ -36,6 +36,23 @@ var (
 	errInvalidProjectKey    = errors.New("invalid project key: must be host/seg1/.../segN")
 )
 
+// grpcStatuser is satisfied by any error that carries a gRPC status.
+type grpcStatuser interface {
+	GRPCStatus() *status.Status
+}
+
+// grpcCode unwraps the error chain to find a gRPC status code.
+// status.Code() does not unwrap, so fmt.Errorf-wrapped gRPC errors
+// would always return codes.Unknown without this helper.
+func grpcCode(err error) codes.Code {
+	var s grpcStatuser
+	if errors.As(err, &s) {
+		return s.GRPCStatus().Code()
+	}
+
+	return codes.Unknown
+}
+
 // ExecFunc is the type used to replace the current process (default: syscall.Exec).
 type ExecFunc func(argv0 string, argv []string, envv []string) error
 
@@ -142,11 +159,11 @@ func NewOpenCmd(
 				if openErr != nil {
 					slog.DebugContext(
 						ctx, "picker returned error, checking fallback",
-						"code", status.Code(openErr).String(),
+						"code", grpcCode(openErr).String(),
 						"err", openErr,
 					)
 
-					if status.Code(openErr) == codes.FailedPrecondition {
+					if grpcCode(openErr) == codes.FailedPrecondition {
 						slog.DebugContext(ctx, "falling back to openAllAttached (no TTY)")
 						openErr = openAllAttached(ctx, cmd, st, sess, resolver, storyName)
 					}
