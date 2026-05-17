@@ -49,6 +49,27 @@ func TestLoad_TildeInCodeRoot(t *testing.T) {
 	require.Equal(t, filepath.Join(home, "mycode"), cfg.CodeRoot)
 }
 
+func TestLoad_TildeInPluginPaths(t *testing.T) {
+	t.Parallel()
+
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	content := `
+code_root = "/code"
+
+[plugins.paths]
+vcs-git = "~/bin/swm-plugin-vcs-git"
+`
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	cfg, err := config.Load(path)
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(home, "bin", "swm-plugin-vcs-git"), cfg.Plugins.Paths["vcs-git"])
+}
+
 func TestLoad_AllFields(t *testing.T) {
 	t.Parallel()
 
@@ -105,7 +126,7 @@ func TestResolveConfigPath_EnvVarEmpty(t *testing.T) {
 	t.Parallel()
 
 	got := config.ResolveConfigPath("", "/home/user/.config")
-	require.Equal(t, "/home/user/.config/swm/config.toml", got)
+	require.Equal(t, filepath.Join("/home/user/.config", "swm", "config.toml"), got)
 }
 
 func TestLoad_BadTOML(t *testing.T) {

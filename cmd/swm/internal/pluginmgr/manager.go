@@ -66,10 +66,11 @@ type forgeEntry struct {
 type Option func(*Manager)
 
 // WithStderr sets the writer that receives the raw stderr output of plugin processes.
+// The provided writer must be thread-safe as it may be shared by multiple concurrent plugins.
 // Defaults to os.Stderr when not specified.
 func WithStderr(w io.Writer) Option {
 	return func(m *Manager) {
-		m.syncStderr = w
+		m.stderr = w
 	}
 }
 
@@ -77,7 +78,7 @@ func WithStderr(w io.Writer) Option {
 type Manager struct {
 	cfg        *config.Config
 	hostSocket string
-	syncStderr io.Writer
+	stderr     io.Writer
 
 	mu           sync.Mutex
 	launched     map[string]*entry
@@ -90,7 +91,7 @@ func New(cfg *config.Config, hostSocket string, opts ...Option) *Manager {
 	m := &Manager{
 		cfg:        cfg,
 		hostSocket: hostSocket,
-		syncStderr: os.Stderr,
+		stderr:     os.Stderr,
 		launched:   make(map[string]*entry),
 	}
 
@@ -161,7 +162,7 @@ func (m *Manager) Get(ctx context.Context, capability string) (any, error) {
 		HandshakeConfig: handshake.Config,
 		Plugins:         set,
 		Cmd:             pluginCmd,
-		Stderr:          m.syncStderr,
+		Stderr:          m.stderr,
 		AllowedProtocols: []goplugin.Protocol{
 			goplugin.ProtocolGRPC,
 		},
@@ -287,7 +288,7 @@ func (m *Manager) loadForges(ctx context.Context) error {
 			HandshakeConfig: handshake.Config,
 			Plugins:         set,
 			Cmd:             pluginCmd,
-			Stderr:          m.syncStderr,
+			Stderr:          m.stderr,
 			AllowedProtocols: []goplugin.Protocol{
 				goplugin.ProtocolGRPC,
 			},

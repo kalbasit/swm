@@ -36,6 +36,27 @@ var (
 	errInvalidProjectKey    = errors.New("invalid project key: must be host/seg1/.../segN")
 )
 
+// grpcStatuser is satisfied by any error that carries a gRPC status.
+type grpcStatuser interface {
+	GRPCStatus() *status.Status
+}
+
+// grpcCode unwraps the error chain to find a gRPC status code.
+// status.Code() does not unwrap, so fmt.Errorf-wrapped gRPC errors
+// would always return codes.Unknown without this helper.
+func grpcCode(err error) codes.Code {
+	if err == nil {
+		return codes.OK
+	}
+
+	var s grpcStatuser
+	if errors.As(err, &s) {
+		return s.GRPCStatus().Code()
+	}
+
+	return codes.Unknown
+}
+
 // ExecFunc is the type used to replace the current process (default: syscall.Exec).
 type ExecFunc func(argv0 string, argv []string, envv []string) error
 
@@ -138,36 +159,24 @@ func NewOpenCmd(
 
 			var openErr error
 			if pickerClient != nil {
-				openErr = openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, storyName, ocfg.exec)
+				openErr = openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, hooks, storyName, ocfg.exec)
 				if openErr != nil {
 					slog.DebugContext(
 						ctx, "picker returned error, checking fallback",
-						"code", status.Code(openErr).String(),
+						"code", grpcCode(openErr).String(),
 						"err", openErr,
 					)
 
-					if status.Code(openErr) == codes.FailedPrecondition {
+					if grpcCode(openErr) == codes.FailedPrecondition {
 						slog.DebugContext(ctx, "falling back to openAllAttached (no TTY)")
-						openErr = openAllAttached(ctx, cmd, st, sess, resolver, storyName)
+						openErr = openAllAttached(ctx, cmd, cfg, st, sess, resolver, hooks, storyName, ocfg.exec)
 					}
 				}
 			} else {
-				openErr = openAllAttached(ctx, cmd, st, sess, resolver, storyName)
+				openErr = openAllAttached(ctx, cmd, cfg, st, sess, resolver, hooks, storyName, ocfg.exec)
 			}
 
-			if openErr != nil {
-				return openErr
-			}
-
-			if err := hooks.Run(ctx, hookexec.RunConfig{
-				Event:     "post-workspace-open",
-				CodeRoot:  cfg.CodeRoot,
-				StoryName: storyName,
-			}); err != nil {
-				slog.WarnContext(ctx, "post-workspace-open hook failed (ignored)", "err", err)
-			}
-
-			return nil
+			return openErr
 		},
 	}
 
@@ -186,6 +195,7 @@ func openWithPicker(
 	sess pluginv1.SessionClient,
 	pickerClient pluginv1.PickerClient,
 	resolver *layout.Resolver,
+	hooks hookexec.Runner,
 	storyName string,
 	execFn ExecFunc,
 ) error {
@@ -300,6 +310,16 @@ func openWithPicker(
 
 	cmd.Printf("opened pane group %q in workspace %q\n", pg.GetPaneGroupId(), storyName)
 
+	// Run the post hook before exec so it is not skipped when the host process
+	// is replaced by syscall.Exec.
+	if err := hooks.Run(ctx, hookexec.RunConfig{
+		Event:     "post-workspace-open",
+		CodeRoot:  cfg.CodeRoot,
+		StoryName: storyName,
+	}); err != nil {
+		slog.WarnContext(ctx, "post-workspace-open hook failed (ignored)", "err", err)
+	}
+
 	if argv := switchRes.GetExecArgv(); len(argv) > 0 {
 		if err := execFn(argv[0], argv, os.Environ()); err != nil {
 			return fmt.Errorf("exec after switch: %w", err)
@@ -313,10 +333,13 @@ func openWithPicker(
 func openAllAttached(
 	ctx context.Context,
 	cmd *cobra.Command,
+	cfg *config.Config,
 	st *coreStory.Story,
 	sess pluginv1.SessionClient,
 	resolver *layout.Resolver,
+	hooks hookexec.Runner,
 	storyName string,
+	execFn ExecFunc,
 ) error {
 	worktreePaths := make(map[string]string, len(st.Projects))
 
@@ -327,14 +350,59 @@ func openAllAttached(
 		worktreePaths[key] = resolver.WorktreePath(storyName, pid)
 	}
 
-	if _, err := sess.OpenWorkspace(ctx, &pluginv1.OpenWorkspaceRequest{
+	ws, err := sess.OpenWorkspace(ctx, &pluginv1.OpenWorkspaceRequest{
 		StoryName:     storyName,
 		WorktreePaths: worktreePaths,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("opening workspace: %w", err)
 	}
 
 	cmd.Printf("workspace opened for story %q\n", storyName)
+
+	// With no attached projects there is no pane group to switch to.
+	if len(st.Projects) == 0 {
+		return nil
+	}
+
+	// Open a pane group for the first attached project and switch to it so that
+	// exec (tmux attach-session) works consistently with the picker path.
+	first := &st.Projects[0]
+	firstPID := &pluginv1.ProjectID{Host: first.Host, Segments: first.Segments}
+	firstKey := first.Host + "/" + strings.Join(first.Segments, "/")
+
+	pg, err := sess.OpenPaneGroup(ctx, &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  ws.GetWorkspaceId(),
+		ProjectId:    firstPID,
+		WorktreePath: worktreePaths[firstKey],
+	})
+	if err != nil {
+		return fmt.Errorf("opening pane group: %w", err)
+	}
+
+	// Run the post hook before exec so it is not skipped when the host process
+	// is replaced by syscall.Exec.
+	if err := hooks.Run(ctx, hookexec.RunConfig{
+		Event:     "post-workspace-open",
+		CodeRoot:  cfg.CodeRoot,
+		StoryName: storyName,
+	}); err != nil {
+		slog.WarnContext(ctx, "post-workspace-open hook failed (ignored)", "err", err)
+	}
+
+	switchRes, err := sess.SwitchTo(ctx, &pluginv1.SwitchToRequest{
+		WorkspaceId: ws.GetWorkspaceId(),
+		PaneGroupId: pg.GetPaneGroupId(),
+	})
+	if err != nil {
+		return fmt.Errorf("switching to pane group: %w", err)
+	}
+
+	if argv := switchRes.GetExecArgv(); len(argv) > 0 {
+		if err := execFn(argv[0], argv, os.Environ()); err != nil {
+			return fmt.Errorf("exec after switch: %w", err)
+		}
+	}
 
 	return nil
 }

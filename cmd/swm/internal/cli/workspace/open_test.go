@@ -216,9 +216,9 @@ func TestOpenCmd_WithPicker_FailedPrecondition_FallsBack(t *testing.T) {
 	// Should succeed by falling back to Phase-1 behavior.
 	require.NoError(t, cmd.Execute())
 
-	// Phase-1 path: OpenWorkspace was called (not OpenPaneGroup).
+	// Fallback path: OpenWorkspace AND OpenPaneGroup are both called.
 	require.NotNil(t, sess.lastOpenReq, "expected OpenWorkspace to be called as fallback")
-	require.Nil(t, sess.lastPaneGroupReq, "expected OpenPaneGroup NOT to be called")
+	require.NotNil(t, sess.lastPaneGroupReq, "expected OpenPaneGroup to be called in fallback path")
 }
 
 // TestOpenCmd_WithPicker_RecvFailedPrecondition_FallsBack covers the case where the
@@ -246,7 +246,7 @@ func TestOpenCmd_WithPicker_RecvFailedPrecondition_FallsBack(t *testing.T) {
 
 	require.NoError(t, cmd.Execute())
 	require.NotNil(t, sess.lastOpenReq, "expected OpenWorkspace to be called as fallback")
-	require.Nil(t, sess.lastPaneGroupReq, "expected OpenPaneGroup NOT to be called")
+	require.NotNil(t, sess.lastPaneGroupReq, "expected OpenPaneGroup to be called in fallback path")
 }
 
 func TestOpenCmd_WithPicker_InvalidKey_EmptyHost(t *testing.T) {
@@ -360,6 +360,38 @@ func TestOpenCmd_NoPicker_FallsBackToPhase1(t *testing.T) {
 	// Phase 1 path: OpenWorkspace with all attached projects.
 	require.NotNil(t, sess.lastOpenReq)
 	require.Contains(t, sess.lastOpenReq.GetWorktreePaths(), "github.com/kalbasit/swm")
+}
+
+func TestOpenCmd_NoPicker_ExecArgvIsExeced(t *testing.T) {
+	t.Parallel()
+
+	wantArgv := []string{"/usr/bin/tmux", "attach-session", "-t", testStoryName}
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+
+	var gotArgv []string
+
+	testExec := workspace.ExecFunc(func(_ string, argv []string, _ []string) error {
+		gotArgv = argv
+
+		return nil
+	})
+
+	sess := &stubSess{switchToExecArgv: wantArgv}
+	mgr := &stubMgr{sess: sess} // no picker configured
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop, workspace.WithExecFunc(testExec))
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.Equal(t, wantArgv, gotArgv, "expected execFunc to be called with the argv from SwitchTo")
 }
 
 // ─── stubs ───────────────────────────────────────────────────────────────────

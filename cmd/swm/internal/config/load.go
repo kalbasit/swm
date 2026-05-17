@@ -52,6 +52,15 @@ func Load(path string) (*Config, error) {
 
 	cfg.CodeRoot = expanded
 
+	for name, p := range cfg.Plugins.Paths {
+		expanded, err := expandTilde(p)
+		if err != nil {
+			return nil, fmt.Errorf("expanding plugin path for %s: %w", name, err)
+		}
+
+		cfg.Plugins.Paths[name] = expanded
+	}
+
 	return cfg, nil
 }
 
