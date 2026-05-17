@@ -244,7 +244,7 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 			firstPath = req.GetWorktreePaths()[keys[0]]
 		}
 
-		args := []string{"-S", sock, "new-session", "-d", "-s", firstName}
+		args := []string{"-S", sock, "new-session", "-d", "-s", firstName, "-e", "SWM_STORY=" + req.GetStoryName()}
 		if firstPath != "" {
 			args = append(args, "-c", firstPath)
 		}

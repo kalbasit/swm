@@ -260,8 +260,18 @@ func TestOpenWorkspace_SetsSWMStory(t *testing.T) {
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
 
-	require.Contains(t, string(logBytes), "set-environment -g SWM_STORY my-feature",
+	log := string(logBytes)
+
+	// set-environment -g propagates SWM_STORY to all pane-group sessions created afterward.
+	require.Contains(t, log, "set-environment -g SWM_STORY my-feature",
 		"tmux set-environment must be called to propagate SWM_STORY into the workspace")
+
+	// The initial new-session must also carry -e so the very first shell sees it
+	// before set-environment -g has been called.
+	require.Contains(t, log, "new-session",
+		"expected a new-session invocation")
+	require.Contains(t, log, "-e SWM_STORY=my-feature",
+		"initial new-session must pass SWM_STORY via -e so the first shell sees it immediately")
 }
 
 func TestOpenWorkspace_EmptyWorktreePaths(t *testing.T) {
