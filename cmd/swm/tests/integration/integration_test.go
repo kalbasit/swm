@@ -216,7 +216,7 @@ func TestWorkspaceOpenWithPicker(t *testing.T) {
 	var buf bytes.Buffer
 
 	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
-	root2.SetArgs([]string{"workspace", cmdOpen, flagStory, testStoryName})
+	root2.SetArgs([]string{"workspace", cmdOpen, testStoryName})
 	root2.SetOut(&buf)
 	require.NoError(t, root2.Execute())
 
@@ -240,7 +240,7 @@ func TestWorkspaceOpen(t *testing.T) {
 	var buf bytes.Buffer
 
 	root := cli.NewRootCmd(cfg, mgr, store, resolver)
-	root.SetArgs([]string{"workspace", cmdOpen, flagStory, testStoryName})
+	root.SetArgs([]string{"workspace", cmdOpen, testStoryName})
 	root.SetOut(&buf)
 	require.NoError(t, root.Execute())
 

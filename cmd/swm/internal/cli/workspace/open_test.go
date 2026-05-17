@@ -26,7 +26,6 @@ const (
 	testCodeRoot     = "/code"
 	testDefaultStory = "_default"
 	testStoryName    = "feat-x"
-	testStoryFlag    = "--story"
 	testHost         = "github.com"
 	testOwner        = "kalbasit"
 	testSegment      = "swm"
@@ -34,7 +33,7 @@ const (
 
 var errNoPlugin = errors.New("no plugin")
 
-func TestOpenCmd_WithStoryFlag(t *testing.T) {
+func TestOpenCmd_WithPositionalArg(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
@@ -44,7 +43,23 @@ func TestOpenCmd_WithStoryFlag(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.Equal(t, testStoryName, sess.lastOpenReq.GetStoryName())
+}
+
+func TestOpenCmd_PositionalArgOverridesEnv(t *testing.T) {
+	t.Setenv("SWM_STORY", "env-story")
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	sess := &stubSess{}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
 	require.Equal(t, testStoryName, sess.lastOpenReq.GetStoryName())
@@ -75,7 +90,7 @@ func TestOpenCmd_StoryNotFound(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, "nonexistent"})
+	cmd.SetArgs([]string{"nonexistent"})
 
 	require.Error(t, cmd.Execute())
 }
@@ -90,7 +105,7 @@ func TestOpenCmd_NoProjects(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
 	require.Empty(t, sess.lastOpenReq.GetWorktreePaths())
@@ -115,7 +130,7 @@ func TestOpenCmd_WithPicker_ProjectAlreadyAttached(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
 
@@ -145,7 +160,7 @@ func TestOpenCmd_WithPicker_ProjectNotAttached(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
 
@@ -172,7 +187,7 @@ func TestOpenCmd_WithPicker_Cancelled(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	// Cancellation is not an error.
 	require.NoError(t, cmd.Execute())
@@ -196,7 +211,7 @@ func TestOpenCmd_WithPicker_FailedPrecondition_FallsBack(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	// Should succeed by falling back to Phase-1 behavior.
 	require.NoError(t, cmd.Execute())
@@ -245,7 +260,7 @@ func TestOpenCmd_WithPicker_InvalidKey_EmptyHost(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	err := cmd.Execute()
 	require.Error(t, err)
@@ -263,7 +278,7 @@ func TestOpenCmd_WithPicker_InvalidKey_EmptySegments(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	err := cmd.Execute()
 	require.Error(t, err)
@@ -281,7 +296,7 @@ func TestOpenCmd_WithPicker_InvalidKey_EmptySegmentPart(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	err := cmd.Execute()
 	require.Error(t, err)
@@ -303,7 +318,7 @@ func TestOpenCmd_NoPicker_FallsBackToPhase1(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
 

@@ -43,13 +43,18 @@ func NewOpenCmd(
 	resolver *layout.Resolver,
 	hooks hookexec.Runner,
 ) *cobra.Command {
-	var storyName string
-
 	cmd := &cobra.Command{
-		Use:   "open",
+		Use:   "open [story-name]",
 		Short: "Open (or attach to) the workspace for a story",
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
+			var storyName string
+
+			if len(args) > 0 {
+				storyName = args[0]
+			}
 
 			if storyName == "" {
 				storyName = os.Getenv("SWM_STORY")
@@ -140,8 +145,6 @@ func NewOpenCmd(
 			return nil
 		},
 	}
-
-	cmd.Flags().StringVar(&storyName, "story", "", "story name (default: $SWM_STORY or default story)")
 
 	return cmd
 }
