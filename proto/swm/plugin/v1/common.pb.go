@@ -677,6 +677,7 @@ var (
 		(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
 	}
 )
+
 var file_swm_plugin_v1_common_proto_depIdxs = []int32{
 	0,  // 0: swm.plugin.v1.Capability.type:type_name -> swm.plugin.v1.CapabilityType
 	0,  // 1: swm.plugin.v1.CapabilityDep.capability:type_name -> swm.plugin.v1.CapabilityType
