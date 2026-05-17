@@ -1,42 +1,7 @@
-### Requirement: Per-binary Nix packages exist
-The flake SHALL expose one installable Nix package per swm binary under `packages.<name>`:
-- `packages.swm` builds `cmd/swm`
-- `packages.swm-plugin-forge-github` builds `plugins/forge-github`
-- `packages.swm-plugin-picker-fzf` builds `plugins/picker-fzf`
-- `packages.swm-plugin-session-tmux` builds `plugins/session-tmux`
-- `packages.swm-plugin-vcs-git` builds `plugins/vcs-git`
-
-Each package MUST be a `pkgs.buildGoModule` derivation whose source fileset includes the
-binary's own module directory (`cmd/<name>` or `plugins/<name>`), plus the shared local
-modules `proto/` and `sdk/go/` required by `replace` directives.
-
-#### Scenario: Building the swm host binary
-- **WHEN** a user runs `nix build .#swm`
-- **THEN** the build succeeds and `result/bin/swm` is a working executable
-
-#### Scenario: Building a plugin binary
-- **WHEN** a user runs `nix build .#swm-plugin-session-tmux`
-- **THEN** the build succeeds and `result/bin/swm-plugin-session-tmux` is a working executable
-
-#### Scenario: Replace directives resolve inside the build
-- **WHEN** a plugin package is built by Nix
-- **THEN** the `proto/` and `sdk/go/` source trees are included in the sandbox so `replace` directives resolve correctly
-
-### Requirement: Version falls back to git revision
-Each package SHALL determine its version as follows:
-1. Read `version.txt` from the package's `nix/packages/<name>/` directory.
-2. If the file is non-empty (after trimming whitespace), use that value.
-3. Otherwise use `self.rev or self.dirtyRev` from the flake self reference.
-
-#### Scenario: Clean release build
-- **WHEN** `version.txt` contains `v1.2.3`
-- **THEN** the built binary reports version `v1.2.3`
-
-#### Scenario: Development build without a version tag
-- **WHEN** `version.txt` is empty
-- **THEN** the derivation uses the git commit SHA as the version
+## MODIFIED Requirements
 
 ### Requirement: Packages run tests in the Nix check phase
+
 Each `buildGoModule` derivation SHALL set `doCheck = true`.  No package requires
 network access.  Each package MUST provide the external tools its test suite needs via
 `nativeBuildInputs`:
