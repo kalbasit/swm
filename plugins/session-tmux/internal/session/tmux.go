@@ -244,7 +244,7 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 			firstPath = req.GetWorktreePaths()[keys[0]]
 		}
 
-		args := []string{"-S", sock, "new-session", "-d", "-s", firstName}
+		args := []string{"-S", sock, "new-session", "-d", "-s", firstName, "-e", "SWM_STORY=" + req.GetStoryName()}
 		if firstPath != "" {
 			args = append(args, "-c", firstPath)
 		}
@@ -252,6 +252,12 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 		if _, err := t.run(ctx, args...); err != nil {
 			return nil, err
 		}
+	}
+
+	// Propagate the story name so shells inside the workspace can run
+	// "swm workspace open" without specifying --story explicitly.
+	if _, err := t.run(ctx, "-S", sock, "set-environment", "-g", "SWM_STORY", req.GetStoryName()); err != nil {
+		return nil, err
 	}
 
 	// Ensure a session exists for every worktree path (sorted order).
@@ -331,6 +337,7 @@ func (t *Tmux) run(ctx context.Context, args ...string) (string, error) {
 	var stderr bytes.Buffer
 
 	cmd := exec.CommandContext(ctx, t.tmuxBin, args...) //nolint:gosec // tmuxBin from LookPath, args are controlled
+	cmd.Env = filteredEnv()
 	cmd.Stderr = &stderr
 
 	out, err := cmd.Output()

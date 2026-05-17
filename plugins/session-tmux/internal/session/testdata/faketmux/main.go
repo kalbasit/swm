@@ -13,9 +13,22 @@ func main() {
 
 	// Record invocation for test assertions.
 	if logFile := os.Getenv("FAKETMUX_LOG"); logFile != "" {
-		f, _ := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644) //nolint:errcheck // best-effort log
-		fmt.Fprintln(f, strings.Join(args, " "))
-		f.Close() //nolint:errcheck // best-effort log
+		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err == nil {
+			fmt.Fprintln(f, strings.Join(args, " "))
+			f.Close() //nolint:errcheck // best-effort log
+		}
+	}
+
+	// Record environment for env-isolation test assertions.
+	if envFile := os.Getenv("FAKETMUX_ENV_LOG"); envFile != "" {
+		f, err := os.OpenFile(envFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err == nil {
+			for _, e := range os.Environ() {
+				fmt.Fprintln(f, e)
+			}
+			f.Close() //nolint:errcheck // best-effort log
+		}
 	}
 
 	// Parse -S <socket> and the subcommand.

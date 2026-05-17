@@ -245,6 +245,35 @@ func TestSwitchTo_InsideTmux_CallsSwitchClient(t *testing.T) {
 	require.Contains(t, string(logBytes), "switch-client", "faketmux must be called with switch-client")
 }
 
+func TestOpenWorkspace_SetsSWMStory(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, _ := newTmux(t)
+	_, err := tmux.OpenWorkspace(context.Background(), &pluginv1.OpenWorkspaceRequest{
+		StoryName:     "my-feature",
+		WorktreePaths: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	log := string(logBytes)
+
+	// set-environment -g propagates SWM_STORY to all pane-group sessions created afterward.
+	require.Contains(t, log, "set-environment -g SWM_STORY my-feature",
+		"tmux set-environment must be called to propagate SWM_STORY into the workspace")
+
+	// The initial new-session must also carry -e so the very first shell sees it
+	// before set-environment -g has been called.
+	require.Contains(t, log, "new-session",
+		"expected a new-session invocation")
+	require.Contains(t, log, "-e SWM_STORY=my-feature",
+		"initial new-session must pass SWM_STORY via -e so the first shell sees it immediately")
+}
+
 func TestOpenWorkspace_EmptyWorktreePaths(t *testing.T) {
 	// Cannot be parallel — uses FAKETMUX_LOG env var.
 	logFile := filepath.Join(t.TempDir(), "tmux.log")
@@ -444,6 +473,58 @@ func TestOpenPaneGroup_CollisionPrevention(t *testing.T) {
 		"repos with the same basename from different orgs must have distinct session names")
 	require.NotEqual(t, "utils", pgA.GetPaneGroupId(), "session name must not be a bare basename")
 	require.NotEqual(t, "utils", pgB.GetPaneGroupId(), "session name must not be a bare basename")
+}
+
+func TestOpenWorkspace_EnvIsolation_PluginInternalVarsAbsent(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	envFile := filepath.Join(t.TempDir(), "env.log")
+	t.Setenv("FAKETMUX_ENV_LOG", envFile)
+
+	t.Setenv("SWM_HOST_SOCKET", "unix:///run/user/1000/swm/test.sock")
+	t.Setenv("SWM_LOG_LEVEL", "debug")
+	t.Setenv("SWM_PLUGIN_MAGIC_COOKIE", "swm-plugin-v1")
+
+	tmux, _ := newTmux(t)
+	_, err := tmux.OpenWorkspace(context.Background(), &pluginv1.OpenWorkspaceRequest{
+		StoryName:     "env-isolation-test",
+		WorktreePaths: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	envBytes, err := os.ReadFile(envFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	envContents := string(envBytes)
+	require.NotContains(t, envContents, "SWM_HOST_SOCKET=")
+	require.NotContains(t, envContents, "SWM_LOG_LEVEL=")
+	require.NotContains(t, envContents, "SWM_PLUGIN_MAGIC_COOKIE=")
+}
+
+func TestOpenWorkspace_EnvIsolation_UserEnvPreserved(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	envFile := filepath.Join(t.TempDir(), "env.log")
+	t.Setenv("FAKETMUX_ENV_LOG", envFile)
+
+	const (
+		sentinelKey = "SWM_TEST_USER_SENTINEL"
+		sentinelVal = "user-env-must-survive-12345"
+	)
+	t.Setenv(sentinelKey, sentinelVal)
+
+	tmux, _ := newTmux(t)
+	_, err := tmux.OpenWorkspace(context.Background(), &pluginv1.OpenWorkspaceRequest{
+		StoryName:     "user-env-test",
+		WorktreePaths: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	envBytes, err := os.ReadFile(envFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	envContents := string(envBytes)
+	require.Contains(t, envContents, sentinelKey+"="+sentinelVal)
+	require.Contains(t, envContents, "HOME=")
+	require.Contains(t, envContents, "PATH=")
 }
 
 // fakeHostClient implements pluginv1.HostClient for tests.
