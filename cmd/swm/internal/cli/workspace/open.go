@@ -321,7 +321,7 @@ func openWithPicker(
 			return fmt.Errorf("attaching project to story: %w", err)
 		}
 
-		if err := hooks.Run(ctx, hookexec.RunConfig{
+		_ = hooks.Run(ctx, hookexec.RunConfig{ //nolint:errcheck // post-* hooks always return nil; Run already logs failures
 			Event:        "post-worktree-create",
 			CodeRoot:     cfg.CodeRoot,
 			StoryName:    storyName,
@@ -329,9 +329,7 @@ func openWithPicker(
 			ProjectPath:  projectPath,
 			WorktreePath: worktreePath,
 			RepoPath:     repoPath,
-		}); err != nil {
-			slog.WarnContext(ctx, "post-worktree-create hook failed (ignored)", "err", err)
-		}
+		})
 	}
 
 	// Ensure the workspace is open.
@@ -366,13 +364,11 @@ func openWithPicker(
 
 	// Run the post hook before exec so it is not skipped when the host process
 	// is replaced by syscall.Exec.
-	if err := hooks.Run(ctx, hookexec.RunConfig{
+	_ = hooks.Run(ctx, hookexec.RunConfig{ //nolint:errcheck // post-* hooks always return nil; Run already logs failures
 		Event:     "post-workspace-open",
 		CodeRoot:  cfg.CodeRoot,
 		StoryName: storyName,
-	}); err != nil {
-		slog.WarnContext(ctx, "post-workspace-open hook failed (ignored)", "err", err)
-	}
+	})
 
 	if argv := switchRes.GetExecArgv(); len(argv) > 0 {
 		if err := execFn(argv[0], argv, os.Environ()); err != nil {
@@ -436,13 +432,11 @@ func openAllAttached(
 
 	// Run the post hook before exec so it is not skipped when the host process
 	// is replaced by syscall.Exec.
-	if err := hooks.Run(ctx, hookexec.RunConfig{
+	_ = hooks.Run(ctx, hookexec.RunConfig{ //nolint:errcheck // post-* hooks always return nil; Run already logs failures
 		Event:     "post-workspace-open",
 		CodeRoot:  cfg.CodeRoot,
 		StoryName: storyName,
-	}); err != nil {
-		slog.WarnContext(ctx, "post-workspace-open hook failed (ignored)", "err", err)
-	}
+	})
 
 	switchRes, err := sess.SwitchTo(ctx, &pluginv1.SwitchToRequest{
 		WorkspaceId: ws.GetWorkspaceId(),
