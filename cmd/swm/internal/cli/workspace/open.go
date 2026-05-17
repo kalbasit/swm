@@ -68,6 +68,13 @@ func NewOpenCmd(
 				return fmt.Errorf("loading story %q: %w", storyName, err)
 			}
 
+			slog.DebugContext(
+				ctx, "workspace open",
+				"story", storyName,
+				"projects", len(st.Projects),
+				"code_root", cfg.CodeRoot,
+			)
+
 			raw, err := mgr.Get(ctx, "session")
 			if err != nil {
 				return fmt.Errorf("loading session plugin: %w", err)
@@ -92,14 +99,27 @@ func NewOpenCmd(
 			if rawPicker, pickErr := mgr.Get(ctx, "picker"); pickErr == nil {
 				if pc, ok := rawPicker.(pluginv1.PickerClient); ok {
 					pickerClient = pc
+
+					slog.DebugContext(ctx, "picker plugin loaded")
 				}
+			} else {
+				slog.DebugContext(ctx, "picker plugin unavailable", "err", pickErr)
 			}
 
 			var openErr error
 			if pickerClient != nil {
 				openErr = openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, storyName)
-				if openErr != nil && status.Code(openErr) == codes.FailedPrecondition {
-					openErr = openAllAttached(ctx, cmd, st, sess, resolver, storyName)
+				if openErr != nil {
+					slog.DebugContext(
+						ctx, "picker returned error, checking fallback",
+						"code", status.Code(openErr).String(),
+						"err", openErr,
+					)
+
+					if status.Code(openErr) == codes.FailedPrecondition {
+						slog.DebugContext(ctx, "falling back to openAllAttached (no TTY)")
+						openErr = openAllAttached(ctx, cmd, st, sess, resolver, storyName)
+					}
 				}
 			} else {
 				openErr = openAllAttached(ctx, cmd, st, sess, resolver, storyName)
@@ -143,6 +163,13 @@ func openWithPicker(
 	// Build a deduplicated candidate set: attached projects + all on-disk repos.
 	candidates := buildCandidates(cfg.CodeRoot, st, resolver)
 
+	slog.DebugContext(
+		ctx, "picker candidates built",
+		"count", len(candidates),
+		"code_root", cfg.CodeRoot,
+		"story_projects", len(st.Projects),
+	)
+
 	stream, err := pickerClient.Pick(ctx)
 	if err != nil {
 		// Return unwrapped so the caller can inspect the gRPC status code.
@@ -161,8 +188,10 @@ func openWithPicker(
 
 	result, err := stream.Recv()
 	if err != nil {
+		slog.DebugContext(ctx, "picker recv", "code", status.Code(err).String(), "err", err)
+
 		if status.Code(err) == codes.Aborted || errors.Is(err, io.EOF) {
-			// User cancelled — exit gracefully.
+			// User cancelled or no candidates — exit gracefully.
 			return nil
 		}
 
@@ -296,6 +325,8 @@ func buildCandidates(codeRoot string, st *coreStory.Story, resolver *layout.Reso
 
 	// All on-disk repositories.
 	reposDir := filepath.Join(codeRoot, "repositories")
+
+	slog.Default().Debug("scanning repos dir", "path", reposDir)
 
 	//nolint:errcheck // walking the repos dir is best-effort; missing repos are simply excluded
 	_ = filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {

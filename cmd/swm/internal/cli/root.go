@@ -3,6 +3,9 @@ package cli
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -30,11 +33,25 @@ func NewRootCmd(
 	store coreStory.Store,
 	resolver *layout.Resolver,
 ) *cobra.Command {
+	var logLevel string
+
 	root := &cobra.Command{
 		Use:          "swm",
 		Short:        "Story-based Workflow Manager",
 		SilenceUsage: true,
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			var level slog.Level
+			if err := level.UnmarshalText([]byte(logLevel)); err != nil {
+				return fmt.Errorf("invalid --log-level %q: %w", logLevel, err)
+			}
+
+			slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+
+			return nil
+		},
 	}
+
+	root.PersistentFlags().StringVar(&logLevel, "log-level", "warn", "log level (debug, info, warn, error)")
 
 	hooks := hookexec.RunnerFunc(func(ctx context.Context, rc hookexec.RunConfig) error {
 		if rc.ConfigHome == "" {
