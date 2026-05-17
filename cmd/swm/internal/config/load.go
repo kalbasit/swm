@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -44,5 +45,30 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config file: %w", err)
 	}
 
+	expanded, err := expandTilde(cfg.CodeRoot)
+	if err != nil {
+		return nil, fmt.Errorf("expanding code_root: %w", err)
+	}
+
+	cfg.CodeRoot = expanded
+
 	return cfg, nil
+}
+
+// expandTilde replaces a leading "~/" with the current user's home directory.
+func expandTilde(path string) (string, error) {
+	if path != "~" && !strings.HasPrefix(path, "~/") {
+		return path, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("looking up home directory: %w", err)
+	}
+
+	if path == "~" {
+		return home, nil
+	}
+
+	return filepath.Join(home, path[2:]), nil
 }
