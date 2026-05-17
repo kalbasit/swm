@@ -1,11 +1,14 @@
 package pluginmgr_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -17,7 +20,30 @@ import (
 
 const fakePluginName = "fake"
 
-var fakeVCSBin string
+var (
+	fakeVCSBin    string
+	fakeStderrBin string
+)
+
+// syncBuffer is a thread-safe bytes.Buffer for use as a SyncStderr target.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.buf.String()
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.buf.Write(p)
+}
 
 func TestMain(m *testing.M) {
 	dir, err := os.MkdirTemp("", "pluginmgr-test-*")
@@ -36,6 +62,17 @@ func TestMain(m *testing.M) {
 
 	if err := cmd.Run(); err != nil {
 		panic("building fake plugin: " + err.Error())
+	}
+
+	fakeStderrBin = filepath.Join(dir, "swm-plugin-vcs-fakestderr")
+
+	cmd = exec.Command("go", "build", "-o", fakeStderrBin, //nolint:gosec // building from trusted test paths
+		"./testdata/fakestderr/")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		panic("building fakestderr plugin: " + err.Error())
 	}
 
 	os.Exit(m.Run())
@@ -170,4 +207,29 @@ func TestClose_Cleanup(t *testing.T) {
 	require.NotNil(t, raw)
 
 	require.NoError(t, mgr.Close())
+}
+
+func TestGet_PluginStderrForwarded(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Plugins: config.Plugins{
+			VCS: "fakestderr",
+			Paths: map[string]string{
+				"fakestderr": fakeStderrBin,
+			},
+		},
+	}
+
+	var sink syncBuffer
+
+	mgr := pluginmgr.New(cfg, "", pluginmgr.WithStderr(&sink))
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	_, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		return bytes.Contains([]byte(sink.String()), []byte("FAKESTDERR_MARKER"))
+	}, 5*time.Second, 10*time.Millisecond)
 }
