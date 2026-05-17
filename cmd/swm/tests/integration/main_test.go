@@ -37,64 +37,25 @@ func TestMain(m *testing.M) {
 
 	// Use pre-built binaries from env vars when available (e.g. in the Nix sandbox),
 	// falling back to go build for local development.
-
-	if p := os.Getenv("SWM_PLUGIN_VCS_GIT_BIN"); p != "" {
-		vcsGitBin = p
-	} else {
-		vcsGitBin = filepath.Join(tmpDir, "swm-plugin-vcs-git")
-		if err := buildBin(repoRoot, vcsGitBin, filepath.Join(repoRoot, "plugins/vcs-git")); err != nil {
-			panic("build vcs-git: " + err.Error())
+	getBin := func(envVar, binName, pkgPath string) string {
+		if p := os.Getenv(envVar); p != "" {
+			return p
 		}
+
+		bin := filepath.Join(tmpDir, binName)
+		if err := buildBin(repoRoot, bin, filepath.Join(repoRoot, pkgPath)); err != nil {
+			panic(fmt.Sprintf("build %s: %v", binName, err))
+		}
+
+		return bin
 	}
 
-	if p := os.Getenv("SWM_PLUGIN_SESSION_TMUX_BIN"); p != "" {
-		sessionTmuxBin = p
-	} else {
-		sessionTmuxBin = filepath.Join(tmpDir, "swm-plugin-session-tmux")
-		if err := buildBin(repoRoot, sessionTmuxBin, filepath.Join(repoRoot, "plugins/session-tmux")); err != nil {
-			panic("build session-tmux: " + err.Error())
-		}
-	}
-
-	if p := os.Getenv("SWM_TEST_FAKETMUX_BIN"); p != "" {
-		faketmuxBin = p
-	} else {
-		faketmuxBin = filepath.Join(tmpDir, "tmux")
-
-		faketmuxSrc := filepath.Join(repoRoot, "plugins/session-tmux/internal/session/testdata/faketmux")
-		if err := buildBin(repoRoot, faketmuxBin, faketmuxSrc); err != nil {
-			panic("build faketmux: " + err.Error())
-		}
-	}
-
-	if p := os.Getenv("SWM_PLUGIN_PICKER_FZF_BIN"); p != "" {
-		pickerFzfBin = p
-	} else {
-		pickerFzfBin = filepath.Join(tmpDir, "swm-plugin-picker-fzf")
-		if err := buildBin(repoRoot, pickerFzfBin, filepath.Join(repoRoot, "plugins/picker-fzf")); err != nil {
-			panic("build picker-fzf: " + err.Error())
-		}
-	}
-
-	if p := os.Getenv("SWM_TEST_FAKEFZF_BIN"); p != "" {
-		fakefzfBin = p
-	} else {
-		fakefzfBin = filepath.Join(tmpDir, "fzf")
-
-		fakefzfSrc := filepath.Join(repoRoot, "plugins/picker-fzf/internal/picker/testdata/fakefzf")
-		if err := buildBin(repoRoot, fakefzfBin, fakefzfSrc); err != nil {
-			panic("build fakefzf: " + err.Error())
-		}
-	}
-
-	if p := os.Getenv("SWM_PLUGIN_FORGE_GITHUB_BIN"); p != "" {
-		forgeGithubBin = p
-	} else {
-		forgeGithubBin = filepath.Join(tmpDir, "swm-plugin-forge-github")
-		if err := buildBin(repoRoot, forgeGithubBin, filepath.Join(repoRoot, "plugins/forge-github")); err != nil {
-			panic("build forge-github: " + err.Error())
-		}
-	}
+	vcsGitBin = getBin("SWM_PLUGIN_VCS_GIT_BIN", "swm-plugin-vcs-git", "plugins/vcs-git")
+	sessionTmuxBin = getBin("SWM_PLUGIN_SESSION_TMUX_BIN", "swm-plugin-session-tmux", "plugins/session-tmux")
+	faketmuxBin = getBin("SWM_TEST_FAKETMUX_BIN", "tmux", "plugins/session-tmux/internal/session/testdata/faketmux")
+	pickerFzfBin = getBin("SWM_PLUGIN_PICKER_FZF_BIN", "swm-plugin-picker-fzf", "plugins/picker-fzf")
+	fakefzfBin = getBin("SWM_TEST_FAKEFZF_BIN", "fzf", "plugins/picker-fzf/internal/picker/testdata/fakefzf")
+	forgeGithubBin = getBin("SWM_PLUGIN_FORGE_GITHUB_BIN", "swm-plugin-forge-github", "plugins/forge-github")
 
 	os.Exit(m.Run())
 }
