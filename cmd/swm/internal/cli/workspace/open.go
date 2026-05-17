@@ -45,6 +45,10 @@ type grpcStatuser interface {
 // status.Code() does not unwrap, so fmt.Errorf-wrapped gRPC errors
 // would always return codes.Unknown without this helper.
 func grpcCode(err error) codes.Code {
+	if err == nil {
+		return codes.OK
+	}
+
 	var s grpcStatuser
 	if errors.As(err, &s) {
 		return s.GRPCStatus().Code()
