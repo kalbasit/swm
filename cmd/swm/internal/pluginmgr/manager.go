@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/adrg/xdg"
 
+	hclog "github.com/hashicorp/go-hclog"
 	goplugin "github.com/hashicorp/go-plugin"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 	sdkforge "github.com/kalbasit/swm/sdk/go/forge"
@@ -158,15 +160,7 @@ func (m *Manager) Get(ctx context.Context, capability string) (any, error) {
 		pluginCmd.Env = []string{"SWM_HOST_SOCKET=" + m.hostSocket}
 	}
 
-	client := goplugin.NewClient(&goplugin.ClientConfig{
-		HandshakeConfig: handshake.Config,
-		Plugins:         set,
-		Cmd:             pluginCmd,
-		Stderr:          m.stderr,
-		AllowedProtocols: []goplugin.Protocol{
-			goplugin.ProtocolGRPC,
-		},
-	})
+	client := goplugin.NewClient(m.buildClientConfig(ctx, pluginCmd, set))
 
 	rpcClient, err := client.Client()
 	if err != nil {
@@ -214,6 +208,49 @@ func (m *Manager) GetForge(ctx context.Context, hostname string) (pluginv1.Forge
 	}
 
 	return nil, fmt.Errorf("%w: %q", errNoForgePlugin, hostname)
+}
+
+// hclogLevelFromSlog maps a slog logger's effective level to the corresponding hclog level.
+// go-plugin uses hclog for its internal lifecycle logging; this keeps it consistent with swm's --log-level.
+func hclogLevelFromSlog(ctx context.Context, logger *slog.Logger) hclog.Level {
+	switch {
+	case logger.Enabled(ctx, slog.LevelDebug):
+		return hclog.Debug
+	case logger.Enabled(ctx, slog.LevelInfo):
+		return hclog.Info
+	case logger.Enabled(ctx, slog.LevelWarn):
+		return hclog.Warn
+	case logger.Enabled(ctx, slog.LevelError):
+		return hclog.Error
+	default:
+		return hclog.Warn
+	}
+}
+
+// buildClientConfig constructs a goplugin.ClientConfig with the hclog logger level
+// derived from the current slog default, so go-plugin respects swm's --log-level flag.
+// It also sets SWM_LOG_LEVEL on the plugin process so the plugin-side hclog matches.
+func (m *Manager) buildClientConfig(
+	ctx context.Context,
+	pluginCmd *exec.Cmd,
+	set goplugin.PluginSet,
+) *goplugin.ClientConfig {
+	level := hclogLevelFromSlog(ctx, slog.Default())
+	pluginCmd.Env = append(pluginCmd.Env, "SWM_LOG_LEVEL="+level.String())
+
+	return &goplugin.ClientConfig{
+		HandshakeConfig: handshake.Config,
+		Plugins:         set,
+		Cmd:             pluginCmd,
+		Stderr:          newLevelFilterWriter(m.stderr, level),
+		Logger: hclog.New(&hclog.LoggerOptions{
+			Level:  level,
+			Output: m.stderr,
+		}),
+		AllowedProtocols: []goplugin.Protocol{
+			goplugin.ProtocolGRPC,
+		},
+	}
 }
 
 // capabilityName returns the plugin name from config for the given capability.
@@ -284,15 +321,7 @@ func (m *Manager) loadForges(ctx context.Context) error {
 
 		set := goplugin.PluginSet{capabilityForge: &sdkforge.GRPCPlugin{}}
 
-		client := goplugin.NewClient(&goplugin.ClientConfig{
-			HandshakeConfig: handshake.Config,
-			Plugins:         set,
-			Cmd:             pluginCmd,
-			Stderr:          m.stderr,
-			AllowedProtocols: []goplugin.Protocol{
-				goplugin.ProtocolGRPC,
-			},
-		})
+		client := goplugin.NewClient(m.buildClientConfig(ctx, pluginCmd, set))
 
 		rpcClient, err := client.Client()
 		if err != nil {
