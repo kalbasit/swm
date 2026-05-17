@@ -206,6 +206,34 @@ func TestOpenCmd_WithPicker_FailedPrecondition_FallsBack(t *testing.T) {
 	require.Nil(t, sess.lastPaneGroupReq, "expected OpenPaneGroup NOT to be called")
 }
 
+// TestOpenCmd_WithPicker_RecvFailedPrecondition_FallsBack covers the case where the
+// picker's stream.Recv() returns FailedPrecondition (e.g. /dev/tty unavailable inside
+// the handler, after all candidates have been received). The host must still fall back
+// to openAllAttached, not surface the gRPC error to the caller.
+func TestOpenCmd_WithPicker_RecvFailedPrecondition_FallsBack(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+	sess := &stubSess{}
+	// Picker stream opens fine but Recv() returns FailedPrecondition (no TTY).
+	picker := &stubPickerClient{recvErr: status.Error(codes.FailedPrecondition, "no tty")}
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.NotNil(t, sess.lastOpenReq, "expected OpenWorkspace to be called as fallback")
+	require.Nil(t, sess.lastPaneGroupReq, "expected OpenPaneGroup NOT to be called")
+}
+
 func TestOpenCmd_WithPicker_InvalidKey_EmptyHost(t *testing.T) {
 	t.Parallel()
 
@@ -491,6 +519,7 @@ type stubPickerClient struct {
 	selectedKey  string
 	cancelOnRecv bool
 	pickErr      error
+	recvErr      error // returned from stream.Recv() instead of a normal result
 }
 
 func (p *stubPickerClient) Info(
@@ -509,7 +538,7 @@ func (p *stubPickerClient) Pick(
 		return nil, p.pickErr
 	}
 
-	return &stubPickStream{selectedKey: p.selectedKey, cancel: p.cancelOnRecv}, nil
+	return &stubPickStream{selectedKey: p.selectedKey, cancel: p.cancelOnRecv, recvErr: p.recvErr}, nil
 }
 
 var _ pluginv1.PickerClient = (*stubPickerClient)(nil)
@@ -519,6 +548,7 @@ type stubPickStream struct {
 	selectedKey string
 	cancel      bool
 	recvCalled  bool
+	recvErr     error // returned from Recv() when set, before checking cancel/selectedKey
 }
 
 func (s *stubPickStream) CloseSend() error { return nil }
@@ -533,6 +563,10 @@ func (s *stubPickStream) Recv() (*pluginv1.PickResult, error) {
 	}
 
 	s.recvCalled = true
+
+	if s.recvErr != nil {
+		return nil, s.recvErr
+	}
 
 	if s.cancel {
 		return nil, status.Error(codes.Aborted, "cancelled")
