@@ -103,6 +103,7 @@ func removeStory(
 		Event:     "pre-story-remove",
 		CodeRoot:  codeRoot,
 		StoryName: name,
+		WorkDir:   codeRoot,
 	}); err != nil {
 		return fmt.Errorf("pre-story-remove hook: %w", err)
 	}
@@ -130,6 +131,7 @@ func removeStory(
 					ProjectPath:  projectPath,
 					WorktreePath: worktreePath,
 					RepoPath:     repoPath,
+					WorkDir:      worktreePath,
 				}
 
 				if err := hooks.Run(ctx, preWT); err != nil {
@@ -152,6 +154,7 @@ func removeStory(
 					ProjectPath:  projectPath,
 					WorktreePath: worktreePath,
 					RepoPath:     repoPath,
+					WorkDir:      repoPath,
 				}
 
 				if err := hooks.Run(ctx, postWT); err != nil {
@@ -185,6 +188,7 @@ func removeStory(
 		Event:     "post-story-remove",
 		CodeRoot:  codeRoot,
 		StoryName: name,
+		WorkDir:   codeRoot,
 	}); err != nil {
 		slog.WarnContext(ctx, "post-story-remove hook failed", "err", err)
 	}

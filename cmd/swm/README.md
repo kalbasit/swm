@@ -123,24 +123,50 @@ Files within each `.d/` directory run in lexicographic order.
 
 ### Hook events
 
-| Event                  | Blocking | Trigger                                    |
-| ---------------------- | -------- | ------------------------------------------ |
-| `pre-story-create`     | yes      | Before a story is created                  |
-| `post-story-create`    | no       | After a story is created                   |
-| `pre-story-remove`     | yes      | Before a story is removed                  |
-| `post-story-remove`    | no       | After a story is removed                   |
-| `pre-worktree-create`  | yes      | Before a worktree is created for a project |
-| `post-worktree-create` | no       | After a worktree is created                |
-| `pre-worktree-remove`  | yes      | Before a worktree is removed               |
-| `post-worktree-remove` | no       | After a worktree is removed                |
-| `pre-clone`            | yes      | Before a repository is cloned              |
-| `post-clone`           | no       | After a repository is cloned               |
-| `pre-workspace-open`   | yes      | Before a workspace session is opened       |
-| `post-workspace-open`  | no       | After a workspace session is opened        |
+| Event                  | Blocking | Working directory | Trigger                                    |
+| ---------------------- | -------- | ----------------- | ------------------------------------------ |
+| `pre-story-create`     | yes      | `code_root`       | Before a story is created                  |
+| `post-story-create`    | no       | `code_root`       | After a story is created                   |
+| `pre-story-remove`     | yes      | `code_root`       | Before a story is removed                  |
+| `post-story-remove`    | no       | `code_root`       | After a story is removed                   |
+| `pre-worktree-create`  | yes      | repo path         | Before a worktree is created for a project |
+| `post-worktree-create` | no       | worktree path     | After a worktree is created                |
+| `pre-worktree-remove`  | yes      | worktree path     | Before a worktree is removed               |
+| `post-worktree-remove` | no       | repo path         | After a worktree is removed                |
+| `pre-clone`            | yes      | `code_root`       | Before a repository is cloned              |
+| `post-clone`           | no       | repo path         | After a repository is cloned               |
+| `pre-workspace-open`   | yes      | `code_root`       | Before a workspace session is opened       |
+| `post-workspace-open`  | no       | worktree path     | After a workspace session is opened        |
 
 **Blocking** (`pre-*`): a non-zero exit code aborts the operation immediately.
 **Non-blocking** (`post-*`): failures are logged but do not affect the return value.
 
-### Environment variables in hooks
+### Environment variables
 
-Hooks receive the standard swm environment, including `SWM_STORY`, `SWM_CODE_ROOT`, and any variables set by the session plugin.
+Each hook is invoked with the following variables in addition to the calling process's environment:
+
+| Variable            | Description                                                                            |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `SWM_HOOK`          | Event name (e.g. `post-worktree-create`)                                               |
+| `SWM_STORY`         | Story name                                                                             |
+| `SWM_PROJECT_HOST`  | Project host (e.g. `github.com`); empty if no project context                          |
+| `SWM_PROJECT_PATH`  | Project path segments joined by `/` (e.g. `kalbasit/swm`); empty if no project context |
+| `SWM_WORKTREE_PATH` | Full path to the worktree; empty if not applicable                                     |
+| `SWM_REPO_PATH`     | Full path to the canonical repository clone; empty if not applicable                   |
+
+### stdin JSON
+
+Each hook also receives the same data as a JSON object on stdin:
+
+```json
+{
+  "hook": "post-worktree-create",
+  "story": "feat-x",
+  "project_host": "github.com",
+  "project_path": "kalbasit/swm",
+  "worktree_path": "/home/user/code/stories/feat-x/github.com/kalbasit/swm",
+  "repo_path": "/home/user/code/repositories/github.com/kalbasit/swm"
+}
+```
+
+Hooks that do not read stdin will not block — the executor closes the pipe after writing.

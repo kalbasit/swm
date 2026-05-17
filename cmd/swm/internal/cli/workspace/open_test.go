@@ -30,6 +30,9 @@ const (
 	testHost         = "github.com"
 	testOwner        = "kalbasit"
 	testSegment      = "swm"
+
+	eventPreWorktreeCreate  = "pre-worktree-create"
+	eventPostWorktreeCreate = "post-worktree-create"
 )
 
 var (
@@ -195,7 +198,7 @@ func TestOpenCmd_WithPicker_PreWorktreeCreateHookAborts(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	hooks := hookexec.RunnerFunc(func(_ context.Context, rc hookexec.RunConfig) error {
-		if rc.Event == "pre-worktree-create" {
+		if rc.Event == eventPreWorktreeCreate {
 			return errFakeHook
 		}
 
@@ -230,7 +233,7 @@ func TestOpenCmd_WithPicker_PostWorktreeCreateHookFailureContinues(t *testing.T)
 	var postHookCalled bool
 
 	hooks := hookexec.RunnerFunc(func(_ context.Context, rc hookexec.RunConfig) error {
-		if rc.Event == "post-worktree-create" {
+		if rc.Event == eventPostWorktreeCreate {
 			postHookCalled = true
 
 			return errFakeHook
@@ -271,7 +274,7 @@ func TestOpenCmd_WithPicker_PostWorktreeCreateHookReceivesContext(t *testing.T) 
 	var capturedCfg hookexec.RunConfig
 
 	hooks := hookexec.RunnerFunc(func(_ context.Context, rc hookexec.RunConfig) error {
-		if rc.Event == "post-worktree-create" {
+		if rc.Event == eventPostWorktreeCreate {
 			capturedCfg = rc
 		}
 
@@ -287,6 +290,45 @@ func TestOpenCmd_WithPicker_PostWorktreeCreateHookReceivesContext(t *testing.T) 
 	require.Equal(t, "kalbasit/dotfiles", capturedCfg.ProjectPath)
 	require.Equal(t, "/code/stories/feat-x/github.com/kalbasit/dotfiles", capturedCfg.WorktreePath)
 	require.Equal(t, "/code/repositories/github.com/kalbasit/dotfiles", capturedCfg.RepoPath)
+}
+
+func TestOpenCmd_WithPicker_PostWorktreeCreateHookWorkDir(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/dotfiles"
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name:       testStoryName,
+		BranchName: testBranchName,
+	}}
+	sess := &stubSess{}
+	vcs := &stubVCS{}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	var capturedCfgs []hookexec.RunConfig
+
+	hooks := hookexec.RunnerFunc(func(_ context.Context, rc hookexec.RunConfig) error {
+		capturedCfgs = append(capturedCfgs, rc)
+
+		return nil
+	})
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hooks)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+
+	for _, rc := range capturedCfgs {
+		switch rc.Event {
+		case eventPostWorktreeCreate:
+			require.Equal(t, rc.WorktreePath, rc.WorkDir, "post-worktree-create WorkDir must be worktree path")
+		case eventPreWorktreeCreate:
+			require.Equal(t, rc.RepoPath, rc.WorkDir, "pre-worktree-create WorkDir must be repo path")
+		}
+	}
 }
 
 func TestOpenCmd_WithPicker_Cancelled(t *testing.T) {

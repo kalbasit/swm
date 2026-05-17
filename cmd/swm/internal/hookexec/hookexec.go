@@ -42,6 +42,10 @@ type RunConfig struct {
 	// RepoPath is the full path to the canonical repository clone. Empty if not applicable.
 	RepoPath string
 
+	// WorkDir sets the working directory for hook processes. When empty, hook
+	// processes inherit the working directory of the swm process.
+	WorkDir string
+
 	// ConfigHome overrides the XDG config home used for global and per-story
 	// hook tiers. When empty, xdg.ConfigHome is used. Inject in tests to avoid
 	// relying on the xdg package's cached (init-time) value.
@@ -168,6 +172,10 @@ func findHooks(dir string) ([]string, error) {
 // runHook executes a single hook binary with the appropriate env and stdin.
 func runHook(ctx context.Context, hookPath string, cfg RunConfig) error {
 	cmd := exec.CommandContext(ctx, hookPath)
+
+	if cfg.WorkDir != "" {
+		cmd.Dir = cfg.WorkDir
+	}
 
 	// Inherit the current environment and add the SWM_* vars.
 	cmd.Env = append(

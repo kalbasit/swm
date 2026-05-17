@@ -164,7 +164,7 @@ Plugins are resolved in this order (first match per capability wins):
 
 ## Hook system
 
-Hooks are plain executables placed in tiered directories. All applicable tiers run for each event — they compose rather than override.
+Hooks are plain executables placed in tiered directories. All applicable tiers run for each event — they compose rather than override. Each hook runs with its working directory set to a contextually appropriate path (the worktree, the repo root, or `code_root` depending on the event).
 
 | Tier           | Path                                                     |
 | -------------- | -------------------------------------------------------- |
@@ -174,7 +174,7 @@ Hooks are plain executables placed in tiered directories. All applicable tiers r
 
 `pre-*` hooks abort the operation on non-zero exit. `post-*` hooks log failures but do not abort.
 
-See [`cmd/swm/README.md`](cmd/swm/README.md) for the full list of hook events.
+See the [Hook System reference](cmd/swm/README.md#hook-system) in the host CLI README for the full event list, working directories, environment variables, and stdin JSON contract.
 
 ## Module READMEs
 
