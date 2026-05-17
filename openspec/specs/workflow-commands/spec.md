@@ -81,7 +81,7 @@ The repository is NOT attached to any story.
 - **THEN** `vcs.Clone` is NOT called and the command exits non-zero
 
 ### Requirement: swm workspace open
-`swm workspace open [<story-name>]` SHALL open (or switch to) the workspace for a story. Story
+`swm workspace open [<story-name>] [--kill-pane]` SHALL open (or switch to) the workspace for a story. Story
 resolution follows this precedence:
 
 1. Positional `<story-name>` argument, if provided.
@@ -128,8 +128,10 @@ Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recen
 7. Call `session.OpenWorkspace` to ensure the workspace is active.
 8. Call `session.OpenPaneGroup` with the derived worktree path for the selected project.
 9. Run `post-workspace-open` hooks.
-10. Call `session.SwitchTo`; if the response contains a non-empty `exec_argv`, call
-    `syscall.Exec` to replace the host process.
+10. Build `SwitchToRequest`:
+    - When `--kill-pane` is set AND `$TMUX_PANE` is non-empty: call `session.CurrentContext()` to get the current `workspace_id`; set `close_origin_workspace_id` and `close_origin_pane_id` on the request. If `CurrentContext()` fails or returns an empty `workspace_id`, omit the origin fields (silent no-op).
+    - Otherwise: omit `close_origin_workspace_id` and `close_origin_pane_id`.
+11. Call `session.SwitchTo`; if the response contains a non-empty `exec_argv`, call `syscall.Exec` to replace the host process.
 
 **Without picker configured (fallback):**
 1. Run `pre-workspace-open` hooks; abort if any fail.
@@ -137,7 +139,8 @@ Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recen
 3. Load all attached projects.
 4. Call `session.OpenWorkspace({story_name, worktree_paths: {project_key: derived_path}})`.
 5. Run `post-workspace-open` hooks.
-6. Call `session.SwitchTo` for the first pane group; exec if `exec_argv` is non-empty.
+6. Build `SwitchToRequest` applying the same `--kill-pane` logic as step 10 above.
+7. Call `session.SwitchTo` for the first pane group; exec if `exec_argv` is non-empty.
 
 #### Scenario: No arg, no env — story picker shown
 - **WHEN** `swm workspace open` is run with no positional argument, `$SWM_STORY` is unset, picker is configured, and a TTY is available
@@ -230,6 +233,22 @@ Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recen
 #### Scenario: pre-workspace-open hook aborts open
 - **WHEN** `swm workspace open feat-x` is run and a `pre-workspace-open` hook exits non-zero
 - **THEN** the command aborts before opening the workspace and returns a non-zero exit code
+
+#### Scenario: --kill-pane closes origin pane after switch
+- **WHEN** `swm workspace open feat-x --kill-pane` is run from inside a tmux session with `$TMUX_PANE=%5` set
+- **THEN** `CurrentContext()` is called to get the origin `workspace_id`, `SwitchToRequest` is built with `close_origin_workspace_id` and `close_origin_pane_id = "%5"`, and `SwitchTo` is called with those fields set
+
+#### Scenario: --kill-pane is no-op when TMUX_PANE is unset
+- **WHEN** `swm workspace open feat-x --kill-pane` is run and `$TMUX_PANE` is empty
+- **THEN** `CurrentContext()` is NOT called, `close_origin_pane_id` is omitted from `SwitchToRequest`, and the switch proceeds normally without killing any pane
+
+#### Scenario: --kill-pane is no-op when CurrentContext fails
+- **WHEN** `swm workspace open feat-x --kill-pane` is run, `$TMUX_PANE` is set, but `session.CurrentContext()` returns an error
+- **THEN** the origin fields are omitted from `SwitchToRequest` and the switch proceeds normally
+
+#### Scenario: --kill-pane with exec path
+- **WHEN** `swm workspace open feat-x --kill-pane` is run outside any tmux session and `SwitchTo` returns a non-empty `exec_argv`
+- **THEN** `SwitchToRequest` is built with origin fields set (if `$TMUX_PANE` and `CurrentContext()` succeed), and after `syscall.Exec` the plugin has already killed the origin pane before responding
 
 ### Requirement: swm workspace list
 `swm workspace list` SHALL print a tree of all workspaces and their attached projects to stdout. Workspaces are listed in lexicographic order by name; projects within each workspace are listed in lexicographic order by their canonical path (`host/segments...`). The `_default` story is excluded from output. The output uses box-drawing glyphs:
