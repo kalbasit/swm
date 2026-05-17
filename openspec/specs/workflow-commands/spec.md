@@ -102,8 +102,8 @@ Before opening the workspace the command SHALL run `hookexec.Run` for event `pre
 2. Resolve story.
 3. Load all attached projects from the story store.
 4. Call `session.OpenWorkspace({story_name, worktree_paths: {project_key: derived_path}})`.
-5. If the workspace was already open, call `session.SwitchTo` for the first pane group; if the response contains a non-empty `exec_argv`, exec it as above.
-6. Run `post-workspace-open` hooks.
+5. Run `post-workspace-open` hooks.
+6. If the workspace was already open, call `session.SwitchTo` for the first pane group; if the response contains a non-empty `exec_argv`, exec it as above.
 
 #### Scenario: Interactive selection with picker — project already attached
 - **WHEN** `swm workspace open feat-x` is run and picker is configured and `feat-x` has `proj-a` attached
