@@ -51,18 +51,20 @@ network access.  Each package MUST provide the external tools its test suite nee
 - `packages.swm`: MUST include `pkgs.git`; MUST exclude `cmd/swm/tests/integration/`
   from the source fileset because those tests are exercised separately by
   `checks.swm-integration-tests` (see `nix-integration-tests` spec).
+- `packages.swm-test-faketmux`: no extra tools; builds only the `faketmux` subpackage.
+- `packages.swm-test-fakefzf`: no extra tools; builds only the `fakefzf` subpackage.
 
 #### Scenario: vcs-git tests pass with git available
 - **WHEN** `nix build .#swm-plugin-vcs-git` is run
-- **THEN** the check phase runs the test suite against a real `git` binary and all tests pass
+- **THEN** the check phase runs `go test ./...` inside the `plugins/vcs-git` module with `git` on `PATH`, and all tests pass
 
 #### Scenario: session-tmux tests pass without real tmux
 - **WHEN** `nix build .#swm-plugin-session-tmux` is run
-- **THEN** the check phase compiles `faketmux` from testdata and runs tests against it, with no real tmux binary required
+- **THEN** the check phase runs `go test ./...` inside the `plugins/session-tmux` module (using the in-tree `faketmux` binary built by the test suite), and all tests pass
 
 #### Scenario: forge-github tests pass without network
-- **WHEN** `nix build .#swm-plugin-forge-github` is run in a network-restricted sandbox
-- **THEN** the check phase runs all tests using the in-process httptest mock and passes
+- **WHEN** `nix build .#swm-plugin-forge-github` is run
+- **THEN** the check phase runs `go test ./...` with an in-process `net/http/httptest` mock server, and all tests pass
 
 #### Scenario: swm unit tests pass
 - **WHEN** `nix build .#swm` is run
