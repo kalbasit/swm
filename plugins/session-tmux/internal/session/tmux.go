@@ -24,6 +24,9 @@ import (
 // buildVersion is set via -ldflags at build time.
 var buildVersion = "dev" //nolint:gochecknoglobals // set via ldflags at link time
 
+// sessionNameReplacer substitutes characters that are unsafe in tmux session names.
+var sessionNameReplacer = strings.NewReplacer(".", "•", ":", "：") //nolint:gochecknoglobals // package-level replacer
+
 // tmuxConfig holds the plugin-specific config read from the host.
 type tmuxConfig struct {
 	PaneGroupCommand string `toml:"pane_group_command"`
@@ -184,8 +187,8 @@ func (t *Tmux) OpenPaneGroup(ctx context.Context, req *pluginv1.OpenPaneGroupReq
 	sock := req.GetWorkspaceId()
 	pid := req.GetProjectId()
 
-	if pid.GetHost() == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "project_id has no host")
+	if pid.GetHost() == "" || len(pid.GetSegments()) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "project_id is incomplete (missing host or segments)")
 	}
 
 	name := sessionName(pid.GetHost() + "/" + strings.Join(pid.GetSegments(), "/"))
@@ -346,5 +349,5 @@ func (t *Tmux) socketPath(storyName string) string {
 // sessionName derives a tmux-safe session name from a worktree map key (host/seg/.../last).
 // Dots and colons are replaced with tmux-safe Unicode equivalents; slashes are preserved.
 func sessionName(key string) string {
-	return strings.NewReplacer(".", "•", ":", "：").Replace(key)
+	return sessionNameReplacer.Replace(key)
 }

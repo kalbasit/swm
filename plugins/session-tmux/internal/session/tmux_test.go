@@ -18,9 +18,11 @@ import (
 
 const (
 	testHost          = "github.com"
-	testProject       = testHost + "/kalbasit/swm"
+	testOrg           = "kalbasit"
+	testRepo          = "swm"
+	testProject       = testHost + "/" + testOrg + "/" + testRepo
 	testWorktree      = "/tmp/wt"
-	testPaneGroup     = "swm"
+	testPaneGroup     = testRepo
 	testPaneGroupFull = "github•com/kalbasit/swm"
 )
 
@@ -173,13 +175,13 @@ func TestCurrentContext(t *testing.T) {
 	tmux, socketDir := newTmux(t)
 	sock := filepath.Join(socketDir, "mywork.sock")
 	t.Setenv("TMUX", sock+",12345,0")
-	t.Setenv("FAKETMUX_SESSION", "swm")
+	t.Setenv("FAKETMUX_SESSION", testRepo)
 
 	ctx, err := tmux.CurrentContext(context.Background(), &pluginv1.Empty{})
 	require.NoError(t, err)
 	require.Equal(t, sock, ctx.GetWorkspaceId())
 	require.Equal(t, "mywork", ctx.GetStoryName())
-	require.Equal(t, "swm", ctx.GetPaneGroupId())
+	require.Equal(t, testRepo, ctx.GetPaneGroupId())
 }
 
 func TestCurrentContext_NotInside(t *testing.T) {
@@ -341,7 +343,7 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 
 	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
 		WorkspaceId:  sockPath,
-		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{"kalbasit", "swm"}},
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
 		WorktreePath: "/tmp/stories/feat-x/github.com/kalbasit/swm",
 	})
 	require.NoError(t, err)
@@ -355,6 +357,44 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 		"expected substituted pane_group_command in tmux args")
 }
 
+func TestOpenPaneGroup_InvalidProjectID(t *testing.T) {
+	t.Parallel()
+
+	tmux, socketDir := newTmux(t)
+	sockPath := filepath.Join(socketDir, "feat-x.sock")
+
+	cases := []struct {
+		name string
+		pid  *pluginv1.ProjectID
+	}{
+		{
+			name: "empty host",
+			pid:  &pluginv1.ProjectID{Host: "", Segments: []string{testOrg, testRepo}},
+		},
+		{
+			name: "empty segments",
+			pid:  &pluginv1.ProjectID{Host: testHost, Segments: []string{}},
+		},
+		{
+			name: "nil project_id",
+			pid:  nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+				WorkspaceId:  sockPath,
+				ProjectId:    tc.pid,
+				WorktreePath: testWorktree,
+			})
+			require.Error(t, err, "expected error for incomplete project_id")
+		})
+	}
+}
+
 func TestOpenPaneGroup_SessionNameIsFullPath(t *testing.T) {
 	// Cannot be parallel — uses FAKETMUX_LOG env var.
 	logFile := filepath.Join(t.TempDir(), "tmux.log")
@@ -365,7 +405,7 @@ func TestOpenPaneGroup_SessionNameIsFullPath(t *testing.T) {
 
 	pg, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
 		WorkspaceId:  sockPath,
-		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{"kalbasit", "swm"}},
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
 		WorktreePath: testWorktree,
 	})
 	require.NoError(t, err)
