@@ -19,7 +19,7 @@ Hook executables currently inherit the working directory of the swm process rath
   | `post-worktree-remove` | `repoPath` |
   | `pre-clone` | `codeRoot` |
   | `post-clone` | `repoPath` |
-  | `pre-workspace-open` | `worktreePath` |
+  | `pre-workspace-open` | `codeRoot` |
   | `post-workspace-open` | `worktreePath` |
 
 - Add a Hook System section to `cmd/swm/README.md` covering: all supported events, their working directory, tier resolution order, environment variables, and stdin JSON contract.

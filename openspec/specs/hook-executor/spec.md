@@ -95,7 +95,8 @@ Each call site SHALL populate `WorkDir` according to the event:
 - `post-worktree-remove`: `repoPath` (worktree gone; repo still present)
 - `pre-clone`: `codeRoot` (repo does not exist yet)
 - `post-clone`: `repoPath` (newly cloned repo)
-- `pre-workspace-open`, `post-workspace-open`: `worktreePath`
+- `pre-workspace-open`: `codeRoot`
+- `post-workspace-open`: `worktreePath`
 
 #### Scenario: post-worktree-create hook runs inside the worktree
 - **WHEN** `swm workspace open` creates a worktree and runs `post-worktree-create` hooks

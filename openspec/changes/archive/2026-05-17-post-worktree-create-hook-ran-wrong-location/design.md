@@ -45,7 +45,7 @@ All known call sites will be updated, but leaving the fallback as "inherit cwd" 
 | `post-worktree-remove` | `repoPath` | worktree gone; repo still present (e.g. `git worktree prune`) |
 | `pre-clone` | `codeRoot` | repo does not exist yet |
 | `post-clone` | `repoPath` | newly cloned repo |
-| `pre-workspace-open` | `worktreePath` | opening into the worktree |
+| `pre-workspace-open` | `codeRoot` | opening into the workspace |
 | `post-workspace-open` | `worktreePath` | opened into the worktree |
 
 ## Risks / Trade-offs
