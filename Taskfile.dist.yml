@@ -50,39 +50,6 @@ tasks:
       - task: picker-fzf:lint
       - task: forge-github:lint
 
-  update-nix-vendor-hashes:
-    desc: Re-compute and update vendorHash for all nix Go packages (run after any proto/ changes)
-    cmds:
-      - |
-        for pkg in swm swm-plugin-forge-github swm-plugin-picker-fzf swm-plugin-session-tmux swm-plugin-vcs-git; do
-          set +e
-          nix build --print-build-logs ".#${pkg}.goModules" 2>/tmp/nix-vendor-hash-log
-          ret=$?
-          set -e
-
-          if [[ "$ret" -eq 0 ]]; then
-            set +e
-            nix build --print-build-logs ".#${pkg}.goModules" --rebuild 2>/tmp/nix-vendor-hash-log
-            ret=$?
-            set -e
-          fi
-
-          if [[ "$ret" -eq 0 ]]; then
-            echo "vendorHash up to date for $pkg"
-            continue
-          fi
-
-          hash="$(grep 'got:' /tmp/nix-vendor-hash-log | awk '{print $2}')"
-          if [[ -z "$hash" ]]; then
-            cat /tmp/nix-vendor-hash-log
-            echo "ERROR: could not extract hash for $pkg"
-            exit 1
-          fi
-
-          echo "Updating vendorHash for $pkg → $hash"
-          sed -e "s#vendorHash =.*\$#vendorHash = \"${hash}\";#g" -i "nix/packages/${pkg}/default.nix"
-        done
-
   test:
     desc: Run all module tests in dependency order
     cmds:
