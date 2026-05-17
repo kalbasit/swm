@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -259,11 +260,13 @@ func TestGet_NoDebugLogs_AtWarnLevel(t *testing.T) { //nolint:paralleltest // mu
 	_, err := mgr.Get(context.Background(), "vcs")
 	require.NoError(t, err)
 
-	// Allow go-plugin startup to complete and flush any buffered log lines.
-	time.Sleep(200 * time.Millisecond)
+	// Wait for go-plugin startup to complete and confirm no debug/trace output arrives.
+	require.Eventually(t, func() bool {
+		out := sink.String()
 
-	require.NotContains(t, sink.String(), "[DEBUG]")
-	require.NotContains(t, sink.String(), "[TRACE]")
+		return !strings.Contains(out, "[DEBUG]") && !strings.Contains(out, "[TRACE]")
+	}, 1*time.Second, 10*time.Millisecond)
+
 	require.NotContains(t, sink.String(), `"@level":"debug"`)
 	require.NotContains(t, sink.String(), `"@level":"trace"`)
 }

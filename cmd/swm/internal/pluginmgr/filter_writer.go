@@ -20,7 +20,7 @@ type levelFilterWriter struct {
 	mu    sync.Mutex
 	w     io.Writer
 	level hclog.Level
-	buf   []byte
+	buf   bytes.Buffer
 }
 
 func newLevelFilterWriter(w io.Writer, level hclog.Level) *levelFilterWriter {
@@ -31,20 +31,22 @@ func (f *levelFilterWriter) Write(p []byte) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.buf = append(f.buf, p...)
+	f.buf.Write(p) //nolint:wrapcheck // bytes.Buffer.Write never returns an error; ignoring return value is safe
 
 	for {
-		i := bytes.IndexByte(f.buf, '\n')
+		data := f.buf.Bytes()
+
+		i := bytes.IndexByte(data, '\n')
 		if i < 0 {
 			break
 		}
 
-		line := f.buf[:i]
-		f.buf = f.buf[i+1:]
+		line := data[:i]
+		f.buf.Next(i + 1)
 
 		if !f.filtered(line) {
 			if _, err := f.w.Write(append(line, '\n')); err != nil {
-				return 0, err
+				return len(p), err
 			}
 		}
 	}

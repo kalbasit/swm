@@ -3,12 +3,19 @@ package pluginmgr
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	hclog "github.com/hashicorp/go-hclog"
 )
+
+var errWriteFailed = errors.New("write failed")
+
+type errorWriter struct{ err error }
+
+func (e errorWriter) Write(_ []byte) (int, error) { return 0, e.err }
 
 func TestLevelFilterWriter_FiltersJSONDebugAtWarnLevel(t *testing.T) {
 	t.Parallel()
@@ -102,6 +109,17 @@ func TestLevelFilterWriter_PassesAllAtDebugLevel(t *testing.T) {
 	_, err := fw.Write([]byte(line))
 	require.NoError(t, err)
 	require.Equal(t, line, buf.String())
+}
+
+func TestLevelFilterWriter_WriteErrorReturnsLen(t *testing.T) {
+	t.Parallel()
+
+	fw := newLevelFilterWriter(errorWriter{err: errWriteFailed}, hclog.Warn)
+
+	p := []byte(`{"@level":"warn","@message":"something"}` + "\n")
+	n, err := fw.Write(p)
+	require.ErrorIs(t, err, errWriteFailed)
+	require.Equal(t, len(p), n)
 }
 
 func TestLevelFilterWriter_MultipleLines(t *testing.T) {

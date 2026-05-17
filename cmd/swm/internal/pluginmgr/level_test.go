@@ -23,6 +23,7 @@ func TestHclogLevelFromSlog(t *testing.T) {
 		{slog.LevelInfo, hclog.Info},
 		{slog.LevelWarn, hclog.Warn},
 		{slog.LevelError, hclog.Error},
+		{slog.LevelError + 1, hclog.Warn}, // above all standard levels → safe default
 	}
 
 	for _, tc := range tests {

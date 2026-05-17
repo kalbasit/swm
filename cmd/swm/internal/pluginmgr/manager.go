@@ -223,7 +223,7 @@ func hclogLevelFromSlog(ctx context.Context, logger *slog.Logger) hclog.Level {
 	case logger.Enabled(ctx, slog.LevelError):
 		return hclog.Error
 	default:
-		return hclog.Off
+		return hclog.Warn
 	}
 }
 
