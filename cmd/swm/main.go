@@ -20,7 +20,7 @@ import (
 var version = "v2.0.0-dev"
 
 func main() {
-	cfg, err := config.Load(os.Getenv("SWM_CONFIG"))
+	cfg, err := config.Load(config.ResolveConfigPath(os.Getenv("SWM_CONFIG"), xdg.ConfigHome))
 	if err != nil && !errors.Is(err, config.ErrConfigNotFound) {
 		fmt.Fprintf(os.Stderr, "swm: loading config: %v\n", err)
 		os.Exit(1)

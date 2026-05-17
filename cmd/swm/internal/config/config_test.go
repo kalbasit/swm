@@ -76,6 +76,20 @@ func TestLoad_MissingOptionalFields(t *testing.T) {
 	require.Empty(t, cfg.Plugins.Session)
 }
 
+func TestResolveConfigPath_EnvVarSet(t *testing.T) {
+	t.Parallel()
+
+	got := config.ResolveConfigPath("/explicit/config.toml", "/home/user/.config")
+	require.Equal(t, "/explicit/config.toml", got)
+}
+
+func TestResolveConfigPath_EnvVarEmpty(t *testing.T) {
+	t.Parallel()
+
+	got := config.ResolveConfigPath("", "/home/user/.config")
+	require.Equal(t, "/home/user/.config/swm/config.toml", got)
+}
+
 func TestLoad_BadTOML(t *testing.T) {
 	t.Parallel()
 
