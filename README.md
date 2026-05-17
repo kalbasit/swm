@@ -55,6 +55,7 @@ The bundled plugins are separate binaries. Build them from the repo:
 ```sh
 git clone https://github.com/kalbasit/swm
 cd swm
+mkdir -p ~/.local/bin
 go build -o ~/.local/bin/swm-plugin-session-tmux ./plugins/session-tmux
 go build -o ~/.local/bin/swm-plugin-vcs-git       ./plugins/vcs-git
 go build -o ~/.local/bin/swm-plugin-forge-github  ./plugins/forge-github

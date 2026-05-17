@@ -106,7 +106,8 @@ func (p *myForgePlugin) Info(_ context.Context, _ *pluginv1.Empty) (*pluginv1.Fo
             Requires: []*pluginv1.CapabilityDep{
                 {Capability: pluginv1.Capability_VCS},
             },
-            // Capabilities this plugin can use if present but does not require.
+            // Optional takes capability name strings (not CapabilityDep structs).
+            // The host wires the capability if present; the plugin handles absence.
             Optional: []string{"picker"},
         },
         // Hostnames this forge plugin handles (for URL routing).

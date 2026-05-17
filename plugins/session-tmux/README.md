@@ -11,7 +11,7 @@ Implements the `session` capability surface using [tmux](https://github.com/tmux
 | Workspace   | Dedicated tmux server (one socket per story) |
 | Pane group  | tmux session within that server              |
 
-Each story gets its own tmux socket at `$XDG_RUNTIME_DIR/swm/tmux/<story>`, so stories are fully isolated — killing one story's tmux server has no effect on others.
+Each story gets its own tmux socket at `$XDG_RUNTIME_DIR/swm/tmux/<story>`, so stories are fully isolated — killing one story's tmux server has no effect on others. `$XDG_RUNTIME_DIR` is set automatically on Linux by systemd/PAM (typically `/run/user/<uid>`). If it is not set in your environment, export it before running swm (e.g. `export XDG_RUNTIME_DIR=/run/user/$(id -u)`).
 
 ## Requirements
 

@@ -15,9 +15,9 @@ Implements the `forge` capability surface for GitHub. It claims the `github.com`
 
 Configure under `[plugins.config.forge-github]` in `config.toml`:
 
-| Key          | Type   | Default           | Description                                                    |
-| ------------ | ------ | ----------------- | -------------------------------------------------------------- |
-| `token_path` | string | `~/.github_token` | Path to a file containing the GitHub token (newline-stripped). |
+| Key          | Type   | Default                      | Description                                                    |
+| ------------ | ------ | ---------------------------- | -------------------------------------------------------------- |
+| `token_path` | string | `~/.config/swm/github_token` | Path to a file containing the GitHub token (newline-stripped). |
 
 ### Example
 
