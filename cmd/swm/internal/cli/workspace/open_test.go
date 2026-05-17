@@ -394,6 +394,147 @@ func TestOpenCmd_NoPicker_ExecArgvIsExeced(t *testing.T) {
 	require.Equal(t, wantArgv, gotArgv, "expected execFunc to be called with the argv from SwitchTo")
 }
 
+// ─── story picker tests ───────────────────────────────────────────────────────
+
+// TestOpenCmd_NoArgNoEnv_StoryPickerShown verifies that when no story is
+// provided via arg or env, the store is listed (story picker runs) and the
+// selected story's workspace is opened.
+func TestOpenCmd_NoArgNoEnv_StoryPickerShown(t *testing.T) {
+	t.Parallel()
+
+	const selectedStory = testStoryName
+
+	const selectedProject = "github.com/kalbasit/swm"
+
+	feat := &coreStory.Story{
+		Name: selectedStory,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}
+	dflt := &coreStory.Story{Name: testDefaultStory}
+
+	store := &stubStore{
+		listStories: []*coreStory.Story{feat, dflt},
+		// getStory is returned for store.Get after story picker resolves the name.
+		getStory: feat,
+	}
+	sess := &stubSess{}
+	picker := &sequentialPickerClient{
+		streams: []*stubPickStream{
+			{selectedKey: selectedStory},   // story picker: select feat-x
+			{selectedKey: selectedProject}, // project picker: select the project
+		},
+	}
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{}) // no positional arg
+
+	require.NoError(t, cmd.Execute())
+
+	// store.List was called by the story picker.
+	require.True(t, store.listCalled, "expected List to be called by story picker")
+
+	// Workspace was opened for the selected story.
+	require.NotNil(t, sess.lastOpenReq)
+	require.Equal(t, selectedStory, sess.lastOpenReq.GetStoryName())
+}
+
+// TestOpenCmd_PositionalArg_StoryPickerSkipped verifies that a positional arg
+// bypasses the story picker entirely (store.List is not called).
+func TestOpenCmd_PositionalArg_StoryPickerSkipped(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	sess := &stubSess{}
+	// Picker is present — but should only be called for project selection, not story selection.
+	picker := &stubPickerClient{cancelOnRecv: true} // abort project picker
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName}) // explicit arg
+
+	require.NoError(t, cmd.Execute())
+
+	// store.List must NOT have been called (story picker skipped).
+	require.False(t, store.listCalled, "story picker must be skipped when positional arg is provided")
+}
+
+// TestOpenCmd_SWMStoryEnv_StoryPickerSkipped verifies that $SWM_STORY bypasses
+// the story picker entirely (store.List is not called).
+func TestOpenCmd_SWMStoryEnv_StoryPickerSkipped(t *testing.T) {
+	t.Setenv("SWM_STORY", testStoryName)
+
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	sess := &stubSess{}
+	picker := &stubPickerClient{cancelOnRecv: true}
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{})
+
+	require.NoError(t, cmd.Execute())
+
+	require.False(t, store.listCalled, "story picker must be skipped when $SWM_STORY is set")
+}
+
+// TestOpenCmd_StoryPickerAborted_ExitsClean verifies that cancelling the story
+// picker exits with code 0 and does not open any workspace.
+func TestOpenCmd_StoryPickerAborted_ExitsClean(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{
+		listStories: []*coreStory.Story{{Name: testStoryName}, {Name: testDefaultStory}},
+		getStory:    &coreStory.Story{Name: testStoryName},
+	}
+	sess := &stubSess{}
+	picker := &stubPickerClient{cancelOnRecv: true} // story picker aborted immediately
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{})
+
+	require.NoError(t, cmd.Execute())
+	require.Nil(t, sess.lastOpenReq, "no workspace should be opened when story picker is cancelled")
+}
+
+// TestOpenCmd_StoryPickerFailedPrecondition_FallsBackToDefault verifies that a
+// FailedPrecondition from the story picker falls back to the default story.
+func TestOpenCmd_StoryPickerFailedPrecondition_FallsBackToDefault(t *testing.T) {
+	t.Parallel()
+
+	defaultStory := &coreStory.Story{Name: testDefaultStory}
+
+	store := &stubStore{
+		listStories: []*coreStory.Story{defaultStory},
+		getStory:    defaultStory,
+	}
+	sess := &stubSess{}
+	// Story picker returns FailedPrecondition (no TTY).
+	picker := &stubPickerClient{pickErr: status.Error(codes.FailedPrecondition, "no tty")}
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{})
+
+	require.NoError(t, cmd.Execute())
+
+	// Falls back to opening the default story.
+	require.NotNil(t, sess.lastOpenReq, "workspace should be opened for default story")
+	require.Equal(t, testDefaultStory, sess.lastOpenReq.GetStoryName())
+}
+
 // ─── stubs ───────────────────────────────────────────────────────────────────
 
 // stubStore is a minimal story.Store.
@@ -403,6 +544,7 @@ type stubStore struct {
 	updateCalled bool
 	listStories  []*coreStory.Story
 	listErr      error
+	listCalled   bool
 }
 
 func (s *stubStore) Create(context.Context, string, string) (*coreStory.Story, error) {
@@ -424,6 +566,8 @@ func (s *stubStore) Get(_ context.Context, _ string) (*coreStory.Story, error) {
 }
 
 func (s *stubStore) List(context.Context) ([]*coreStory.Story, error) {
+	s.listCalled = true
+
 	return s.listStories, s.listErr
 }
 
@@ -669,6 +813,37 @@ func (s *stubPickStream) Send(*pluginv1.PickItem) error { return nil }
 func (s *stubPickStream) SendMsg(any) error { return nil }
 
 func (s *stubPickStream) Trailer() metadata.MD { return nil }
+
+// sequentialPickerClient returns a new stubPickStream per Pick() call, in order.
+// This lets tests drive both the story picker and the project picker independently.
+type sequentialPickerClient struct {
+	streams []*stubPickStream
+	idx     int
+}
+
+func (s *sequentialPickerClient) Info(
+	context.Context,
+	*pluginv1.Empty,
+	...grpc.CallOption,
+) (*pluginv1.PickerInfo, error) {
+	return &pluginv1.PickerInfo{PluginInfo: &pluginv1.PluginInfo{Name: "stub"}}, nil
+}
+
+func (s *sequentialPickerClient) Pick(
+	_ context.Context,
+	_ ...grpc.CallOption,
+) (grpc.BidiStreamingClient[pluginv1.PickItem, pluginv1.PickResult], error) {
+	if s.idx >= len(s.streams) {
+		return &stubPickStream{cancel: true}, nil // extra calls cancel
+	}
+
+	stream := s.streams[s.idx]
+	s.idx++
+
+	return stream, nil
+}
+
+var _ pluginv1.PickerClient = (*sequentialPickerClient)(nil)
 
 // eofStream is a server stream that immediately returns io.EOF.
 type eofStream struct{}
