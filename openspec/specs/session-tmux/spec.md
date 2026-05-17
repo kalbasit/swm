@@ -1,5 +1,5 @@
 ### Requirement: Socket-per-workspace model
-`session-tmux` SHALL map each swm workspace to a dedicated tmux server socket at `$XDG_RUNTIME_DIR/swm/tmux/<story-name>.sock`. Each pane group within a workspace SHALL map to a tmux session (named after the last segment of the project's path, e.g., `swm` for `github.com/kalbasit/swm`) within that socket. This preserves the v1 tmux isolation model.
+`session-tmux` SHALL map each swm workspace to a dedicated tmux server socket at `$XDG_RUNTIME_DIR/swm/tmux/<story-name>.sock`. Each pane group within a workspace SHALL map to a tmux session (named by sanitizing the full canonical path `host/seg1/.../segN` to be tmux-safe — replacing `.` with `•` (U+2022) and `:` with `：` (U+FF1A), e.g., `github•com/kalbasit/swm` for `github.com/kalbasit/swm`) within that socket. This preserves the v1 tmux isolation model while preventing collisions between same-named repos from different forges or orgs.
 
 #### Scenario: Workspace socket path
 - **WHEN** `OpenWorkspace({story_name: "feat-x", ...})` is called
@@ -7,7 +7,11 @@
 
 #### Scenario: Pane group session name
 - **WHEN** `OpenPaneGroup({story_name: "feat-x", project_id: {host: "github.com", segments: ["kalbasit", "swm"]}, ...})` is called
-- **THEN** a tmux session named `swm` is created within the `feat-x.sock` server
+- **THEN** a tmux session named `github•com/kalbasit/swm` is created within the `feat-x.sock` server
+
+#### Scenario: Session name collision prevention
+- **WHEN** `OpenPaneGroup` is called for two projects with the same repo name but different orgs — `{host: "github.com", segments: ["org-a", "utils"]}` and `{host: "github.com", segments: ["org-b", "utils"]}` — within the same workspace
+- **THEN** two distinct sessions `github•com/org-a/utils` and `github•com/org-b/utils` are created
 
 ### Requirement: OpenWorkspace creates and attaches
 `session-tmux` SHALL implement `Session.OpenWorkspace({story_name, worktree_paths})` by starting the tmux server socket if it does not exist, creating one session per project in `worktree_paths`, and attaching the current terminal to the workspace. If the socket already exists (workspace is already open), it SHALL attach to the existing workspace without recreating sessions.
