@@ -129,7 +129,8 @@ func TestBuildStoryDisplay_ProjectsTrimmedShowsMaxFittingProjects(t *testing.T) 
 
 	// 3 projects, each 15 runes. Width 55 fits 2+ellipsis (52 runes) but not all 3 (66 runes).
 	// The trimmer must show 2 projects, not fall back to 1.
-	s := makeStory("x", "x", displayNow.Add(-24*time.Hour),
+	s := makeStory(
+		"x", "x", displayNow.Add(-24*time.Hour),
 		"github.com/a/p1",
 		"github.com/a/p2",
 		"github.com/a/p3",
