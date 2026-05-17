@@ -120,11 +120,9 @@ func trimProjects(s *coreStory.Story, age, nameCol string, width int) string {
 		if n == len(keys)-1 {
 			// All projects — already tried, doesn't fit.
 			proj = strings.Join(keys, projectSep)
-		} else if n == 0 {
-			// Just the first project + ellipsis.
-			proj = keys[0] + projectSep + ellipsis
 		} else {
-			proj = strings.Join(keys[:n], projectSep) + projectSep + ellipsis
+			// Show n+1 projects with an ellipsis (n is the last index to include).
+			proj = strings.Join(keys[:n+1], projectSep) + projectSep + ellipsis
 		}
 
 		line := assembleLine(nameCol, age, proj)

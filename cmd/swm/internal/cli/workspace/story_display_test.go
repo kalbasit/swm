@@ -124,6 +124,23 @@ func TestBuildStoryDisplay_ProjectsTrimmedWithEllipsis(t *testing.T) {
 		"overflow project should be trimmed")
 }
 
+func TestBuildStoryDisplay_ProjectsTrimmedShowsMaxFittingProjects(t *testing.T) {
+	t.Parallel()
+
+	// 3 projects, each 15 runes. Width 55 fits 2+ellipsis (52 runes) but not all 3 (66 runes).
+	// The trimmer must show 2 projects, not fall back to 1.
+	s := makeStory("x", "x", displayNow.Add(-24*time.Hour),
+		"github.com/a/p1",
+		"github.com/a/p2",
+		"github.com/a/p3",
+	)
+	display := workspace.BuildStoryDisplay(s, 55, displayNow)
+
+	require.LessOrEqual(t, utf8.RuneCountInString(display), 55)
+	require.Contains(t, display, "github.com/a/p2",
+		"second project must be visible when 2 projects + ellipsis fit within width")
+}
+
 func TestBuildStoryDisplay_StoryNamePreservedAtMinimum(t *testing.T) {
 	t.Parallel()
 
