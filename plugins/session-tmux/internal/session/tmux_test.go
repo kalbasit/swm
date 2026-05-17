@@ -245,6 +245,25 @@ func TestSwitchTo_InsideTmux_CallsSwitchClient(t *testing.T) {
 	require.Contains(t, string(logBytes), "switch-client", "faketmux must be called with switch-client")
 }
 
+func TestOpenWorkspace_SetsSWMStory(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, _ := newTmux(t)
+	_, err := tmux.OpenWorkspace(context.Background(), &pluginv1.OpenWorkspaceRequest{
+		StoryName:     "my-feature",
+		WorktreePaths: map[string]string{},
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	require.Contains(t, string(logBytes), "set-environment -g SWM_STORY my-feature",
+		"tmux set-environment must be called to propagate SWM_STORY into the workspace")
+}
+
 func TestOpenWorkspace_EmptyWorktreePaths(t *testing.T) {
 	// Cannot be parallel — uses FAKETMUX_LOG env var.
 	logFile := filepath.Join(t.TempDir(), "tmux.log")

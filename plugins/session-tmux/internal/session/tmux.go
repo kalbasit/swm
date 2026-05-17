@@ -254,6 +254,12 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 		}
 	}
 
+	// Propagate the story name so shells inside the workspace can run
+	// "swm workspace open" without specifying --story explicitly.
+	if _, err := t.run(ctx, "-S", sock, "set-environment", "-g", "SWM_STORY", req.GetStoryName()); err != nil {
+		return nil, err
+	}
+
 	// Ensure a session exists for every worktree path (sorted order).
 	for _, key := range keys {
 		path := req.GetWorktreePaths()[key]
