@@ -105,7 +105,7 @@ func TestResolveConfigPath_EnvVarEmpty(t *testing.T) {
 	t.Parallel()
 
 	got := config.ResolveConfigPath("", "/home/user/.config")
-	require.Equal(t, "/home/user/.config/swm/config.toml", got)
+	require.Equal(t, filepath.Join("/home/user/.config", "swm", "config.toml"), got)
 }
 
 func TestLoad_BadTOML(t *testing.T) {
