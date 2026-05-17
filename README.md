@@ -90,6 +90,70 @@ token_path = "~/.config/swm/github_token"
 
 See [`cmd/swm/README.md`](cmd/swm/README.md) for the full configuration reference.
 
+### Your first story
+
+Once installed and configured, here is a complete first-use walkthrough.
+
+**1. Clone a repository**
+
+```sh
+swm clone https://github.com/org/repo
+# cloned to ~/code/repositories/github.com/org/repo
+```
+
+The repo lands at its canonical path under `code_root/repositories/`. You only need to clone once — every story shares the same clone.
+
+**2. Create a story**
+
+```sh
+swm story create my-feature
+# created story "my-feature" with branch "feat/my-feature"
+```
+
+This writes a story record (`$XDG_DATA_HOME/swm/stories/my-feature.json`) with an empty project list and branch `feat/my-feature`. Override the branch with `--branch`:
+
+```sh
+swm story create my-feature --branch fix/my-feature
+```
+
+**3. Open the workspace**
+
+```sh
+swm workspace open --story my-feature
+```
+
+What happens depends on whether a picker plugin (fzf) is configured:
+
+- **With picker:** An interactive list of all repos under `code_root/repositories/` is shown. Select the project you want to work on. swm creates a worktree for that project on the story's branch and opens a tmux socket dedicated to this story, with a tmux session for the selected project.
+
+- **Without picker:** swm opens all projects already attached to the story (none on a fresh story, so this is only useful after a previous picker-based open or manual attachment).
+
+After the first open, the selected project is attached to the story permanently. Next time you open the workspace, you can pick additional projects or re-attach to the same one.
+
+**4. Return to the workspace later**
+
+Run the same command from any terminal to re-attach:
+
+```sh
+swm workspace open --story my-feature
+```
+
+You can also skip `--story` if you export `SWM_STORY` in your shell profile:
+
+```sh
+export SWM_STORY=my-feature
+swm workspace open
+```
+
+**5. Clean up**
+
+```sh
+swm story remove my-feature          # prompts for confirmation
+swm story remove my-feature --force  # skips confirmation
+```
+
+This removes all worktrees attached to the story and deletes the story record. The canonical clone under `repositories/` is left untouched.
+
 ## Plugin discovery
 
 Plugins are resolved in this order (first match per capability wins):
