@@ -59,6 +59,7 @@ func NewCloneCmd(mgr PluginManager, resolver *layout.Resolver, hooks hookexec.Ru
 				CodeRoot:    codeRoot,
 				ProjectHost: id.GetHost(),
 				ProjectPath: projectPath,
+				WorkDir:     codeRoot,
 			}); err != nil {
 				return fmt.Errorf("pre-clone hook: %w", err)
 			}
@@ -76,6 +77,7 @@ func NewCloneCmd(mgr PluginManager, resolver *layout.Resolver, hooks hookexec.Ru
 				ProjectHost: id.GetHost(),
 				ProjectPath: projectPath,
 				RepoPath:    canonical,
+				WorkDir:     canonical,
 			}); err != nil {
 				// post-clone hooks are informational; log the failure but don't abort.
 				cmd.PrintErrf("post-clone hook failed (ignored): %v\n", err)

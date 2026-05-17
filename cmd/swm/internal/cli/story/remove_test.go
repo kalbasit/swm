@@ -111,6 +111,40 @@ func TestRemoveCmd_Confirm_ScanError_Aborts(t *testing.T) {
 	require.Contains(t, out.String(), "aborted")
 }
 
+func TestRemoveCmd_WorktreeHookWorkDirs(t *testing.T) {
+	t.Parallel()
+
+	st := &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testGitHubHost, Segments: []string{testKalbasitOrg, testSWMRepo}},
+		},
+	}
+	store := &stubStore{getStory: st}
+	vcs := &stubVCSClient{}
+	mgr := &stubManager{vcs: vcs}
+	resolver := layout.NewResolver("/code")
+
+	capturedCfgs := make(map[string]hookexec.RunConfig)
+
+	captureHook := hookexec.RunnerFunc(func(_ context.Context, cfg hookexec.RunConfig) error {
+		capturedCfgs[cfg.Event] = cfg
+
+		return nil
+	})
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, captureHook)
+	cmd.SetArgs([]string{testStoryName, testForceFlag})
+
+	require.NoError(t, cmd.Execute())
+
+	preWT := capturedCfgs["pre-worktree-remove"]
+	require.Equal(t, preWT.WorktreePath, preWT.WorkDir, "pre-worktree-remove WorkDir must be worktree path")
+
+	postWT := capturedCfgs["post-worktree-remove"]
+	require.Equal(t, postWT.RepoPath, postWT.WorkDir, "post-worktree-remove WorkDir must be repo path")
+}
+
 func TestRemoveCmd_HooksCalledInOrder(t *testing.T) {
 	t.Parallel()
 

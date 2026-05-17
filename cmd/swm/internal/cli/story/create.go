@@ -31,6 +31,7 @@ func NewCreateCmd(store coreStory.Store, codeRoot string, hooks hookexec.Runner)
 				Event:     "pre-story-create",
 				CodeRoot:  codeRoot,
 				StoryName: name,
+				WorkDir:   codeRoot,
 			}
 
 			if err := hooks.Run(ctx, preCfg); err != nil {
@@ -45,6 +46,7 @@ func NewCreateCmd(store coreStory.Store, codeRoot string, hooks hookexec.Runner)
 				Event:     "post-story-create",
 				CodeRoot:  codeRoot,
 				StoryName: name,
+				WorkDir:   codeRoot,
 			}
 
 			if err := hooks.Run(ctx, postCfg); err != nil {

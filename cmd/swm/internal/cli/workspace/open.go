@@ -180,6 +180,7 @@ func NewOpenCmd(
 				Event:     "pre-workspace-open",
 				CodeRoot:  cfg.CodeRoot,
 				StoryName: storyName,
+				WorkDir:   cfg.CodeRoot,
 			}); err != nil {
 				return fmt.Errorf("pre-workspace-open hook: %w", err)
 			}
@@ -287,6 +288,7 @@ func openWithPicker(
 			ProjectPath:  projectPath,
 			WorktreePath: worktreePath,
 			RepoPath:     repoPath,
+			WorkDir:      repoPath,
 		}); err != nil {
 			return fmt.Errorf("pre-worktree-create hook: %w", err)
 		}
@@ -329,6 +331,7 @@ func openWithPicker(
 			ProjectPath:  projectPath,
 			WorktreePath: worktreePath,
 			RepoPath:     repoPath,
+			WorkDir:      worktreePath,
 		})
 	}
 
@@ -368,6 +371,7 @@ func openWithPicker(
 		Event:     "post-workspace-open",
 		CodeRoot:  cfg.CodeRoot,
 		StoryName: storyName,
+		WorkDir:   worktreePath,
 	})
 
 	if argv := switchRes.GetExecArgv(); len(argv) > 0 {
@@ -436,6 +440,7 @@ func openAllAttached(
 		Event:     "post-workspace-open",
 		CodeRoot:  cfg.CodeRoot,
 		StoryName: storyName,
+		WorkDir:   worktreePaths[firstKey],
 	})
 
 	switchRes, err := sess.SwitchTo(ctx, &pluginv1.SwitchToRequest{

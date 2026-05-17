@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -236,6 +237,57 @@ func TestRun_StdinJSON(t *testing.T) {
 	require.Contains(t, log, `"hook":"post-clone"`)
 	require.Contains(t, log, `"story":"feat-x"`)
 	require.Contains(t, log, `"project_host":"github.com"`)
+}
+
+func TestRun_WorkDirIsSet(t *testing.T) {
+	t.Parallel()
+
+	configHome := t.TempDir()
+	workDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "pwd.log")
+
+	globalDir := filepath.Join(configHome, "swm", "hooks")
+	installScript(t, globalDir, eventPostStory, "00-pwd", "pwd > "+logFile+"\n")
+
+	cfg := hookexec.RunConfig{
+		Event:      eventPostStory,
+		CodeRoot:   t.TempDir(),
+		StoryName:  testStoryName,
+		ConfigHome: configHome,
+		WorkDir:    workDir,
+	}
+
+	require.NoError(t, hookexec.Run(context.Background(), cfg))
+
+	got, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	require.Equal(t, workDir, strings.TrimSpace(string(got)))
+}
+
+func TestRun_WorkDirEmpty_InheritsCwd(t *testing.T) {
+	t.Parallel()
+
+	configHome := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "pwd.log")
+
+	globalDir := filepath.Join(configHome, "swm", "hooks")
+	installScript(t, globalDir, eventPostStory, "00-pwd", "pwd > "+logFile+"\n")
+
+	cfg := hookexec.RunConfig{
+		Event:      eventPostStory,
+		CodeRoot:   t.TempDir(),
+		StoryName:  testStoryName,
+		ConfigHome: configHome,
+	}
+
+	processCwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	require.NoError(t, hookexec.Run(context.Background(), cfg))
+
+	got, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	require.Equal(t, processCwd, strings.TrimSpace(string(got)))
 }
 
 func TestRun_CustomStdout(t *testing.T) {
