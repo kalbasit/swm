@@ -17,9 +17,11 @@ import (
 )
 
 const (
-	testProject   = "github.com/kalbasit/swm"
-	testWorktree  = "/tmp/wt"
-	testPaneGroup = "swm"
+	testHost          = "github.com"
+	testProject       = testHost + "/kalbasit/swm"
+	testWorktree      = "/tmp/wt"
+	testPaneGroup     = "swm"
+	testPaneGroupFull = "github•com/kalbasit/swm"
 )
 
 var faketmuxBin string
@@ -314,8 +316,8 @@ func TestOpenWorkspace_DeterministicInitialSession(t *testing.T) {
 	}
 
 	require.NotEmpty(t, firstNewSession, "expected at least one new-session invocation in log")
-	require.Contains(t, firstNewSession, "-s a-repo",
-		"initial session must be alphabetically first key")
+	require.Contains(t, firstNewSession, "-s github•com/a-repo",
+		"initial session must use full sanitized path of alphabetically first key")
 }
 
 func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
@@ -339,7 +341,7 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 
 	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
 		WorkspaceId:  sockPath,
-		ProjectId:    &pluginv1.ProjectID{Host: "github.com", Segments: []string{"kalbasit", "swm"}},
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{"kalbasit", "swm"}},
 		WorktreePath: "/tmp/stories/feat-x/github.com/kalbasit/swm",
 	})
 	require.NoError(t, err)
@@ -351,6 +353,57 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	log := string(logBytes)
 	require.Contains(t, log, "laio start --config /tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml",
 		"expected substituted pane_group_command in tmux args")
+}
+
+func TestOpenPaneGroup_SessionNameIsFullPath(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sockPath := filepath.Join(socketDir, "feat-x.sock")
+
+	pg, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{"kalbasit", "swm"}},
+		WorktreePath: testWorktree,
+	})
+	require.NoError(t, err)
+	require.Equal(t, testPaneGroupFull, pg.GetPaneGroupId(),
+		"pane_group_id must be the sanitized full canonical path, not just the basename")
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	require.Contains(t, string(logBytes), "-s "+testPaneGroupFull,
+		"tmux new-session must use the full sanitized path as the session name")
+}
+
+func TestOpenPaneGroup_CollisionPrevention(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sockPath := filepath.Join(socketDir, "feat-x.sock")
+
+	pgA, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{"org-a", "utils"}},
+		WorktreePath: testWorktree,
+	})
+	require.NoError(t, err)
+
+	pgB, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{"org-b", "utils"}},
+		WorktreePath: testWorktree,
+	})
+	require.NoError(t, err)
+
+	require.NotEqual(t, pgA.GetPaneGroupId(), pgB.GetPaneGroupId(),
+		"repos with the same basename from different orgs must have distinct session names")
+	require.NotEqual(t, "utils", pgA.GetPaneGroupId(), "session name must not be a bare basename")
+	require.NotEqual(t, "utils", pgB.GetPaneGroupId(), "session name must not be a bare basename")
 }
 
 // fakeHostClient implements pluginv1.HostClient for tests.

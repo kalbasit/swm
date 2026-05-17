@@ -182,13 +182,13 @@ func (t *Tmux) ListWorkspaces(_ *pluginv1.Empty, stream pluginv1.Session_ListWor
 // OpenPaneGroup creates or reuses a tmux session for a project inside a workspace.
 func (t *Tmux) OpenPaneGroup(ctx context.Context, req *pluginv1.OpenPaneGroupRequest) (*pluginv1.PaneGroup, error) {
 	sock := req.GetWorkspaceId()
-	segments := req.GetProjectId().GetSegments()
+	pid := req.GetProjectId()
 
-	if len(segments) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "project_id has no segments")
+	if pid.GetHost() == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "project_id has no host")
 	}
 
-	name := segments[len(segments)-1]
+	name := sessionName(pid.GetHost() + "/" + strings.Join(pid.GetSegments(), "/"))
 
 	// Determine the initial command for the session.
 	initialCmd := t.paneGroupCommand(ctx, req)
@@ -343,9 +343,8 @@ func (t *Tmux) socketPath(storyName string) string {
 	return filepath.Join(t.socketDir, storyName+".sock")
 }
 
-// sessionName derives a tmux session name from a worktree map key (host/seg/.../last).
+// sessionName derives a tmux-safe session name from a worktree map key (host/seg/.../last).
+// Dots and colons are replaced with tmux-safe Unicode equivalents; slashes are preserved.
 func sessionName(key string) string {
-	parts := strings.Split(key, "/")
-
-	return parts[len(parts)-1]
+	return strings.NewReplacer(".", "•", ":", "：").Replace(key)
 }
