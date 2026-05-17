@@ -59,6 +59,13 @@ message SwitchToRequest {
   string pane_group_id = 2;
 }
 
+// SwitchToResponse is returned by Session.SwitchTo.
+// When exec_argv is non-empty the host MUST exec the command to hand the
+// terminal over (e.g. tmux attach-session when not already inside tmux).
+message SwitchToResponse {
+  repeated string exec_argv = 1;
+}
+
 // Session is implemented by terminal-multiplexer plugins (e.g. session-tmux).
 service Session {
   rpc Info(Empty) returns (SessionInfo);
@@ -66,7 +73,7 @@ service Session {
   rpc CloseWorkspace(CloseWorkspaceRequest) returns (Empty);
   rpc ListWorkspaces(Empty) returns (stream Workspace);
   rpc OpenPaneGroup(OpenPaneGroupRequest) returns (PaneGroup);
-  rpc SwitchTo(SwitchToRequest) returns (Empty);
+  rpc SwitchTo(SwitchToRequest) returns (SwitchToResponse);
   rpc IsInsideWorkspace(Empty) returns (BoolValue);
   rpc CurrentContext(Empty) returns (CurrentContextResponse);
 }

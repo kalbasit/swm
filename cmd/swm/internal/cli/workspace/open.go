@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
@@ -35,6 +36,21 @@ var (
 	errInvalidProjectKey    = errors.New("invalid project key: must be host/seg1/.../segN")
 )
 
+// ExecFunc is the type used to replace the current process (default: syscall.Exec).
+type ExecFunc func(argv0 string, argv []string, envv []string) error
+
+// OpenOption configures NewOpenCmd behaviour.
+type OpenOption func(*openCmdConfig)
+
+type openCmdConfig struct {
+	exec ExecFunc
+}
+
+// WithExecFunc injects an alternative to syscall.Exec. Intended for tests only.
+func WithExecFunc(fn ExecFunc) OpenOption {
+	return func(c *openCmdConfig) { c.exec = fn }
+}
+
 // NewOpenCmd returns the `swm workspace open` command.
 func NewOpenCmd(
 	cfg *config.Config,
@@ -42,7 +58,13 @@ func NewOpenCmd(
 	mgr pluginManager,
 	resolver *layout.Resolver,
 	hooks hookexec.Runner,
+	opts ...OpenOption,
 ) *cobra.Command {
+	ocfg := &openCmdConfig{exec: syscall.Exec}
+	for _, o := range opts {
+		o(ocfg)
+	}
+
 	cmd := &cobra.Command{
 		Use:   "open [story-name]",
 		Short: "Open (or attach to) the workspace for a story",
@@ -116,7 +138,7 @@ func NewOpenCmd(
 
 			var openErr error
 			if pickerClient != nil {
-				openErr = openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, storyName)
+				openErr = openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, storyName, ocfg.exec)
 				if openErr != nil {
 					slog.DebugContext(
 						ctx, "picker returned error, checking fallback",
@@ -165,6 +187,7 @@ func openWithPicker(
 	pickerClient pluginv1.PickerClient,
 	resolver *layout.Resolver,
 	storyName string,
+	execFn ExecFunc,
 ) error {
 	// Build a deduplicated candidate set: attached projects + all on-disk repos.
 	candidates := buildCandidates(cfg.CodeRoot, st, resolver)
@@ -267,14 +290,21 @@ func openWithPicker(
 		return fmt.Errorf("opening pane group: %w", err)
 	}
 
-	if _, err := sess.SwitchTo(ctx, &pluginv1.SwitchToRequest{
+	switchRes, err := sess.SwitchTo(ctx, &pluginv1.SwitchToRequest{
 		WorkspaceId: ws.GetWorkspaceId(),
 		PaneGroupId: pg.GetPaneGroupId(),
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("switching to pane group: %w", err)
 	}
 
 	cmd.Printf("opened pane group %q in workspace %q\n", pg.GetPaneGroupId(), storyName)
+
+	if argv := switchRes.GetExecArgv(); len(argv) > 0 {
+		if err := execFn(argv[0], argv, os.Environ()); err != nil {
+			return fmt.Errorf("exec after switch: %w", err)
+		}
+	}
 
 	return nil
 }

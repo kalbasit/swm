@@ -41,7 +41,7 @@ type SessionClient interface {
 	CloseWorkspace(ctx context.Context, in *CloseWorkspaceRequest, opts ...grpc.CallOption) (*Empty, error)
 	ListWorkspaces(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Workspace], error)
 	OpenPaneGroup(ctx context.Context, in *OpenPaneGroupRequest, opts ...grpc.CallOption) (*PaneGroup, error)
-	SwitchTo(ctx context.Context, in *SwitchToRequest, opts ...grpc.CallOption) (*Empty, error)
+	SwitchTo(ctx context.Context, in *SwitchToRequest, opts ...grpc.CallOption) (*SwitchToResponse, error)
 	IsInsideWorkspace(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BoolValue, error)
 	CurrentContext(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CurrentContextResponse, error)
 }
@@ -113,9 +113,9 @@ func (c *sessionClient) OpenPaneGroup(ctx context.Context, in *OpenPaneGroupRequ
 	return out, nil
 }
 
-func (c *sessionClient) SwitchTo(ctx context.Context, in *SwitchToRequest, opts ...grpc.CallOption) (*Empty, error) {
+func (c *sessionClient) SwitchTo(ctx context.Context, in *SwitchToRequest, opts ...grpc.CallOption) (*SwitchToResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Empty)
+	out := new(SwitchToResponse)
 	err := c.cc.Invoke(ctx, Session_SwitchTo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -154,7 +154,7 @@ type SessionServer interface {
 	CloseWorkspace(context.Context, *CloseWorkspaceRequest) (*Empty, error)
 	ListWorkspaces(*Empty, grpc.ServerStreamingServer[Workspace]) error
 	OpenPaneGroup(context.Context, *OpenPaneGroupRequest) (*PaneGroup, error)
-	SwitchTo(context.Context, *SwitchToRequest) (*Empty, error)
+	SwitchTo(context.Context, *SwitchToRequest) (*SwitchToResponse, error)
 	IsInsideWorkspace(context.Context, *Empty) (*BoolValue, error)
 	CurrentContext(context.Context, *Empty) (*CurrentContextResponse, error)
 }
@@ -186,7 +186,7 @@ func (UnimplementedSessionServer) OpenPaneGroup(context.Context, *OpenPaneGroupR
 	return nil, status.Error(codes.Unimplemented, "method OpenPaneGroup not implemented")
 }
 
-func (UnimplementedSessionServer) SwitchTo(context.Context, *SwitchToRequest) (*Empty, error) {
+func (UnimplementedSessionServer) SwitchTo(context.Context, *SwitchToRequest) (*SwitchToResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SwitchTo not implemented")
 }
 

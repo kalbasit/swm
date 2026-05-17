@@ -303,6 +303,41 @@ func TestOpenCmd_WithPicker_InvalidKey_EmptySegmentPart(t *testing.T) {
 	require.ErrorContains(t, err, "invalid project key")
 }
 
+func TestOpenCmd_WithPicker_ExecArgvIsExeced(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/swm"
+
+	wantArgv := []string{"/usr/bin/tmux", "-S", "/tmp/feat-x.sock", "attach-session", "-t", "swm"}
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+
+	var gotArgv []string
+
+	testExec := workspace.ExecFunc(func(_ string, argv []string, _ []string) error {
+		gotArgv = argv
+
+		return nil
+	})
+
+	sess := &stubSess{switchToExecArgv: wantArgv}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+	mgr := &stubMgr{sess: sess, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop, workspace.WithExecFunc(testExec))
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.Equal(t, wantArgv, gotArgv, "expected execFunc to be called with the argv from SwitchTo")
+}
+
 func TestOpenCmd_NoPicker_FallsBackToPhase1(t *testing.T) {
 	t.Parallel()
 
@@ -394,6 +429,7 @@ func (s *stubMgr) Get(_ context.Context, capability string) (any, error) {
 type stubSess struct {
 	lastOpenReq      *pluginv1.OpenWorkspaceRequest
 	lastPaneGroupReq *pluginv1.OpenPaneGroupRequest
+	switchToExecArgv []string // returned from SwitchTo when non-nil
 }
 
 func (s *stubSess) CloseWorkspace(
@@ -466,8 +502,8 @@ func (s *stubSess) SwitchTo(
 	context.Context,
 	*pluginv1.SwitchToRequest,
 	...grpc.CallOption,
-) (*pluginv1.Empty, error) {
-	return &pluginv1.Empty{}, nil
+) (*pluginv1.SwitchToResponse, error) {
+	return &pluginv1.SwitchToResponse{ExecArgv: s.switchToExecArgv}, nil
 }
 
 var _ pluginv1.SessionClient = (*stubSess)(nil)

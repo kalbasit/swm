@@ -271,22 +271,24 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 }
 
 // SwitchTo brings the given pane group into focus.
-func (t *Tmux) SwitchTo(ctx context.Context, req *pluginv1.SwitchToRequest) (*pluginv1.Empty, error) {
+// When the caller is already inside a tmux session, it calls switch-client directly.
+// When not inside tmux, it returns exec_argv so the host can exec tmux attach-session
+// with the terminal it holds — the plugin subprocess has no TTY.
+func (t *Tmux) SwitchTo(ctx context.Context, req *pluginv1.SwitchToRequest) (*pluginv1.SwitchToResponse, error) {
 	sock := req.GetWorkspaceId()
 	target := req.GetPaneGroupId()
 
-	var err error
 	if os.Getenv("TMUX") != "" {
-		_, err = t.run(ctx, "-S", sock, "switch-client", "-t", target)
-	} else {
-		_, err = t.run(ctx, "-S", sock, "attach-session", "-t", target)
+		if _, err := t.run(ctx, "-S", sock, "switch-client", "-t", target); err != nil {
+			return nil, err
+		}
+
+		return &pluginv1.SwitchToResponse{}, nil
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
-	return &pluginv1.Empty{}, nil
+	return &pluginv1.SwitchToResponse{
+		ExecArgv: []string{t.tmuxBin, "-S", sock, "attach-session", "-t", target},
+	}, nil
 }
 
 // paneGroupCommand returns the command string for a new pane group session, applying

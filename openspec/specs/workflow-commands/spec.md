@@ -95,13 +95,14 @@ Before opening the workspace the command SHALL run `hookexec.Run` for event `pre
 7. Call `session.OpenWorkspace` to ensure the workspace is active.
 8. Call `session.OpenPaneGroup` with the derived worktree path for the selected project.
 9. Run `post-workspace-open` hooks.
+10. Call `session.SwitchTo`; if the response contains a non-empty `exec_argv`, call `syscall.Exec(exec_argv[0], exec_argv, os.Environ())` to replace the host process and hand off the terminal. The host process does not return after exec.
 
 **Without picker configured (fallback):**
 1. Run `pre-workspace-open` hooks; abort if any fail.
 2. Resolve story.
 3. Load all attached projects from the story store.
 4. Call `session.OpenWorkspace({story_name, worktree_paths: {project_key: derived_path}})`.
-5. If the workspace was already open, call `session.SwitchTo` for the first pane group.
+5. If the workspace was already open, call `session.SwitchTo` for the first pane group; if the response contains a non-empty `exec_argv`, exec it as above.
 6. Run `post-workspace-open` hooks.
 
 #### Scenario: Interactive selection with picker — project already attached
@@ -139,6 +140,14 @@ Before opening the workspace the command SHALL run `hookexec.Run` for event `pre
 #### Scenario: Story with no projects and no picker
 - **WHEN** `swm workspace open feat-x` is run, no picker is configured, and `feat-x` has no attached projects
 - **THEN** `OpenWorkspace` is called with an empty worktree_paths map
+
+#### Scenario: SwitchTo returns exec_argv — host execs tmux
+- **WHEN** `swm workspace open --story feat-x` is run, the user is not already inside a tmux session, and `session.SwitchTo` returns a non-empty `exec_argv`
+- **THEN** the host calls `syscall.Exec` with the returned argv, replacing itself with the tmux process and attaching the user to the workspace
+
+#### Scenario: SwitchTo returns empty exec_argv — already inside tmux
+- **WHEN** `swm workspace open --story feat-x` is run from inside an existing tmux session and `session.SwitchTo` returns empty `exec_argv`
+- **THEN** the host does NOT call `syscall.Exec`; the tmux session switches in-place
 
 #### Scenario: pre-workspace-open hook aborts open
 - **WHEN** `swm workspace open feat-x` is run and a `pre-workspace-open` hook exits non-zero

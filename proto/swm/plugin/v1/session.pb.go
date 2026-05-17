@@ -479,6 +479,53 @@ func (x *SwitchToRequest) GetPaneGroupId() string {
 	return ""
 }
 
+// SwitchToResponse is returned by Session.SwitchTo.
+// When exec_argv is non-empty the host MUST exec the command to hand the
+// terminal over (e.g. tmux attach-session when not already inside tmux).
+type SwitchToResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecArgv      []string               `protobuf:"bytes,1,rep,name=exec_argv,json=execArgv,proto3" json:"exec_argv,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwitchToResponse) Reset() {
+	*x = SwitchToResponse{}
+	mi := &file_swm_plugin_v1_session_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwitchToResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwitchToResponse) ProtoMessage() {}
+
+func (x *SwitchToResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swm_plugin_v1_session_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwitchToResponse.ProtoReflect.Descriptor instead.
+func (*SwitchToResponse) Descriptor() ([]byte, []int) {
+	return file_swm_plugin_v1_session_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SwitchToResponse) GetExecArgv() []string {
+	if x != nil {
+		return x.ExecArgv
+	}
+	return nil
+}
+
 var File_swm_plugin_v1_session_proto protoreflect.FileDescriptor
 
 const file_swm_plugin_v1_session_proto_rawDesc = "" +
@@ -521,14 +568,16 @@ const file_swm_plugin_v1_session_proto_rawDesc = "" +
 	"\rworktree_path\x18\x03 \x01(\tR\fworktreePath\"X\n" +
 	"\x0fSwitchToRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\"\n" +
-	"\rpane_group_id\x18\x02 \x01(\tR\vpaneGroupId2\xcb\x04\n" +
+	"\rpane_group_id\x18\x02 \x01(\tR\vpaneGroupId\"/\n" +
+	"\x10SwitchToResponse\x12\x1b\n" +
+	"\texec_argv\x18\x01 \x03(\tR\bexecArgv2\xd6\x04\n" +
 	"\aSession\x128\n" +
 	"\x04Info\x12\x14.swm.plugin.v1.Empty\x1a\x1a.swm.plugin.v1.SessionInfo\x12N\n" +
 	"\rOpenWorkspace\x12#.swm.plugin.v1.OpenWorkspaceRequest\x1a\x18.swm.plugin.v1.Workspace\x12L\n" +
 	"\x0eCloseWorkspace\x12$.swm.plugin.v1.CloseWorkspaceRequest\x1a\x14.swm.plugin.v1.Empty\x12B\n" +
 	"\x0eListWorkspaces\x12\x14.swm.plugin.v1.Empty\x1a\x18.swm.plugin.v1.Workspace0\x01\x12N\n" +
-	"\rOpenPaneGroup\x12#.swm.plugin.v1.OpenPaneGroupRequest\x1a\x18.swm.plugin.v1.PaneGroup\x12@\n" +
-	"\bSwitchTo\x12\x1e.swm.plugin.v1.SwitchToRequest\x1a\x14.swm.plugin.v1.Empty\x12C\n" +
+	"\rOpenPaneGroup\x12#.swm.plugin.v1.OpenPaneGroupRequest\x1a\x18.swm.plugin.v1.PaneGroup\x12K\n" +
+	"\bSwitchTo\x12\x1e.swm.plugin.v1.SwitchToRequest\x1a\x1f.swm.plugin.v1.SwitchToResponse\x12C\n" +
 	"\x11IsInsideWorkspace\x12\x14.swm.plugin.v1.Empty\x1a\x18.swm.plugin.v1.BoolValue\x12M\n" +
 	"\x0eCurrentContext\x12\x14.swm.plugin.v1.Empty\x1a%.swm.plugin.v1.CurrentContextResponseB6Z4github.com/kalbasit/swm/proto/swm/plugin/v1;pluginv1b\x06proto3"
 
@@ -545,7 +594,7 @@ func file_swm_plugin_v1_session_proto_rawDescGZIP() []byte {
 }
 
 var (
-	file_swm_plugin_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+	file_swm_plugin_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 	file_swm_plugin_v1_session_proto_goTypes  = []any{
 		(*SessionInfo)(nil),            // 0: swm.plugin.v1.SessionInfo
 		(*Workspace)(nil),              // 1: swm.plugin.v1.Workspace
@@ -555,35 +604,36 @@ var (
 		(*CloseWorkspaceRequest)(nil),  // 5: swm.plugin.v1.CloseWorkspaceRequest
 		(*OpenPaneGroupRequest)(nil),   // 6: swm.plugin.v1.OpenPaneGroupRequest
 		(*SwitchToRequest)(nil),        // 7: swm.plugin.v1.SwitchToRequest
-		nil,                            // 8: swm.plugin.v1.OpenWorkspaceRequest.WorktreePathsEntry
-		(*PluginInfo)(nil),             // 9: swm.plugin.v1.PluginInfo
-		(*ProjectID)(nil),              // 10: swm.plugin.v1.ProjectID
-		(*Empty)(nil),                  // 11: swm.plugin.v1.Empty
-		(*BoolValue)(nil),              // 12: swm.plugin.v1.BoolValue
+		(*SwitchToResponse)(nil),       // 8: swm.plugin.v1.SwitchToResponse
+		nil,                            // 9: swm.plugin.v1.OpenWorkspaceRequest.WorktreePathsEntry
+		(*PluginInfo)(nil),             // 10: swm.plugin.v1.PluginInfo
+		(*ProjectID)(nil),              // 11: swm.plugin.v1.ProjectID
+		(*Empty)(nil),                  // 12: swm.plugin.v1.Empty
+		(*BoolValue)(nil),              // 13: swm.plugin.v1.BoolValue
 	}
 )
 
 var file_swm_plugin_v1_session_proto_depIdxs = []int32{
-	9,  // 0: swm.plugin.v1.SessionInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
-	10, // 1: swm.plugin.v1.PaneGroup.project_id:type_name -> swm.plugin.v1.ProjectID
-	10, // 2: swm.plugin.v1.CurrentContextResponse.project_id:type_name -> swm.plugin.v1.ProjectID
-	8,  // 3: swm.plugin.v1.OpenWorkspaceRequest.worktree_paths:type_name -> swm.plugin.v1.OpenWorkspaceRequest.WorktreePathsEntry
-	10, // 4: swm.plugin.v1.OpenPaneGroupRequest.project_id:type_name -> swm.plugin.v1.ProjectID
-	11, // 5: swm.plugin.v1.Session.Info:input_type -> swm.plugin.v1.Empty
+	10, // 0: swm.plugin.v1.SessionInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
+	11, // 1: swm.plugin.v1.PaneGroup.project_id:type_name -> swm.plugin.v1.ProjectID
+	11, // 2: swm.plugin.v1.CurrentContextResponse.project_id:type_name -> swm.plugin.v1.ProjectID
+	9,  // 3: swm.plugin.v1.OpenWorkspaceRequest.worktree_paths:type_name -> swm.plugin.v1.OpenWorkspaceRequest.WorktreePathsEntry
+	11, // 4: swm.plugin.v1.OpenPaneGroupRequest.project_id:type_name -> swm.plugin.v1.ProjectID
+	12, // 5: swm.plugin.v1.Session.Info:input_type -> swm.plugin.v1.Empty
 	4,  // 6: swm.plugin.v1.Session.OpenWorkspace:input_type -> swm.plugin.v1.OpenWorkspaceRequest
 	5,  // 7: swm.plugin.v1.Session.CloseWorkspace:input_type -> swm.plugin.v1.CloseWorkspaceRequest
-	11, // 8: swm.plugin.v1.Session.ListWorkspaces:input_type -> swm.plugin.v1.Empty
+	12, // 8: swm.plugin.v1.Session.ListWorkspaces:input_type -> swm.plugin.v1.Empty
 	6,  // 9: swm.plugin.v1.Session.OpenPaneGroup:input_type -> swm.plugin.v1.OpenPaneGroupRequest
 	7,  // 10: swm.plugin.v1.Session.SwitchTo:input_type -> swm.plugin.v1.SwitchToRequest
-	11, // 11: swm.plugin.v1.Session.IsInsideWorkspace:input_type -> swm.plugin.v1.Empty
-	11, // 12: swm.plugin.v1.Session.CurrentContext:input_type -> swm.plugin.v1.Empty
+	12, // 11: swm.plugin.v1.Session.IsInsideWorkspace:input_type -> swm.plugin.v1.Empty
+	12, // 12: swm.plugin.v1.Session.CurrentContext:input_type -> swm.plugin.v1.Empty
 	0,  // 13: swm.plugin.v1.Session.Info:output_type -> swm.plugin.v1.SessionInfo
 	1,  // 14: swm.plugin.v1.Session.OpenWorkspace:output_type -> swm.plugin.v1.Workspace
-	11, // 15: swm.plugin.v1.Session.CloseWorkspace:output_type -> swm.plugin.v1.Empty
+	12, // 15: swm.plugin.v1.Session.CloseWorkspace:output_type -> swm.plugin.v1.Empty
 	1,  // 16: swm.plugin.v1.Session.ListWorkspaces:output_type -> swm.plugin.v1.Workspace
 	2,  // 17: swm.plugin.v1.Session.OpenPaneGroup:output_type -> swm.plugin.v1.PaneGroup
-	11, // 18: swm.plugin.v1.Session.SwitchTo:output_type -> swm.plugin.v1.Empty
-	12, // 19: swm.plugin.v1.Session.IsInsideWorkspace:output_type -> swm.plugin.v1.BoolValue
+	8,  // 18: swm.plugin.v1.Session.SwitchTo:output_type -> swm.plugin.v1.SwitchToResponse
+	13, // 19: swm.plugin.v1.Session.IsInsideWorkspace:output_type -> swm.plugin.v1.BoolValue
 	3,  // 20: swm.plugin.v1.Session.CurrentContext:output_type -> swm.plugin.v1.CurrentContextResponse
 	13, // [13:21] is the sub-list for method output_type
 	5,  // [5:13] is the sub-list for method input_type
@@ -604,7 +654,7 @@ func file_swm_plugin_v1_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swm_plugin_v1_session_proto_rawDesc), len(file_swm_plugin_v1_session_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
