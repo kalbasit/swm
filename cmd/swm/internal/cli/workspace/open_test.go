@@ -33,6 +33,8 @@ const (
 
 	eventPreWorktreeCreate  = "pre-worktree-create"
 	eventPostWorktreeCreate = "post-worktree-create"
+
+	flagKillPane = "--kill-pane"
 )
 
 var (
@@ -692,6 +694,112 @@ func TestOpenCmd_StoryPickerFailedPrecondition_FallsBackToDefault(t *testing.T) 
 	require.Equal(t, testDefaultStory, sess.lastOpenReq.GetStoryName())
 }
 
+// ─── kill-pane flag tests ─────────────────────────────────────────────────────
+
+const testOriginWorkspaceID = "/tmp/origin.sock"
+
+func TestOpenCmd_KillPane_TmuxPaneSet_PopulatesOriginFields(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	t.Setenv("TMUX_PANE", "%5")
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+	sess := &stubSess{
+		currentContextResp: &pluginv1.CurrentContextResponse{WorkspaceId: testOriginWorkspaceID},
+	}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, flagKillPane})
+
+	require.NoError(t, cmd.Execute())
+	require.NotNil(t, sess.lastSwitchReq)
+	require.Equal(t, testOriginWorkspaceID, sess.lastSwitchReq.GetCloseOriginWorkspaceId())
+	require.Equal(t, "%5", sess.lastSwitchReq.GetCloseOriginPaneId())
+}
+
+func TestOpenCmd_KillPane_TmuxPaneUnset_OmitsOriginFields(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	t.Setenv("TMUX_PANE", "")
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+	sess := &stubSess{
+		currentContextResp: &pluginv1.CurrentContextResponse{WorkspaceId: testOriginWorkspaceID},
+	}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, flagKillPane})
+
+	require.NoError(t, cmd.Execute())
+	require.NotNil(t, sess.lastSwitchReq)
+	require.Empty(t, sess.lastSwitchReq.GetCloseOriginWorkspaceId(), "origin fields must be empty when TMUX_PANE is unset")
+	require.Empty(t, sess.lastSwitchReq.GetCloseOriginPaneId())
+}
+
+func TestOpenCmd_KillPane_CurrentContextFails_OmitsOriginFields(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	t.Setenv("TMUX_PANE", "%5")
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+	sess := &stubSess{
+		currentContextErr: errFakeHook,
+	}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, flagKillPane})
+
+	require.NoError(t, cmd.Execute())
+	require.NotNil(t, sess.lastSwitchReq)
+	require.Empty(t, sess.lastSwitchReq.GetCloseOriginWorkspaceId(),
+		"origin fields must be empty when CurrentContext fails")
+	require.Empty(t, sess.lastSwitchReq.GetCloseOriginPaneId())
+}
+
+func TestOpenCmd_NoKillPane_OmitsOriginFields(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+	sess := &stubSess{}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName}) // no --kill-pane
+
+	require.NoError(t, cmd.Execute())
+	require.NotNil(t, sess.lastSwitchReq)
+	require.Empty(t, sess.lastSwitchReq.GetCloseOriginWorkspaceId(), "no origin fields without --kill-pane")
+	require.Empty(t, sess.lastSwitchReq.GetCloseOriginPaneId())
+}
+
 // ─── stubs ───────────────────────────────────────────────────────────────────
 
 // stubStore is a minimal story.Store.
@@ -766,7 +874,11 @@ func (s *stubMgr) Get(_ context.Context, capability string) (any, error) {
 type stubSess struct {
 	lastOpenReq      *pluginv1.OpenWorkspaceRequest
 	lastPaneGroupReq *pluginv1.OpenPaneGroupRequest
+	lastSwitchReq    *pluginv1.SwitchToRequest
 	switchToExecArgv []string // returned from SwitchTo when non-nil
+
+	currentContextResp *pluginv1.CurrentContextResponse
+	currentContextErr  error
 }
 
 func (s *stubSess) CloseWorkspace(
@@ -778,11 +890,19 @@ func (s *stubSess) CloseWorkspace(
 }
 
 func (s *stubSess) CurrentContext(
-	context.Context,
-	*pluginv1.Empty,
-	...grpc.CallOption,
+	_ context.Context,
+	_ *pluginv1.Empty,
+	_ ...grpc.CallOption,
 ) (*pluginv1.CurrentContextResponse, error) {
-	panic("stub")
+	if s.currentContextErr != nil {
+		return nil, s.currentContextErr
+	}
+
+	if s.currentContextResp != nil {
+		return s.currentContextResp, nil
+	}
+
+	return &pluginv1.CurrentContextResponse{}, nil
 }
 
 func (s *stubSess) Info(
@@ -836,10 +956,12 @@ func (s *stubSess) OpenWorkspace(
 }
 
 func (s *stubSess) SwitchTo(
-	context.Context,
-	*pluginv1.SwitchToRequest,
-	...grpc.CallOption,
+	_ context.Context,
+	req *pluginv1.SwitchToRequest,
+	_ ...grpc.CallOption,
 ) (*pluginv1.SwitchToResponse, error) {
+	s.lastSwitchReq = req
+
 	return &pluginv1.SwitchToResponse{ExecArgv: s.switchToExecArgv}, nil
 }
 

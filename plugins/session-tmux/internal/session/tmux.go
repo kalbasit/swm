@@ -283,21 +283,70 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 // When the caller is already inside a tmux session, it calls switch-client directly.
 // When not inside tmux, it returns exec_argv so the host can exec tmux attach-session
 // with the terminal it holds — the plugin subprocess has no TTY.
+//
+// When close_origin_pane_id is set, the originating pane is killed inside this
+// handler before the response is returned, so that the kill runs even when the
+// host will subsequently syscall.Exec the returned exec_argv.
 func (t *Tmux) SwitchTo(ctx context.Context, req *pluginv1.SwitchToRequest) (*pluginv1.SwitchToResponse, error) {
 	sock := req.GetWorkspaceId()
 	target := req.GetPaneGroupId()
+
+	var resp *pluginv1.SwitchToResponse
 
 	if os.Getenv("TMUX") != "" {
 		if _, err := t.run(ctx, "-S", sock, "switch-client", "-t", target); err != nil {
 			return nil, err
 		}
 
-		return &pluginv1.SwitchToResponse{}, nil
+		resp = &pluginv1.SwitchToResponse{}
+	} else {
+		resp = &pluginv1.SwitchToResponse{
+			ExecArgv: []string{t.tmuxBin, "-S", sock, "attach-session", "-t", target},
+		}
 	}
 
-	return &pluginv1.SwitchToResponse{
-		ExecArgv: []string{t.tmuxBin, "-S", sock, "attach-session", "-t", target},
-	}, nil
+	if err := t.killOriginPane(ctx, req.GetCloseOriginWorkspaceId(), req.GetCloseOriginPaneId()); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+// killOriginPane kills the specified pane in the origin workspace after a switch.
+// It is a no-op when either argument is empty.
+// "No such pane" errors from tmux are swallowed — the pane may have already closed.
+func (t *Tmux) killOriginPane(ctx context.Context, originSock, paneID string) error {
+	if originSock == "" || paneID == "" {
+		return nil
+	}
+
+	if _, err := os.Stat(originSock); os.IsNotExist(err) {
+		return status.Errorf(codes.NotFound, "origin workspace not found: %s", originSock)
+	}
+
+	if _, err := t.run(ctx, "-S", originSock, "kill-pane", "-t", paneID); err != nil {
+		if isKillPaneNotFound(err) {
+			return nil
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+// isKillPaneNotFound reports whether a tmux kill-pane error indicates the pane
+// or session no longer exists (expected race condition, safe to ignore).
+func isKillPaneNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+
+	return strings.Contains(msg, "no such pane") ||
+		strings.Contains(msg, "can't find pane") ||
+		strings.Contains(msg, "no sessions")
 }
 
 // paneGroupCommand returns the command string for a new pane group session, applying

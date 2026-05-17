@@ -428,11 +428,17 @@ func (x *OpenPaneGroupRequest) GetWorktreePath() string {
 
 // SwitchToRequest asks the plugin to bring a pane group into focus.
 type SwitchToRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	PaneGroupId   string                 `protobuf:"bytes,2,opt,name=pane_group_id,json=paneGroupId,proto3" json:"pane_group_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	PaneGroupId string                 `protobuf:"bytes,2,opt,name=pane_group_id,json=paneGroupId,proto3" json:"pane_group_id,omitempty"`
+	// Optional: if non-empty, the plugin SHALL close the originating pane after
+	// switching. close_origin_workspace_id identifies the source workspace and
+	// close_origin_pane_id is the multiplexer-specific pane reference (e.g.
+	// $TMUX_PANE for session-tmux).
+	CloseOriginWorkspaceId string `protobuf:"bytes,3,opt,name=close_origin_workspace_id,json=closeOriginWorkspaceId,proto3" json:"close_origin_workspace_id,omitempty"`
+	CloseOriginPaneId      string `protobuf:"bytes,4,opt,name=close_origin_pane_id,json=closeOriginPaneId,proto3" json:"close_origin_pane_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *SwitchToRequest) Reset() {
@@ -475,6 +481,20 @@ func (x *SwitchToRequest) GetWorkspaceId() string {
 func (x *SwitchToRequest) GetPaneGroupId() string {
 	if x != nil {
 		return x.PaneGroupId
+	}
+	return ""
+}
+
+func (x *SwitchToRequest) GetCloseOriginWorkspaceId() string {
+	if x != nil {
+		return x.CloseOriginWorkspaceId
+	}
+	return ""
+}
+
+func (x *SwitchToRequest) GetCloseOriginPaneId() string {
+	if x != nil {
+		return x.CloseOriginPaneId
 	}
 	return ""
 }
@@ -565,10 +585,12 @@ const file_swm_plugin_v1_session_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x127\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\v2\x18.swm.plugin.v1.ProjectIDR\tprojectId\x12#\n" +
-	"\rworktree_path\x18\x03 \x01(\tR\fworktreePath\"X\n" +
+	"\rworktree_path\x18\x03 \x01(\tR\fworktreePath\"\xc4\x01\n" +
 	"\x0fSwitchToRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\"\n" +
-	"\rpane_group_id\x18\x02 \x01(\tR\vpaneGroupId\"/\n" +
+	"\rpane_group_id\x18\x02 \x01(\tR\vpaneGroupId\x129\n" +
+	"\x19close_origin_workspace_id\x18\x03 \x01(\tR\x16closeOriginWorkspaceId\x12/\n" +
+	"\x14close_origin_pane_id\x18\x04 \x01(\tR\x11closeOriginPaneId\"/\n" +
 	"\x10SwitchToResponse\x12\x1b\n" +
 	"\texec_argv\x18\x01 \x03(\tR\bexecArgv2\xd6\x04\n" +
 	"\aSession\x128\n" +
@@ -612,7 +634,6 @@ var (
 		(*BoolValue)(nil),              // 13: swm.plugin.v1.BoolValue
 	}
 )
-
 var file_swm_plugin_v1_session_proto_depIdxs = []int32{
 	10, // 0: swm.plugin.v1.SessionInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
 	11, // 1: swm.plugin.v1.PaneGroup.project_id:type_name -> swm.plugin.v1.ProjectID

@@ -527,6 +527,130 @@ func TestOpenWorkspace_EnvIsolation_UserEnvPreserved(t *testing.T) {
 	require.Contains(t, envContents, "PATH=")
 }
 
+func TestSwitchTo_InsideTmux_KillsOriginPane(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	originSock := filepath.Join(socketDir, "origin.sock")
+	targetSock := filepath.Join(socketDir, "feat-x.sock")
+	t.Setenv("TMUX", targetSock+",12345,0")
+
+	require.NoError(t, os.WriteFile(originSock, nil, 0o600))
+	require.NoError(t, os.WriteFile(targetSock, nil, 0o600))
+
+	resp, err := tmux.SwitchTo(context.Background(), &pluginv1.SwitchToRequest{
+		WorkspaceId:            targetSock,
+		PaneGroupId:            testPaneGroup,
+		CloseOriginWorkspaceId: originSock,
+		CloseOriginPaneId:      "%5",
+	})
+	require.NoError(t, err)
+	require.Empty(t, resp.GetExecArgv())
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	log := string(logBytes)
+	require.Contains(t, log, "switch-client", "must call switch-client")
+	require.Contains(t, log, "kill-pane", "must call kill-pane on origin")
+	require.Contains(t, log, "%5", "must target the origin pane")
+}
+
+func TestSwitchTo_OutsideTmux_KillsOriginPane(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+	t.Setenv("TMUX", "")
+
+	tmux, socketDir := newTmux(t)
+	originSock := filepath.Join(socketDir, "origin.sock")
+	targetSock := filepath.Join(socketDir, "feat-x.sock")
+
+	require.NoError(t, os.WriteFile(originSock, nil, 0o600))
+	require.NoError(t, os.WriteFile(targetSock, nil, 0o600))
+
+	resp, err := tmux.SwitchTo(context.Background(), &pluginv1.SwitchToRequest{
+		WorkspaceId:            targetSock,
+		PaneGroupId:            testPaneGroup,
+		CloseOriginWorkspaceId: originSock,
+		CloseOriginPaneId:      "%5",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{faketmuxBin, "-S", targetSock, "attach-session", "-t", testPaneGroup}, resp.GetExecArgv())
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	log := string(logBytes)
+	require.Contains(t, log, "kill-pane", "must call kill-pane on origin before returning exec_argv")
+	require.Contains(t, log, "%5", "must target the origin pane")
+}
+
+func TestSwitchTo_KillOriginPane_PaneAlreadyGone(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+	t.Setenv("FAKETMUX_KILL_PANE_FAIL", "1")
+
+	tmux, socketDir := newTmux(t)
+	originSock := filepath.Join(socketDir, "origin.sock")
+	targetSock := filepath.Join(socketDir, "feat-x.sock")
+	t.Setenv("TMUX", targetSock+",12345,0")
+
+	require.NoError(t, os.WriteFile(originSock, nil, 0o600))
+	require.NoError(t, os.WriteFile(targetSock, nil, 0o600))
+
+	// kill-pane fails (pane already gone) — SwitchTo must still succeed.
+	_, err := tmux.SwitchTo(context.Background(), &pluginv1.SwitchToRequest{
+		WorkspaceId:            targetSock,
+		PaneGroupId:            testPaneGroup,
+		CloseOriginWorkspaceId: originSock,
+		CloseOriginPaneId:      "%5",
+	})
+	require.NoError(t, err, "kill-pane not-found error must be swallowed")
+}
+
+func TestSwitchTo_KillOriginPane_UnknownWorkspace(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	t.Setenv("TMUX", "")
+
+	tmux, socketDir := newTmux(t)
+	targetSock := filepath.Join(socketDir, "feat-x.sock")
+	require.NoError(t, os.WriteFile(targetSock, nil, 0o600))
+
+	_, err := tmux.SwitchTo(context.Background(), &pluginv1.SwitchToRequest{
+		WorkspaceId:            targetSock,
+		PaneGroupId:            testPaneGroup,
+		CloseOriginWorkspaceId: "/nonexistent/origin.sock",
+		CloseOriginPaneId:      "%5",
+	})
+	require.Error(t, err, "unknown origin workspace must return an error")
+	require.Contains(t, err.Error(), "NotFound")
+}
+
+func TestSwitchTo_NoKill_WhenOriginPaneIdEmpty(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sock := filepath.Join(socketDir, "feat-x.sock")
+	t.Setenv("TMUX", sock+",12345,0")
+
+	require.NoError(t, os.WriteFile(sock, nil, 0o600))
+
+	_, err := tmux.SwitchTo(context.Background(), &pluginv1.SwitchToRequest{
+		WorkspaceId: sock,
+		PaneGroupId: testPaneGroup,
+		// CloseOriginPaneId intentionally empty
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	require.NotContains(t, string(logBytes), "kill-pane", "must not call kill-pane when origin pane id is empty")
+}
+
 // fakeHostClient implements pluginv1.HostClient for tests.
 type fakeHostClient struct {
 	toml []byte

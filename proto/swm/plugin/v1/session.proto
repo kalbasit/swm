@@ -57,6 +57,12 @@ message OpenPaneGroupRequest {
 message SwitchToRequest {
   string workspace_id = 1;
   string pane_group_id = 2;
+  // Optional: if non-empty, the plugin SHALL close the originating pane after
+  // switching. close_origin_workspace_id identifies the source workspace and
+  // close_origin_pane_id is the multiplexer-specific pane reference (e.g.
+  // $TMUX_PANE for session-tmux).
+  string close_origin_workspace_id = 3;
+  string close_origin_pane_id = 4;
 }
 
 // SwitchToResponse is returned by Session.SwitchTo.

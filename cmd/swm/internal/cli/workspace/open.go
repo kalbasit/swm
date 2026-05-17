@@ -89,6 +89,8 @@ func NewOpenCmd(
 		o(ocfg)
 	}
 
+	var killPane bool
+
 	cmd := &cobra.Command{
 		Use:   "open [story-name]",
 		Short: "Open (or attach to) the workspace for a story",
@@ -187,7 +189,10 @@ func NewOpenCmd(
 
 			var openErr error
 			if pickerClient != nil {
-				openErr = openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, hooks, storyName, ocfg.exec)
+				openErr = openWithPicker(
+					ctx, cmd, cfg, st, store, mgr, sess,
+					pickerClient, resolver, hooks, storyName, killPane, ocfg.exec,
+				)
 				if openErr != nil {
 					slog.DebugContext(
 						ctx, "picker returned error, checking fallback",
@@ -197,18 +202,51 @@ func NewOpenCmd(
 
 					if grpcCode(openErr) == codes.FailedPrecondition {
 						slog.DebugContext(ctx, "falling back to openAllAttached (no TTY)")
-						openErr = openAllAttached(ctx, cmd, cfg, st, sess, resolver, hooks, storyName, ocfg.exec)
+						openErr = openAllAttached(
+							ctx, cmd, cfg, st, sess, resolver, hooks, storyName, killPane, ocfg.exec,
+						)
 					}
 				}
 			} else {
-				openErr = openAllAttached(ctx, cmd, cfg, st, sess, resolver, hooks, storyName, ocfg.exec)
+				openErr = openAllAttached(
+					ctx, cmd, cfg, st, sess, resolver, hooks, storyName, killPane, ocfg.exec,
+				)
 			}
 
 			return openErr
 		},
 	}
 
+	cmd.Flags().BoolVar(&killPane, "kill-pane", false,
+		"close the originating multiplexer pane after switching to the new workspace")
+
 	return cmd
+}
+
+// buildSwitchToReq constructs a SwitchToRequest, adding origin-pane fields when
+// killPane is true and the caller is identifiably inside a multiplexer session.
+// Failures from CurrentContext are silently swallowed so --kill-pane degrades
+// gracefully (no-op) when not inside a supported session.
+func buildSwitchToReq(
+	ctx context.Context, sess pluginv1.SessionClient, wsID, pgID string, killPane bool,
+) *pluginv1.SwitchToRequest {
+	req := &pluginv1.SwitchToRequest{
+		WorkspaceId: wsID,
+		PaneGroupId: pgID,
+	}
+
+	if killPane {
+		paneID := os.Getenv("TMUX_PANE")
+		if paneID != "" {
+			ctxResp, err := sess.CurrentContext(ctx, &pluginv1.Empty{})
+			if err == nil && ctxResp.GetWorkspaceId() != "" {
+				req.CloseOriginWorkspaceId = ctxResp.GetWorkspaceId()
+				req.CloseOriginPaneId = paneID
+			}
+		}
+	}
+
+	return req
 }
 
 // openWithPicker runs the interactive picker flow: enumerate all candidates, let the
@@ -225,6 +263,7 @@ func openWithPicker(
 	resolver *layout.Resolver,
 	hooks hookexec.Runner,
 	storyName string,
+	killPane bool,
 	execFn ExecFunc,
 ) error {
 	// Build a deduplicated candidate set: attached projects + all on-disk repos.
@@ -355,10 +394,7 @@ func openWithPicker(
 		return fmt.Errorf("opening pane group: %w", err)
 	}
 
-	switchRes, err := sess.SwitchTo(ctx, &pluginv1.SwitchToRequest{
-		WorkspaceId: ws.GetWorkspaceId(),
-		PaneGroupId: pg.GetPaneGroupId(),
-	})
+	switchRes, err := sess.SwitchTo(ctx, buildSwitchToReq(ctx, sess, ws.GetWorkspaceId(), pg.GetPaneGroupId(), killPane))
 	if err != nil {
 		return fmt.Errorf("switching to pane group: %w", err)
 	}
@@ -393,6 +429,7 @@ func openAllAttached(
 	resolver *layout.Resolver,
 	hooks hookexec.Runner,
 	storyName string,
+	killPane bool,
 	execFn ExecFunc,
 ) error {
 	worktreePaths := make(map[string]string, len(st.Projects))
@@ -443,10 +480,7 @@ func openAllAttached(
 		WorkDir:   worktreePaths[firstKey],
 	})
 
-	switchRes, err := sess.SwitchTo(ctx, &pluginv1.SwitchToRequest{
-		WorkspaceId: ws.GetWorkspaceId(),
-		PaneGroupId: pg.GetPaneGroupId(),
-	})
+	switchRes, err := sess.SwitchTo(ctx, buildSwitchToReq(ctx, sess, ws.GetWorkspaceId(), pg.GetPaneGroupId(), killPane))
 	if err != nil {
 		return fmt.Errorf("switching to pane group: %w", err)
 	}
