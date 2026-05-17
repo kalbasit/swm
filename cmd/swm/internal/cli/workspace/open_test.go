@@ -332,7 +332,7 @@ func TestOpenCmd_WithPicker_ExecArgvIsExeced(t *testing.T) {
 	resolver := layout.NewResolver(testCodeRoot)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop, workspace.WithExecFunc(testExec))
-	cmd.SetArgs([]string{testStoryFlag, testStoryName})
+	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
 	require.Equal(t, wantArgv, gotArgv, "expected execFunc to be called with the argv from SwitchTo")
