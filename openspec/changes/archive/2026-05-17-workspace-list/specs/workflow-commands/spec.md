@@ -6,13 +6,11 @@
 - Projects within each workspace are listed in lexicographic order by their canonical path (`host/segments...`).
 - The output uses a fixed tree glyph style:
   ```
-  - <workspace-name>
-    |
-    |- <project-path>
-    |- <project-path>
-  - <workspace-name>
-    |
-    |- <project-path>
+  <workspace-name>
+  ├── <project-path>
+  └── <project-path>
+  <workspace-name>
+  └── <project-path>
   ```
 - Exit code is 0 on success, non-zero on store error.
 

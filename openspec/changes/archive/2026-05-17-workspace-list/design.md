@@ -26,12 +26,12 @@ Alternatives considered:
 ### Glyphs and formatting
 
 ```
-- <workspace-name>
-  |
-  |- <project-path>
+<workspace-name>
+├── <project-path>
+└── <project-path>
 ```
 
-The `|` connector on its own line visually separates workspaces when a workspace has children, making tall lists scannable. Workspaces with no projects omit the connector and child lines entirely.
+Box-drawing glyphs (`├──`/`└──`) clearly indicate tree membership. Workspaces with no projects omit the child lines entirely.
 
 ### Sorting
 

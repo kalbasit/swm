@@ -10,9 +10,9 @@
 - [x] 2.2 [cmd/swm] Sort story names lexicographically; sort project canonical paths (`host/segments...`) lexicographically within each story
 - [x] 2.3 [cmd/swm] Implement `renderWorkspaceTree(w io.Writer, stories []...)` that writes the glyph tree to any writer:
   ```
-  - <workspace>
-    |
-    |- <project>
+  <workspace>
+  ├── <project>
+  └── <project>
   ```
   Omit the connector line and child entries for workspaces with no projects.
 

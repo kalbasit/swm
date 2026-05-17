@@ -23,10 +23,6 @@ func NewListCmd(store coreStory.Store, defaultStory string) *cobra.Command {
 				return fmt.Errorf("listing workspaces: %w", err)
 			}
 
-			sort.Slice(stories, func(i, j int) bool {
-				return stories[i].Name < stories[j].Name
-			})
-
 			renderWorkspaceTree(cmd.OutOrStdout(), stories, defaultStory)
 
 			return nil

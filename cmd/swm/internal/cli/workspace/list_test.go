@@ -56,16 +56,16 @@ func TestListCmd(t *testing.T) {
 			name: "multiple workspaces sorted with multiple projects sorted",
 			stories: []*coreStory.Story{
 				{
-					Name: "beta",
-					Projects: []coreStory.Project{
-						{Host: testHost, Segments: []string{"e", "f"}},
-					},
-				},
-				{
 					Name: "alpha",
 					Projects: []coreStory.Project{
 						{Host: testHost, Segments: []string{"c", "d"}},
 						{Host: testHost, Segments: []string{"a", "b"}},
+					},
+				},
+				{
+					Name: "beta",
+					Projects: []coreStory.Project{
+						{Host: testHost, Segments: []string{"e", "f"}},
 					},
 				},
 			},
