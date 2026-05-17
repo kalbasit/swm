@@ -401,6 +401,8 @@ type stubStore struct {
 	getStory     *coreStory.Story
 	getErr       error
 	updateCalled bool
+	listStories  []*coreStory.Story
+	listErr      error
 }
 
 func (s *stubStore) Create(context.Context, string, string) (*coreStory.Story, error) {
@@ -421,7 +423,9 @@ func (s *stubStore) Get(_ context.Context, _ string) (*coreStory.Story, error) {
 	return &coreStory.Story{}, nil
 }
 
-func (s *stubStore) List(context.Context) ([]*coreStory.Story, error) { return nil, nil }
+func (s *stubStore) List(context.Context) ([]*coreStory.Story, error) {
+	return s.listStories, s.listErr
+}
 
 func (s *stubStore) Update(_ context.Context, _ *coreStory.Story) error {
 	s.updateCalled = true
