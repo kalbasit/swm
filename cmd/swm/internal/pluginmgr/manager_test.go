@@ -25,7 +25,7 @@ var (
 	fakeStderrBin string
 )
 
-// syncBuffer is a thread-safe bytes.Buffer for use as a SyncStderr target.
+// syncBuffer is a thread-safe bytes.Buffer for use as a stderr target.
 type syncBuffer struct {
 	mu  sync.Mutex
 	buf bytes.Buffer
