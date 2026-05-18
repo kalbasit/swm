@@ -32,7 +32,7 @@ func main() {
 
 	storiesDir := filepath.Join(xdg.DataHome, "swm", "stories")
 	store := story.NewJSONStore(storiesDir)
-	resolver := layout.NewResolver(cfg.CodeRoot)
+	resolver := layout.NewResolver(cfg.CodeRoot, cfg.DefaultStory)
 
 	hostSrv, err := hostsvc.NewServer(cfg, resolver, store)
 	if err != nil {

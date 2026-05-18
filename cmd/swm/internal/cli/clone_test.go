@@ -31,7 +31,7 @@ func TestCloneCmd_Success(t *testing.T) {
 	t.Parallel()
 
 	codeRoot := t.TempDir()
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, "_default")
 	vcs := &stubVCS{}
 	mgr := &stubMgr{vcs: vcs}
 
@@ -53,7 +53,7 @@ func TestCloneCmd_AlreadyCloned(t *testing.T) {
 	canonical := filepath.Join(codeRoot, "repositories", "github.com", "kalbasit", "swm")
 	require.NoError(t, os.MkdirAll(filepath.Join(canonical, ".git"), 0o750))
 
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, "_default")
 	vcs := &stubVCS{}
 	mgr := &stubMgr{vcs: vcs}
 
@@ -68,7 +68,7 @@ func TestCloneCmd_CloneError(t *testing.T) {
 	t.Parallel()
 
 	codeRoot := t.TempDir()
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, "_default")
 	vcs := &stubVCS{cloneErr: errNetworkError}
 	mgr := &stubMgr{vcs: vcs}
 

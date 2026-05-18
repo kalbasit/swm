@@ -61,7 +61,7 @@ func setupEnv(t *testing.T) (*config.Config, *layout.Resolver, story.Store, *plu
 	}
 
 	store := story.NewJSONStore(storiesDir)
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 
 	srv, err := hostsvc.NewServer(cfg, resolver, store)
 	require.NoError(t, err)
@@ -192,7 +192,7 @@ func TestWorkspaceOpenWithPicker(t *testing.T) {
 	}
 
 	store := story.NewJSONStore(storiesDir)
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 
 	srv, err := hostsvc.NewServer(cfg, resolver, store)
 	require.NoError(t, err)
@@ -264,7 +264,7 @@ func setupPickerEnv(t *testing.T) (*config.Config, *layout.Resolver, story.Store
 	}
 
 	st := story.NewJSONStore(storiesDir)
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 
 	srv, err := hostsvc.NewServer(cfg, resolver, st)
 	require.NoError(t, err)
@@ -525,7 +525,7 @@ func TestPRListAndCreate(t *testing.T) {
 	}
 
 	st := story.NewJSONStore(storiesDir)
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 
 	srv, err := hostsvc.NewServer(cfg, resolver, st)
 	require.NoError(t, err)

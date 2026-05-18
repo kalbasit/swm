@@ -12,12 +12,15 @@ import (
 
 // Resolver computes canonical clone and worktree paths from a code root.
 type Resolver struct {
-	codeRoot string
+	codeRoot         string
+	defaultStoryName string
 }
 
 // NewResolver returns a Resolver anchored at the given code root directory.
-func NewResolver(codeRoot string) *Resolver {
-	return &Resolver{codeRoot: codeRoot}
+// defaultStoryName is the story that maps to the canonical repositories/ path
+// rather than a git worktree (typically "_default").
+func NewResolver(codeRoot, defaultStoryName string) *Resolver {
+	return &Resolver{codeRoot: codeRoot, defaultStoryName: defaultStoryName}
 }
 
 // CanonicalPath returns <code_root>/repositories/<host>/<seg1>/.../<segN>.
@@ -55,8 +58,18 @@ func (r *Resolver) ProjectIDFromPath(path string) *pluginv1.ProjectID {
 	}
 }
 
-// WorktreePath returns <code_root>/stories/<storyName>/<host>/<seg1>/.../<segN>.
+// WorktreePath returns the filesystem path for a project within a story.
+// For the default story the project lives at the canonical repositories/ path,
+// not inside a git worktree under stories/.
 func (r *Resolver) WorktreePath(storyName string, id *pluginv1.ProjectID) string {
+	if id == nil {
+		return ""
+	}
+
+	if storyName == r.defaultStoryName {
+		return r.CanonicalPath(id)
+	}
+
 	parts := append([]string{r.codeRoot, "stories", storyName, id.Host}, id.Segments...)
 
 	return filepath.Join(parts...)
