@@ -84,6 +84,17 @@ code_root = "~/code"
 # Story used when no story name argument or $SWM_STORY env var is set.
 default_story = "_default"
 
+[story]
+# Go text/template for the default branch name when `swm story create` is run
+# without --branch. The only variable is .Name (the story name). When absent or
+# empty, "feat/{{.Name}}" is used, producing "feat/<name>".
+#
+# Examples:
+#   branch_name_template = "feat/{{.Name}}"      # default → feat/my-story
+#   branch_name_template = "{{.Name}}"           # bare name → my-story
+#   branch_name_template = "users/alice/{{.Name}}" # personal prefix → users/alice/my-story
+# branch_name_template = "feat/{{.Name}}"
+
 [plugins]
 # Name of the session plugin to load (matches the plugin binary suffix).
 session = "tmux"

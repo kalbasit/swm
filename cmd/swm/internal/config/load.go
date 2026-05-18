@@ -36,10 +36,7 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
-	cfg := &Config{
-		CodeRoot:     "~/code",
-		DefaultStory: "_default",
-	}
+	cfg := Defaults()
 
 	if err := toml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parsing config file: %w", err)

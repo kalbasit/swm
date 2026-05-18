@@ -17,6 +17,7 @@ const (
 	testKalbasitOrg = "kalbasit"
 	testSWMRepo     = "swm"
 	testStoryName   = "feat-x"
+	testBugName     = "my-bug"
 	testForceFlag   = "--force"
 )
 

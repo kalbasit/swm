@@ -62,7 +62,7 @@ func NewRootCmd(
 	})
 
 	storyGroup := &cobra.Command{Use: "story", Short: "Manage stories"}
-	storyGroup.AddCommand(story.NewCreateCmd(store, cfg.CodeRoot, hooks))
+	storyGroup.AddCommand(story.NewCreateCmd(store, cfg.CodeRoot, hooks, cfg.Story.BranchNameTemplate))
 	storyGroup.AddCommand(story.NewListCmd(store, cfg.DefaultStory))
 	storyGroup.AddCommand(story.NewRemoveCmd(store, mgr, resolver, hooks))
 	root.AddCommand(storyGroup)

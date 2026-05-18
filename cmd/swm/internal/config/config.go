@@ -17,11 +17,24 @@ type Plugins struct {
 	Config map[string]map[string]any `toml:"config"`
 }
 
+// DefaultBranchNameTemplate is the branch_name_template used when no value is
+// configured (absent or empty in config.toml).
+const DefaultBranchNameTemplate = "feat/{{.Name}}"
+
+// Story contains story-creation settings.
+type Story struct {
+	// BranchNameTemplate is a Go text/template string evaluated with .Name set
+	// to the story name. It controls the default branch name produced by
+	// "swm story create". When empty, "feat/{{.Name}}" is used.
+	BranchNameTemplate string `toml:"branch_name_template"`
+}
+
 // Config is the parsed representation of $XDG_CONFIG_HOME/swm/config.toml.
 type Config struct {
 	CodeRoot     string  `toml:"code_root"`
 	DefaultStory string  `toml:"default_story"`
 	Plugins      Plugins `toml:"plugins"`
+	Story        Story   `toml:"story"`
 
 	// HooksConfigHome overrides the XDG config home used for hook discovery.
 	// When empty, the system XDG config home is used. Set in tests to avoid
@@ -34,5 +47,8 @@ func Defaults() *Config {
 	return &Config{
 		CodeRoot:     "~/code",
 		DefaultStory: "_default",
+		Story: Story{
+			BranchNameTemplate: DefaultBranchNameTemplate,
+		},
 	}
 }

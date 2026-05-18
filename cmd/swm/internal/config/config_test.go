@@ -129,6 +129,54 @@ func TestResolveConfigPath_EnvVarEmpty(t *testing.T) {
 	require.Equal(t, filepath.Join("/home/user/.config", "swm", "config.toml"), got)
 }
 
+func TestLoad_StoryBranchNameTemplate_Default(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`code_root = "/code"`), 0o600))
+
+	cfg, err := config.Load(path)
+	require.NoError(t, err)
+	require.Equal(t, config.DefaultBranchNameTemplate, cfg.Story.BranchNameTemplate)
+}
+
+func TestLoad_StoryBranchNameTemplate_Explicit(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	content := `
+code_root = "/code"
+
+[story]
+branch_name_template = "fix/{{.Name}}"
+`
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	cfg, err := config.Load(path)
+	require.NoError(t, err)
+	require.Equal(t, "fix/{{.Name}}", cfg.Story.BranchNameTemplate)
+}
+
+func TestLoad_StoryBranchNameTemplate_EmptyString(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	content := `
+code_root = "/code"
+
+[story]
+branch_name_template = ""
+`
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	cfg, err := config.Load(path)
+	require.NoError(t, err)
+	require.Empty(t, cfg.Story.BranchNameTemplate)
+}
+
 func TestLoad_BadTOML(t *testing.T) {
 	t.Parallel()
 

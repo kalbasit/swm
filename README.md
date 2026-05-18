@@ -119,6 +119,8 @@ This writes a story record (`$XDG_DATA_HOME/swm/stories/my-feature.json`) with a
 swm story create my-feature --branch fix/my-feature
 ```
 
+The default `feat/<name>` pattern is configurable via `branch_name_template` in `config.toml` — see the [full configuration reference](cmd/swm/README.md#configuration).
+
 **3. Open the workspace**
 
 ```sh

@@ -12,7 +12,12 @@ import (
 )
 
 // NewCreateCmd returns the `swm story create` command.
-func NewCreateCmd(store coreStory.Store, codeRoot string, hooks hookexec.Runner) *cobra.Command {
+func NewCreateCmd(
+	store coreStory.Store,
+	codeRoot string,
+	hooks hookexec.Runner,
+	branchNameTemplate string,
+) *cobra.Command {
 	var branch string
 
 	cmd := &cobra.Command{
@@ -24,7 +29,12 @@ func NewCreateCmd(store coreStory.Store, codeRoot string, hooks hookexec.Runner)
 			ctx := cmd.Context()
 
 			if branch == "" {
-				branch = "feat/" + name
+				derived, err := branchFromTemplate(branchNameTemplate, name)
+				if err != nil {
+					return err
+				}
+
+				branch = derived
 			}
 
 			preCfg := hookexec.RunConfig{
@@ -59,7 +69,7 @@ func NewCreateCmd(store coreStory.Store, codeRoot string, hooks hookexec.Runner)
 		},
 	}
 
-	cmd.Flags().StringVar(&branch, "branch", "", "branch name (default: feat/<name>)")
+	cmd.Flags().StringVar(&branch, "branch", "", "branch name (default: derived from config branch_name_template)")
 
 	return cmd
 }
