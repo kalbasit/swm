@@ -373,7 +373,7 @@ func openWithPicker(
 				ProjectId:    pid,
 				StoryName:    storyName,
 				BranchName:   st.BranchName,
-				RepoPath:     resolver.CanonicalPath(pid),
+				RepoPath:     repoPath,
 				WorktreePath: worktreePath,
 			}); err != nil {
 				return fmt.Errorf("creating worktree: %w", err)

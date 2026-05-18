@@ -9,7 +9,7 @@ When a user selects `_default` in the interactive story picker for a project not
 
 ## What Changes
 
-- Skip `vcs.CreateWorktree` (and its surrounding hooks) in `openWithPicker` when `storyName == cfg.DefaultStory`, since the canonical path is the main worktree and cannot be created again.
+- Skip `vcs.CreateWorktree` in `openWithPicker` when `storyName == cfg.DefaultStory`, since the canonical path is the main worktree and cannot be created again. Surrounding hooks and store attachment still execute.
 - Still attach the project to the story store so subsequent opens skip this branch.
 
 ## Capabilities
