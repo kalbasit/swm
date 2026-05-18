@@ -50,6 +50,11 @@ tasks:
       - task: picker-fzf:lint
       - task: forge-github:lint
 
+  update-nix-vendor-hashes:
+    desc: Re-compute and update vendorHash for all nix Go packages in parallel (run after any proto/ changes)
+    cmds:
+      - python3 scripts/update-nix-vendor-hashes.py
+
   test:
     desc: Run all module tests in dependency order
     cmds:

@@ -8,7 +8,6 @@ package pluginv1
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -169,31 +168,24 @@ type UnimplementedSessionServer struct{}
 func (UnimplementedSessionServer) Info(context.Context, *Empty) (*SessionInfo, error) {
 	return nil, status.Error(codes.Unimplemented, "method Info not implemented")
 }
-
 func (UnimplementedSessionServer) OpenWorkspace(context.Context, *OpenWorkspaceRequest) (*Workspace, error) {
 	return nil, status.Error(codes.Unimplemented, "method OpenWorkspace not implemented")
 }
-
 func (UnimplementedSessionServer) CloseWorkspace(context.Context, *CloseWorkspaceRequest) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method CloseWorkspace not implemented")
 }
-
 func (UnimplementedSessionServer) ListWorkspaces(*Empty, grpc.ServerStreamingServer[Workspace]) error {
 	return status.Error(codes.Unimplemented, "method ListWorkspaces not implemented")
 }
-
 func (UnimplementedSessionServer) OpenPaneGroup(context.Context, *OpenPaneGroupRequest) (*PaneGroup, error) {
 	return nil, status.Error(codes.Unimplemented, "method OpenPaneGroup not implemented")
 }
-
 func (UnimplementedSessionServer) SwitchTo(context.Context, *SwitchToRequest) (*SwitchToResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SwitchTo not implemented")
 }
-
 func (UnimplementedSessionServer) IsInsideWorkspace(context.Context, *Empty) (*BoolValue, error) {
 	return nil, status.Error(codes.Unimplemented, "method IsInsideWorkspace not implemented")
 }
-
 func (UnimplementedSessionServer) CurrentContext(context.Context, *Empty) (*CurrentContextResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CurrentContext not implemented")
 }
