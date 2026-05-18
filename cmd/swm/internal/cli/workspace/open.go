@@ -194,7 +194,12 @@ func NewOpenCmd(
 						return fmt.Errorf("%w: %s", coreStory.ErrStoryNotFound, storyName)
 					}
 
-					if err := clistory.CreateWithHooks(ctx, store, hooks, cfg.CodeRoot, storyName, "feat/"+storyName); err != nil {
+					branch, branchErr := clistory.BranchFromTemplate(cfg.Story.BranchNameTemplate, storyName)
+					if branchErr != nil {
+						return fmt.Errorf("deriving branch name: %w", branchErr)
+					}
+
+					if err := clistory.CreateWithHooks(ctx, store, hooks, cfg.CodeRoot, storyName, branch); err != nil {
 						return err
 					}
 

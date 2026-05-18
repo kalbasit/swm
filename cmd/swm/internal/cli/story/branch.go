@@ -16,11 +16,11 @@ type branchNameData struct {
 	Name string
 }
 
-// branchFromTemplate evaluates tpl as a Go text/template with .Name set to
+// BranchFromTemplate evaluates tpl as a Go text/template with .Name set to
 // storyName and returns the result. An empty tpl uses the default template
 // "feat/{{.Name}}". Returns an error if the template is syntactically invalid
 // or evaluates to an empty string.
-func branchFromTemplate(tpl, storyName string) (string, error) {
+func BranchFromTemplate(tpl, storyName string) (string, error) {
 	if tpl == "" {
 		tpl = config.DefaultBranchNameTemplate
 	}

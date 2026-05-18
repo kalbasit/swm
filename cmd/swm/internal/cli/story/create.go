@@ -64,7 +64,7 @@ func NewCreateCmd(
 			ctx := cmd.Context()
 
 			if branch == "" {
-				derived, err := branchFromTemplate(branchNameTemplate, name)
+				derived, err := BranchFromTemplate(branchNameTemplate, name)
 				if err != nil {
 					return err
 				}

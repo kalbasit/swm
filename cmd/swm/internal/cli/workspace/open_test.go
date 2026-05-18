@@ -189,6 +189,38 @@ func TestOpenCmd_StoryNotFound_TTY_Declines(t *testing.T) {
 	require.False(t, store.createCalled)
 }
 
+func TestOpenCmd_StoryNotFound_TTY_UsesConfigTemplate(t *testing.T) {
+	t.Parallel()
+
+	const customTemplate = "fix/{{.Name}}"
+
+	const storyToCreate = testNonexistentStory
+
+	sess := &stubSess{}
+	cfg := &config.Config{
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
+		Story:        config.Story{BranchNameTemplate: customTemplate},
+	}
+	store := &stubStore{
+		getErrs:    []error{coreStory.ErrStoryNotFound, nil},
+		getStories: []*coreStory.Story{nil, {Name: storyToCreate}},
+	}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(
+		cfg, store, mgr, resolver, hookexec.Noop,
+		workspace.WithTTYCheck(func() bool { return true }),
+		workspace.WithStdinReader(strings.NewReader("y\n")),
+	)
+	cmd.SetArgs([]string{storyToCreate})
+
+	require.NoError(t, cmd.Execute())
+	require.True(t, store.createCalled)
+	require.Equal(t, "fix/"+storyToCreate, store.lastCreatedBranch)
+}
+
 func TestOpenCmd_NoProjects(t *testing.T) {
 	t.Parallel()
 
@@ -1029,9 +1061,10 @@ type stubStore struct {
 	listErr      error
 	listCalled   bool
 
-	createCalled bool
-	createStory  *coreStory.Story
-	createErr    error
+	createCalled      bool
+	createStory       *coreStory.Story
+	createErr         error
+	lastCreatedBranch string
 
 	// getCallCount lets tests return different values on successive Get calls.
 	getCallCount int
@@ -1041,6 +1074,7 @@ type stubStore struct {
 
 func (s *stubStore) Create(_ context.Context, name, branch string) (*coreStory.Story, error) {
 	s.createCalled = true
+	s.lastCreatedBranch = branch
 
 	if s.createErr != nil {
 		return nil, s.createErr
