@@ -62,17 +62,17 @@ all variables available for substitution in `pane_group_command`.
 ### Requirement: session-tmux README documents laio integration
 
 The `plugins/session-tmux/README.md` SHALL include a "Laio integration" section that shows
-how to wire [laio](https://github.com/stephane-klein/laio) into `pane_group_command`.
+how to wire [laio](https://laio.sh/) into `pane_group_command`.
 
 #### Scenario: Per-project laio config example is present
 - **WHEN** a user reads the laio integration section
 - **THEN** it SHALL contain a `config.toml` snippet using
-  `pane_group_command = "laio start --file {{worktree_path}}/.swm/laio.yaml --socket {{tmux_socket}} --skip-attach"`
+  `pane_group_command = "laio start --file '{{worktree_path}}/.swm/laio.yaml' --tmux-socket '{{tmux_socket}}' --skip-attach"`
 
 #### Scenario: Global laio config example is present
 - **WHEN** a user reads the laio integration section
 - **THEN** it SHALL contain a `config.toml` snippet using a fixed `--file` path with
-  `--var path={{worktree_path}}` and a corresponding `laio.yaml` fragment showing
+  `--var path='{{worktree_path}}'` and a corresponding `laio.yaml` fragment showing
   `path: "{{ path }}"`
 
 #### Scenario: --skip-attach requirement is explained
