@@ -24,6 +24,12 @@ swm story create <name> [--branch <branch>]
 Creates a new story. Defaults the branch to `feat/<name>`.
 
 ```sh
+swm story list
+```
+
+Lists all stories and their attached projects.
+
+```sh
 swm story remove <name> [-f | --force]
 ```
 
@@ -32,10 +38,22 @@ Removes a story and all its worktrees. Prompts for confirmation unless `--force`
 ### `swm workspace`
 
 ```sh
-swm workspace open
+swm workspace open [story-name] [--kill-pane]
 ```
 
-Opens the workspace for the current story (as determined by `$SWM_STORY` or the default story). Launches the session plugin.
+Opens the workspace for a story. Story resolution order:
+
+1. `[story-name]` positional argument (if provided).
+2. `$SWM_STORY` environment variable.
+3. Default story from config (`default_story`).
+
+If a picker plugin is configured and no story is specified, an interactive list is shown. `--kill-pane` closes the originating tmux pane after switching.
+
+```sh
+swm workspace list
+```
+
+Lists all active workspaces and their attached projects.
 
 ### `swm pr`
 
@@ -63,7 +81,7 @@ swm reads `$XDG_CONFIG_HOME/swm/config.toml` (default: `~/.config/swm/config.tom
 # Root directory for all code. Repositories land at code_root/repositories/<host>/<org>/<repo>.
 code_root = "~/code"
 
-# Story used when no --story flag or $SWM_STORY env var is set.
+# Story used when no story name argument or $SWM_STORY env var is set.
 default_story = "_default"
 
 [plugins]

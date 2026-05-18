@@ -119,7 +119,7 @@ swm story create my-feature --branch fix/my-feature
 **3. Open the workspace**
 
 ```sh
-swm workspace open --story my-feature
+swm workspace open my-feature
 ```
 
 What happens depends on whether a picker plugin (fzf) is configured:
@@ -135,10 +135,10 @@ After the first open, the selected project is attached to the story permanently.
 Run the same command from any terminal to re-attach:
 
 ```sh
-swm workspace open --story my-feature
+swm workspace open my-feature
 ```
 
-You can also skip `--story` if you export `SWM_STORY` in your shell profile:
+You can also omit the story name if you export `SWM_STORY` in your shell profile:
 
 ```sh
 export SWM_STORY=my-feature
