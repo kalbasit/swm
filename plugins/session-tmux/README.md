@@ -96,7 +96,7 @@ Place a `laio.yaml` inside the repository (e.g. `.swm/laio.yaml`) and reference 
 ```toml
 # config.toml
 [plugins.config.session-tmux]
-pane_group_command = "laio start --file {{worktree_path}}/.swm/laio.yaml --socket {{tmux_socket}} --skip-attach"
+pane_group_command = "laio start --file {{worktree_path}}/.swm/laio.yaml --tmux-socket {{tmux_socket}} --skip-attach"
 ```
 
 `path: .` in the laio.yaml resolves relative to the config file, which lives inside the
@@ -122,7 +122,7 @@ windows:
 ```toml
 # config.toml
 [plugins.config.session-tmux]
-pane_group_command = "laio start --file ~/.config/swm/laio.yaml --socket {{tmux_socket}} --skip-attach --var path={{worktree_path}}"
+pane_group_command = "laio start --file ~/.config/swm/laio.yaml --tmux-socket {{tmux_socket}} --skip-attach --var path={{worktree_path}}"
 ```
 
 See [`examples/laio.yaml`](examples/laio.yaml) for a complete annotated sample.

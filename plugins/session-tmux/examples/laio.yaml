@@ -3,12 +3,12 @@
 # Usage (global config pattern — inject worktree path via --var):
 #
 #   [plugins.config.session-tmux]
-#   pane_group_command = "laio start --file ~/.config/swm/laio.yaml --socket {{tmux_socket}} --skip-attach --var path={{worktree_path}}"
+#   pane_group_command = "laio start --file ~/.config/swm/laio.yaml --tmux-socket {{tmux_socket}} --skip-attach --var path={{worktree_path}}"
 #
 # Usage (per-project pattern — place this file at <repo>/.swm/laio.yaml):
 #
 #   [plugins.config.session-tmux]
-#   pane_group_command = "laio start --file {{worktree_path}}/.swm/laio.yaml --socket {{tmux_socket}} --skip-attach"
+#   pane_group_command = "laio start --file {{worktree_path}}/.swm/laio.yaml --tmux-socket {{tmux_socket}} --skip-attach"
 #
 #   With the per-project pattern, change `path: "{{ path }}"` below to `path: .`
 #   so laio resolves the path relative to the config file (which lives in the worktree).
