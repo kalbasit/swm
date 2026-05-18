@@ -89,6 +89,8 @@ func NewOpenCmd(
 		o(ocfg)
 	}
 
+	var killPane bool
+
 	cmd := &cobra.Command{
 		Use:   "open [story-name]",
 		Short: "Open (or attach to) the workspace for a story",
@@ -187,7 +189,10 @@ func NewOpenCmd(
 
 			var openErr error
 			if pickerClient != nil {
-				openErr = openWithPicker(ctx, cmd, cfg, st, store, mgr, sess, pickerClient, resolver, hooks, storyName, ocfg.exec)
+				openErr = openWithPicker(
+					ctx, cmd, cfg, st, store, mgr, sess,
+					pickerClient, resolver, hooks, storyName, killPane, ocfg.exec,
+				)
 				if openErr != nil {
 					slog.DebugContext(
 						ctx, "picker returned error, checking fallback",
@@ -197,18 +202,77 @@ func NewOpenCmd(
 
 					if grpcCode(openErr) == codes.FailedPrecondition {
 						slog.DebugContext(ctx, "falling back to openAllAttached (no TTY)")
-						openErr = openAllAttached(ctx, cmd, cfg, st, sess, resolver, hooks, storyName, ocfg.exec)
+						openErr = openAllAttached(
+							ctx, cmd, cfg, st, sess, resolver, hooks, storyName, killPane, ocfg.exec,
+						)
 					}
 				}
 			} else {
-				openErr = openAllAttached(ctx, cmd, cfg, st, sess, resolver, hooks, storyName, ocfg.exec)
+				openErr = openAllAttached(
+					ctx, cmd, cfg, st, sess, resolver, hooks, storyName, killPane, ocfg.exec,
+				)
 			}
 
 			return openErr
 		},
 	}
 
+	cmd.Flags().BoolVar(&killPane, "kill-pane", false,
+		"close the originating multiplexer pane after switching to the new workspace")
+
 	return cmd
+}
+
+// buildSwitchToReq constructs a SwitchToRequest, adding origin-pane fields when
+// killPane is true and the caller is identifiably inside a multiplexer session.
+// The origin workspace ID is read directly from the host environment (not from the
+// session plugin daemon, which may hold a stale environment). CurrentContext is
+// consulted only for the pane-group safety guard: if the caller is already inside
+// the target workspace and pane group the origin fields are left empty so the
+// switch does not kill the current pane.
+func buildSwitchToReq(
+	ctx context.Context, sess pluginv1.SessionClient, wsID, pgID string, killPane bool,
+) *pluginv1.SwitchToRequest {
+	req := &pluginv1.SwitchToRequest{
+		WorkspaceId: wsID,
+		PaneGroupId: pgID,
+	}
+
+	if killPane {
+		paneID, originWorkspaceID := detectMultiplexerOrigin()
+		if paneID != "" {
+			// Safety guard: avoid killing the origin pane when already in the target
+			// workspace and pane group (the switch would be a no-op in that case).
+			ctxResp, err := sess.CurrentContext(ctx, &pluginv1.Empty{})
+			if err == nil && originWorkspaceID == wsID && ctxResp.GetPaneGroupId() == pgID {
+				return req
+			}
+
+			req.CloseOriginWorkspaceId = originWorkspaceID
+			req.CloseOriginPaneId = paneID
+		}
+	}
+
+	return req
+}
+
+// detectMultiplexerOrigin returns the pane identifier and workspace identifier for
+// the current multiplexer session by inspecting known environment variables. The
+// workspace identifier is read from the host environment rather than from the
+// session plugin daemon, which may hold a stale copy of the environment. Returns
+// empty strings when no supported multiplexer is detected.
+func detectMultiplexerOrigin() (paneID, workspaceID string) {
+	// tmux: TMUX_PANE carries the pane reference; the socket path (workspace ID) is
+	// the first comma-separated field of $TMUX ("<socket-path>,<pid>,<session-id>").
+	if pane := os.Getenv("TMUX_PANE"); pane != "" {
+		return pane, strings.SplitN(os.Getenv("TMUX"), ",", 2)[0]
+	}
+	// Zellij: ZELLIJ_PANE_ID is the pane identifier; ZELLIJ_SESSION_NAME is the workspace.
+	if pane := os.Getenv("ZELLIJ_PANE_ID"); pane != "" {
+		return pane, os.Getenv("ZELLIJ_SESSION_NAME")
+	}
+
+	return "", ""
 }
 
 // openWithPicker runs the interactive picker flow: enumerate all candidates, let the
@@ -225,6 +289,7 @@ func openWithPicker(
 	resolver *layout.Resolver,
 	hooks hookexec.Runner,
 	storyName string,
+	killPane bool,
 	execFn ExecFunc,
 ) error {
 	// Build a deduplicated candidate set: attached projects + all on-disk repos.
@@ -355,10 +420,7 @@ func openWithPicker(
 		return fmt.Errorf("opening pane group: %w", err)
 	}
 
-	switchRes, err := sess.SwitchTo(ctx, &pluginv1.SwitchToRequest{
-		WorkspaceId: ws.GetWorkspaceId(),
-		PaneGroupId: pg.GetPaneGroupId(),
-	})
+	switchRes, err := sess.SwitchTo(ctx, buildSwitchToReq(ctx, sess, ws.GetWorkspaceId(), pg.GetPaneGroupId(), killPane))
 	if err != nil {
 		return fmt.Errorf("switching to pane group: %w", err)
 	}
@@ -393,6 +455,7 @@ func openAllAttached(
 	resolver *layout.Resolver,
 	hooks hookexec.Runner,
 	storyName string,
+	killPane bool,
 	execFn ExecFunc,
 ) error {
 	worktreePaths := make(map[string]string, len(st.Projects))
@@ -443,10 +506,7 @@ func openAllAttached(
 		WorkDir:   worktreePaths[firstKey],
 	})
 
-	switchRes, err := sess.SwitchTo(ctx, &pluginv1.SwitchToRequest{
-		WorkspaceId: ws.GetWorkspaceId(),
-		PaneGroupId: pg.GetPaneGroupId(),
-	})
+	switchRes, err := sess.SwitchTo(ctx, buildSwitchToReq(ctx, sess, ws.GetWorkspaceId(), pg.GetPaneGroupId(), killPane))
 	if err != nil {
 		return fmt.Errorf("switching to pane group: %w", err)
 	}

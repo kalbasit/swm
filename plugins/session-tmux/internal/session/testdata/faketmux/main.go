@@ -56,6 +56,11 @@ func main() {
 			os.Exit(0)
 		}
 		os.Exit(1)
+	case "kill-pane":
+		if os.Getenv("FAKETMUX_KILL_PANE_FAIL") == "1" {
+			fmt.Fprintln(os.Stderr, "no such pane")
+			os.Exit(1)
+		}
 	case "display-message":
 		name := os.Getenv("FAKETMUX_SESSION")
 		if name == "" {
