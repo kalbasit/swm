@@ -73,8 +73,8 @@ The `session-tmux` plugin manages per-story tmux servers for swm. Each workspace
 - **THEN** a tmux session is created with a first window running `$EDITOR` and a second window running `$SHELL` in `worktree_path`
 
 #### Scenario: Custom pane_group_command
-- **WHEN** `config.toml` has `pane_group_command = "laio start --file {{worktree_path}}/.swm/laio.yaml --socket {{tmux_socket}} --skip-attach"` and `OpenPaneGroup` is called
-- **THEN** the session's first window runs `laio start --file <worktree_path>/.swm/laio.yaml --socket <tmux_socket> --skip-attach` with `{{worktree_path}}` and `{{tmux_socket}}` both expanded
+- **WHEN** `config.toml` has `pane_group_command = "laio start --file {{worktree_path}}/.swm/laio.yaml --tmux-socket {{tmux_socket}} --skip-attach"` and `OpenPaneGroup` is called
+- **THEN** the session's first window runs `laio start --file <worktree_path>/.swm/laio.yaml --tmux-socket <tmux_socket> --skip-attach` with `{{worktree_path}}` and `{{tmux_socket}}` both expanded
 
 #### Scenario: Idempotent for existing session
 - **WHEN** `OpenPaneGroup` is called for a project whose session already exists on the socket

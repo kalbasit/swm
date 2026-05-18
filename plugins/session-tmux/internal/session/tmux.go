@@ -126,7 +126,7 @@ func (t *Tmux) CurrentContext(ctx context.Context, _ *pluginv1.Empty) (*pluginv1
 func (t *Tmux) Info(_ context.Context, _ *pluginv1.Empty) (*pluginv1.SessionInfo, error) {
 	return &pluginv1.SessionInfo{
 		PluginInfo: &pluginv1.PluginInfo{
-			Name:    "tmux",
+			Name:    "session-tmux",
 			Version: buildVersion,
 		},
 	}, nil
