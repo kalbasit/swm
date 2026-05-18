@@ -147,6 +147,15 @@ resolution follows this precedence:
 4. If the story picker is unavailable (no picker plugin, no TTY, or picker returns
    `FailedPrecondition`): fall back to the `default_story` from config (`_default`).
 
+**Story not found — interactive creation:**
+When a story name resolved via step (1) or (2) does not exist in the story store:
+- If stdin is a TTY: prompt the user `Story '<name>' does not exist. Create it? [y/N]: `
+  (written to stderr).
+  - If the user answers `y` or `Y`: create the story (running `pre-story-create` and
+    `post-story-create` hooks as `swm story create` would), then continue with the open flow.
+  - Any other answer: exit non-zero with a "story not found" error.
+- If stdin is NOT a TTY: exit non-zero with a "story not found" error (unchanged behavior).
+
 Before opening the workspace the command SHALL run `hookexec.Run` for event
 `pre-workspace-open` with the story name set. If any `pre-workspace-open` hook returns
 non-zero the command SHALL abort. After the workspace is open the command SHALL run
@@ -273,9 +282,21 @@ Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recen
 - **WHEN** `swm workspace open other-story` is run with `$SWM_STORY=feat-x` set
 - **THEN** the workspace for `other-story` is opened (positional arg takes priority)
 
-#### Scenario: Story not found
-- **WHEN** `swm workspace open nonexistent` is run and no story named `nonexistent` exists
+#### Scenario: Story not found — user confirms creation
+- **WHEN** `swm workspace open nonexistent` is run, no story named `nonexistent` exists, stdin is a TTY, and the user answers `y`
+- **THEN** `pre-story-create` hooks run, the story is created in the store, `post-story-create` hooks run, and the open flow continues for the newly created story
+
+#### Scenario: Story not found — user declines creation
+- **WHEN** `swm workspace open nonexistent` is run, no story named `nonexistent` exists, stdin is a TTY, and the user answers anything other than `y`/`Y`
 - **THEN** the command exits with a non-zero code indicating the story was not found
+
+#### Scenario: Story not found — non-TTY stdin
+- **WHEN** `swm workspace open nonexistent` is run, no story named `nonexistent` exists, and stdin is NOT a TTY
+- **THEN** the command exits immediately with a non-zero code indicating the story was not found (no prompt shown)
+
+#### Scenario: Story not found — pre-story-create hook aborts creation
+- **WHEN** `swm workspace open nonexistent` is run, stdin is a TTY, the user confirms creation, and a `pre-story-create` hook exits non-zero
+- **THEN** the story is NOT created and the command exits non-zero
 
 #### Scenario: Story with no projects and no picker
 - **WHEN** `swm workspace open feat-x` is run, no picker is configured, and `feat-x` has no attached projects
