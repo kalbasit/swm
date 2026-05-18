@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	clistory "github.com/kalbasit/swm/cmd/swm/internal/cli/story"
 	coreStory "github.com/kalbasit/swm/cmd/swm/internal/core/story"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
@@ -60,36 +61,6 @@ func grpcCode(err error) codes.Code {
 	}
 
 	return codes.Unknown
-}
-
-// createStory runs pre-story-create hooks, creates the story, then runs post-story-create
-// hooks (post-hook failure is logged but does not abort).
-func createStory(ctx context.Context, store coreStory.Store, hooks hookexec.Runner, codeRoot, name string) error {
-	preCfg := hookexec.RunConfig{
-		Event:     "pre-story-create",
-		CodeRoot:  codeRoot,
-		StoryName: name,
-		WorkDir:   codeRoot,
-	}
-	if err := hooks.Run(ctx, preCfg); err != nil {
-		return fmt.Errorf("pre-story-create hook: %w", err)
-	}
-
-	if _, err := store.Create(ctx, name, "feat/"+name); err != nil {
-		return fmt.Errorf("creating story %q: %w", name, err)
-	}
-
-	postCfg := hookexec.RunConfig{
-		Event:     "post-story-create",
-		CodeRoot:  codeRoot,
-		StoryName: name,
-		WorkDir:   codeRoot,
-	}
-	if err := hooks.Run(ctx, postCfg); err != nil {
-		slog.WarnContext(ctx, "post-story-create hook failed", "err", err)
-	}
-
-	return nil
 }
 
 // ExecFunc is the type used to replace the current process (default: syscall.Exec).
@@ -223,7 +194,7 @@ func NewOpenCmd(
 						return fmt.Errorf("%w: %s", coreStory.ErrStoryNotFound, storyName)
 					}
 
-					if err := createStory(ctx, store, hooks, cfg.CodeRoot, storyName); err != nil {
+					if err := clistory.CreateWithHooks(ctx, store, hooks, cfg.CodeRoot, storyName, "feat/"+storyName); err != nil {
 						return err
 					}
 
