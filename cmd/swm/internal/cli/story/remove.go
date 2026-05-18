@@ -50,9 +50,10 @@ func NewRemoveCmd(
 				name = args[0]
 			} else {
 				name = os.Getenv("SWM_STORY")
-				if name == "" {
-					return errNoStoryName
-				}
+			}
+
+			if name == "" {
+				return errNoStoryName
 			}
 
 			ctx := cmd.Context()
