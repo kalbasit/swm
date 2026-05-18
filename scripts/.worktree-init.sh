@@ -14,18 +14,11 @@ info() {
 }
 
 if [[ -d .git ]]; then
-  fatal "This must only run from within a new Git worktree"
+  error "This must only run from within a new Git worktree"
+  exit 0
 fi
 
 readonly main_worktree_path="$(git worktree list --porcelain | head -n 1 | cut -d ' ' -f 2-)"
 
 info Allow direnv to load this path
 direnv allow .
-
-# Initialize go.work
-if ! [[ -f go.work ]]; then
-  info Initialize go.work file
-
-  go work init
-  # TODO: Add all go work use here...
-fi
