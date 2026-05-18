@@ -7,12 +7,11 @@
 package pluginv1
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -205,17 +204,14 @@ func file_swm_plugin_v1_picker_proto_rawDescGZIP() []byte {
 	return file_swm_plugin_v1_picker_proto_rawDescData
 }
 
-var (
-	file_swm_plugin_v1_picker_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-	file_swm_plugin_v1_picker_proto_goTypes  = []any{
-		(*PickerInfo)(nil), // 0: swm.plugin.v1.PickerInfo
-		(*PickItem)(nil),   // 1: swm.plugin.v1.PickItem
-		(*PickResult)(nil), // 2: swm.plugin.v1.PickResult
-		(*PluginInfo)(nil), // 3: swm.plugin.v1.PluginInfo
-		(*Empty)(nil),      // 4: swm.plugin.v1.Empty
-	}
-)
-
+var file_swm_plugin_v1_picker_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_swm_plugin_v1_picker_proto_goTypes = []any{
+	(*PickerInfo)(nil), // 0: swm.plugin.v1.PickerInfo
+	(*PickItem)(nil),   // 1: swm.plugin.v1.PickItem
+	(*PickResult)(nil), // 2: swm.plugin.v1.PickResult
+	(*PluginInfo)(nil), // 3: swm.plugin.v1.PluginInfo
+	(*Empty)(nil),      // 4: swm.plugin.v1.Empty
+}
 var file_swm_plugin_v1_picker_proto_depIdxs = []int32{
 	3, // 0: swm.plugin.v1.PickerInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
 	4, // 1: swm.plugin.v1.Picker.Info:input_type -> swm.plugin.v1.Empty

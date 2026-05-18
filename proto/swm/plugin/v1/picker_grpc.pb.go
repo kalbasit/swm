@@ -8,7 +8,6 @@ package pluginv1
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -87,7 +86,6 @@ type UnimplementedPickerServer struct{}
 func (UnimplementedPickerServer) Info(context.Context, *Empty) (*PickerInfo, error) {
 	return nil, status.Error(codes.Unimplemented, "method Info not implemented")
 }
-
 func (UnimplementedPickerServer) Pick(grpc.BidiStreamingServer[PickItem, PickResult]) error {
 	return status.Error(codes.Unimplemented, "method Pick not implemented")
 }

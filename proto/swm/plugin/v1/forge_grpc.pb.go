@@ -8,7 +8,6 @@ package pluginv1
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -117,15 +116,12 @@ type UnimplementedForgeServer struct{}
 func (UnimplementedForgeServer) Info(context.Context, *Empty) (*ForgeInfo, error) {
 	return nil, status.Error(codes.Unimplemented, "method Info not implemented")
 }
-
 func (UnimplementedForgeServer) ListPullRequests(*ListPRsRequest, grpc.ServerStreamingServer[PullRequest]) error {
 	return status.Error(codes.Unimplemented, "method ListPullRequests not implemented")
 }
-
 func (UnimplementedForgeServer) CreatePullRequest(context.Context, *CreatePRRequest) (*PullRequest, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreatePullRequest not implemented")
 }
-
 func (UnimplementedForgeServer) GetPullRequest(context.Context, *GetPRRequest) (*PullRequest, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPullRequest not implemented")
 }

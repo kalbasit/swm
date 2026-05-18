@@ -7,12 +7,11 @@
 package pluginv1
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -430,26 +429,23 @@ func file_swm_plugin_v1_host_proto_rawDescGZIP() []byte {
 	return file_swm_plugin_v1_host_proto_rawDescData
 }
 
-var (
-	file_swm_plugin_v1_host_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-	file_swm_plugin_v1_host_proto_msgTypes  = make([]protoimpl.MessageInfo, 7)
-	file_swm_plugin_v1_host_proto_goTypes   = []any{
-		LogLevel(0),                    // 0: swm.plugin.v1.LogLevel
-		(*GetConfigRequest)(nil),       // 1: swm.plugin.v1.GetConfigRequest
-		(*Config)(nil),                 // 2: swm.plugin.v1.Config
-		(*ListProjectsRequest)(nil),    // 3: swm.plugin.v1.ListProjectsRequest
-		(*LogRequest)(nil),             // 4: swm.plugin.v1.LogRequest
-		(*CallCapabilityRequest)(nil),  // 5: swm.plugin.v1.CallCapabilityRequest
-		(*CallCapabilityResponse)(nil), // 6: swm.plugin.v1.CallCapabilityResponse
-		nil,                            // 7: swm.plugin.v1.LogRequest.FieldsEntry
-		CapabilityType(0),              // 8: swm.plugin.v1.CapabilityType
-		(*Empty)(nil),                  // 9: swm.plugin.v1.Empty
-		(*PathResponse)(nil),           // 10: swm.plugin.v1.PathResponse
-		(*Project)(nil),                // 11: swm.plugin.v1.Project
-		(*Story)(nil),                  // 12: swm.plugin.v1.Story
-	}
-)
-
+var file_swm_plugin_v1_host_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_swm_plugin_v1_host_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_swm_plugin_v1_host_proto_goTypes = []any{
+	(LogLevel)(0),                  // 0: swm.plugin.v1.LogLevel
+	(*GetConfigRequest)(nil),       // 1: swm.plugin.v1.GetConfigRequest
+	(*Config)(nil),                 // 2: swm.plugin.v1.Config
+	(*ListProjectsRequest)(nil),    // 3: swm.plugin.v1.ListProjectsRequest
+	(*LogRequest)(nil),             // 4: swm.plugin.v1.LogRequest
+	(*CallCapabilityRequest)(nil),  // 5: swm.plugin.v1.CallCapabilityRequest
+	(*CallCapabilityResponse)(nil), // 6: swm.plugin.v1.CallCapabilityResponse
+	nil,                            // 7: swm.plugin.v1.LogRequest.FieldsEntry
+	(CapabilityType)(0),            // 8: swm.plugin.v1.CapabilityType
+	(*Empty)(nil),                  // 9: swm.plugin.v1.Empty
+	(*PathResponse)(nil),           // 10: swm.plugin.v1.PathResponse
+	(*Project)(nil),                // 11: swm.plugin.v1.Project
+	(*Story)(nil),                  // 12: swm.plugin.v1.Story
+}
 var file_swm_plugin_v1_host_proto_depIdxs = []int32{
 	0,  // 0: swm.plugin.v1.LogRequest.level:type_name -> swm.plugin.v1.LogLevel
 	7,  // 1: swm.plugin.v1.LogRequest.fields:type_name -> swm.plugin.v1.LogRequest.FieldsEntry
