@@ -3,6 +3,7 @@ package forge_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,8 @@ import (
 
 	"github.com/kalbasit/swm/plugins/forge-github/internal/forge"
 )
+
+var errGHNotAvailable = errors.New("gh not available")
 
 const (
 	testGitHubHost = "github.com"
@@ -382,4 +385,96 @@ func TestGitHub_TokenMissing_FailedPrecondition(t *testing.T) {
 
 	require.Error(t, err)
 	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+}
+
+func TestGitHub_TokenResolution(t *testing.T) {
+	t.Parallel()
+
+	successFn := func(_ context.Context) (string, error) { return testToken, nil }
+	failFn := func(_ context.Context) (string, error) { return "", errGHNotAvailable }
+
+	tests := []struct {
+		name            string
+		configTOML      string
+		ghTokenFn       func(context.Context) (string, error)
+		homeToken       string     // if non-empty, write to <tmpHome>/.github_token
+		wantErrCode     codes.Code // 0 means success
+		wantErrContains string
+	}{
+		{
+			name:      "gh token used as default",
+			ghTokenFn: successFn,
+		},
+		{
+			name:      "gh not installed falls through to file",
+			ghTokenFn: failFn,
+			homeToken: testToken,
+		},
+		{
+			name:      "file fallback used when gh exits non-zero",
+			ghTokenFn: failFn,
+			homeToken: testToken,
+		},
+		{
+			name:            "all sources fail returns actionable error",
+			ghTokenFn:       failFn,
+			wantErrCode:     codes.FailedPrecondition,
+			wantErrContains: "gh auth login",
+		},
+		{
+			name:        "configured path missing does not fall through to gh or file",
+			configTOML:  `token_path = "/nonexistent/token"`,
+			ghTokenFn:   successFn,
+			homeToken:   testToken,
+			wantErrCode: codes.FailedPrecondition,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Provide a fake server returning empty PR list for success cases.
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintln(w, "[]") //nolint:errcheck // test mock, response write failure is non-critical
+			}))
+			t.Cleanup(server.Close)
+
+			// Set up a temp home dir with an optional .github_token file.
+			tmpHome := t.TempDir()
+			if tc.homeToken != "" {
+				require.NoError(t, os.WriteFile(
+					filepath.Join(tmpHome, ".github_token"),
+					[]byte(tc.homeToken),
+					0o600,
+				))
+			}
+
+			homeFn := func() (string, error) { return tmpHome, nil }
+
+			hc := &fakeHostClient{toml: []byte(tc.configTOML)}
+			g := forge.NewWithBaseURL(
+				hc, server.URL+"/",
+				forge.WithGHTokenFn(tc.ghTokenFn),
+				forge.WithUserHomeDirFn(homeFn),
+			)
+
+			stream := &fakeListStream{ctx: context.Background()}
+			err := g.ListPullRequests(&pluginv1.ListPRsRequest{
+				ProjectId: &pluginv1.ProjectID{Host: testGitHubHost, Segments: []string{testOwner, testRepo}},
+			}, stream)
+
+			if tc.wantErrCode == 0 {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Equal(t, tc.wantErrCode, status.Code(err))
+
+				if tc.wantErrContains != "" {
+					require.Contains(t, err.Error(), tc.wantErrContains)
+				}
+			}
+		})
+	}
 }
