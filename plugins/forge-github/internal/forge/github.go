@@ -2,6 +2,7 @@
 package forge
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -248,9 +249,18 @@ func ghAuthToken(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	out, err := exec.CommandContext(ctx, "gh", "auth", "token").Output()
+	var stderr bytes.Buffer
+
+	cmd := exec.CommandContext(ctx, "gh", "auth", "token")
+	cmd.Stderr = &stderr
+
+	out, err := cmd.Output()
 	if err != nil {
-		return "", err
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return "", fmt.Errorf("gh auth token: %w: %s", err, msg)
+		}
+
+		return "", fmt.Errorf("gh auth token: %w", err)
 	}
 
 	token := strings.TrimSpace(string(out))
@@ -309,7 +319,8 @@ func (g *GitHub) tokenFromConfig(ctx context.Context) (string, error) {
 		return tokenFromFile(expanded)
 	}
 
-	// Step 2: gh auth token.
+	// Step 2: gh auth token. Resolved at call time (not cached) for consistency
+	// with the file-read path and to avoid stale tokens after `gh auth refresh`.
 	if token, err := g.ghTokenFn(ctx); err == nil {
 		return token, nil
 	}
