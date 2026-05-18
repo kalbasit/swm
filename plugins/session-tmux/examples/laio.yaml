@@ -1,0 +1,42 @@
+# Sample laio.yaml for use with swm's session-tmux plugin (https://laio.sh/).
+#
+# Usage (global config pattern — inject worktree path via --var):
+#
+#   [plugins.config.session-tmux]
+#   pane_group_command = "laio start --file ~/.config/swm/laio.yaml --tmux-socket '{{tmux_socket}}' --skip-attach --var path='{{worktree_path}}'"
+#
+# Usage (per-project pattern — place this file at <repo>/.swm/laio.yaml):
+#
+#   [plugins.config.session-tmux]
+#   pane_group_command = "laio start --file '{{worktree_path}}/.swm/laio.yaml' --tmux-socket '{{tmux_socket}}' --skip-attach"
+#
+#   With the per-project pattern, change `path: "{{ path }}"` below to `path: .`
+#   so laio resolves the path relative to the config file (which lives in the worktree).
+#
+# Why --skip-attach:
+#   laio runs inside the already-attached swm session. Any attach attempt
+#   from inside a detached pane would fail or be a no-op.
+#
+# Why force_new_windows:
+#   swm creates the tmux session before laio runs, leaving one unnamed initial
+#   window. force_new_windows: true ensures every configured window is created
+#   fresh rather than reusing that initial window.
+
+# Worktree path injected by swm via --var path=<worktree_path>.
+# Change to `path: .` for per-project configs placed inside the repo.
+path: "{{ path }}"
+
+force_new_windows: true
+
+windows:
+  - name: editor
+    panes:
+      - shell_command: "${EDITOR:-nvim} ."
+
+  - name: shell
+    panes:
+      - shell_command: ""
+
+  - name: test
+    panes:
+      - shell_command: ""
