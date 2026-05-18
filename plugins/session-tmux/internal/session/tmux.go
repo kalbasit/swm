@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/adrg/xdg"
@@ -217,6 +216,9 @@ func (t *Tmux) OpenPaneGroup(ctx context.Context, req *pluginv1.OpenPaneGroupReq
 }
 
 // OpenWorkspace creates or reattaches to the tmux server for the given story.
+// A single bootstrap session (named after the story) is created to keep the
+// server alive; project sessions are created lazily by OpenPaneGroup so that
+// pane_group_command is applied to each one individually.
 func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceRequest) (*pluginv1.Workspace, error) {
 	sock := t.socketPath(req.GetStoryName())
 
@@ -224,31 +226,14 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 		return nil, status.Errorf(codes.Internal, "creating socket dir: %v", err)
 	}
 
-	// Sort keys for deterministic session ordering.
-	keys := make([]string, 0, len(req.GetWorktreePaths()))
-	for k := range req.GetWorktreePaths() {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
-
-	// Probe whether the tmux server is already running.
+	// Start the server if it is not already running. A session named after the
+	// story keeps the server alive (tmux exits with exit-empty=on when there are
+	// no sessions). Project sessions use "host/org/repo" names and never collide
+	// with the short story name used here.
 	if _, err := t.run(ctx, "-S", sock, "list-sessions"); err != nil {
-		// Server not running — start it with the alphabetically first worktree.
-		firstName := req.GetStoryName()
+		bootstrapName := sessionName(req.GetStoryName())
 
-		var firstPath string
-
-		if len(keys) > 0 {
-			firstName = sessionName(keys[0])
-			firstPath = req.GetWorktreePaths()[keys[0]]
-		}
-
-		args := []string{"-S", sock, "new-session", "-d", "-s", firstName, "-e", "SWM_STORY=" + req.GetStoryName()}
-		if firstPath != "" {
-			args = append(args, "-c", firstPath)
-		}
-
+		args := []string{"-S", sock, "new-session", "-d", "-s", bootstrapName, "-e", "SWM_STORY=" + req.GetStoryName()}
 		if _, err := t.run(ctx, args...); err != nil {
 			return nil, err
 		}
@@ -258,19 +243,6 @@ func (t *Tmux) OpenWorkspace(ctx context.Context, req *pluginv1.OpenWorkspaceReq
 	// "swm workspace open" without specifying --story explicitly.
 	if _, err := t.run(ctx, "-S", sock, "set-environment", "-g", "SWM_STORY", req.GetStoryName()); err != nil {
 		return nil, err
-	}
-
-	// Ensure a session exists for every worktree path (sorted order).
-	for _, key := range keys {
-		path := req.GetWorktreePaths()[key]
-		name := sessionName(key)
-
-		if _, err := t.run(ctx, "-S", sock, "has-session", "-t", name); err != nil {
-			// Session absent — create it.
-			if _, err := t.run(ctx, "-S", sock, "new-session", "-d", "-s", name, "-c", path); err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	return &pluginv1.Workspace{
@@ -357,7 +329,7 @@ func (t *Tmux) paneGroupCommand(ctx context.Context, req *pluginv1.OpenPaneGroup
 		return ""
 	}
 
-	resp, err := t.hostClient.GetConfig(ctx, &pluginv1.GetConfigRequest{PluginName: "tmux"})
+	resp, err := t.hostClient.GetConfig(ctx, &pluginv1.GetConfigRequest{PluginName: "session-tmux"})
 	if err != nil {
 		return ""
 	}
@@ -378,6 +350,7 @@ func (t *Tmux) paneGroupCommand(ctx context.Context, req *pluginv1.OpenPaneGroup
 	cmd = strings.ReplaceAll(cmd, "{{worktree_path}}", req.GetWorktreePath())
 	cmd = strings.ReplaceAll(cmd, "{{story_name}}", storyName)
 	cmd = strings.ReplaceAll(cmd, "{{project_id}}", projectID)
+	cmd = strings.ReplaceAll(cmd, "{{tmux_socket}}", req.GetWorkspaceId())
 
 	return cmd
 }

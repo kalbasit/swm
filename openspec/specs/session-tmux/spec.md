@@ -1,3 +1,7 @@
+## Purpose
+
+The `session-tmux` plugin manages per-story tmux servers for swm. Each workspace (story) gets a dedicated tmux socket, and each pane group (project worktree) gets a named session within that socket. The plugin handles workspace lifecycle (create, attach, close), session navigation (SwitchTo), context detection (IsInsideWorkspace, CurrentContext), and optional per-session layout via `pane_group_command`.
+## Requirements
 ### Requirement: Socket-per-workspace model
 `session-tmux` SHALL map each swm workspace to a dedicated tmux server socket at `$XDG_RUNTIME_DIR/swm/tmux/<story-name>.sock`. Each pane group within a workspace SHALL map to a tmux session (named by sanitizing the full canonical path `host/seg1/.../segN` to be tmux-safe — replacing `.` with `•` (U+2022) and `:` with `：` (U+FF1A), e.g., `github•com/kalbasit/swm` for `github.com/kalbasit/swm`) within that socket. This preserves the v1 tmux isolation model while preventing collisions between same-named repos from different forges or orgs.
 
@@ -14,15 +18,15 @@
 - **THEN** two distinct sessions `github•com/org-a/utils` and `github•com/org-b/utils` are created
 
 ### Requirement: OpenWorkspace creates and attaches
-`session-tmux` SHALL implement `Session.OpenWorkspace({story_name, worktree_paths})` by starting the tmux server socket if it does not exist, creating one session per project in `worktree_paths`, and attaching the current terminal to the workspace. If the socket already exists (workspace is already open), it SHALL attach to the existing workspace without recreating sessions.
+`session-tmux` SHALL implement `Session.OpenWorkspace({story_name, worktree_paths})` by starting the tmux server socket if it does not exist. When the server is started, a single bootstrap session named after the story SHALL be created to keep the server alive (tmux's `exit-empty on` default exits the server when there are no sessions). Project sessions SHALL NOT be pre-created; they are created lazily by `OpenPaneGroup` so that `pane_group_command` is applied to each one individually. If the socket already exists, the call is idempotent.
 
 #### Scenario: New workspace
 - **WHEN** `OpenWorkspace` is called for a story with no existing socket
-- **THEN** a new tmux server is started on the story's socket, one session is created per project, and the terminal is attached
+- **THEN** a new tmux server is started on the story's socket, a single bootstrap session named after the story is created, and `Workspace` is returned
 
 #### Scenario: Existing workspace
 - **WHEN** `OpenWorkspace` is called and the story's socket already has a running server
-- **THEN** the terminal is attached to the existing workspace without creating duplicate sessions
+- **THEN** the call completes without creating duplicate sessions
 
 #### Scenario: Returns Workspace proto
 - **WHEN** `OpenWorkspace` completes successfully
@@ -50,6 +54,17 @@
 - **WHEN** a socket file exists but the tmux server is no longer running
 - **THEN** that socket is excluded from the streamed results
 
+### Requirement: paneGroupCommand exposes tmux_socket template variable
+`session-tmux` SHALL substitute `{{tmux_socket}}` in `pane_group_command` with the absolute path of the story's tmux socket (the same value as `workspace_id` in the request).
+
+#### Scenario: tmux_socket is substituted
+- **WHEN** `config.toml` has `pane_group_command = "laio start --file {{worktree_path}}/.swm/laio.yaml --socket {{tmux_socket}} --skip-attach"` and `OpenPaneGroup` is called with `workspace_id = /run/user/1000/swm/tmux/feat-x.sock`
+- **THEN** the session's first window runs `laio start --file <worktree_path>/.swm/laio.yaml --socket /run/user/1000/swm/tmux/feat-x.sock --skip-attach` with both `{{worktree_path}}` and `{{tmux_socket}}` expanded
+
+#### Scenario: tmux_socket absent when no pane_group_command configured
+- **WHEN** no `pane_group_command` is set in `config.toml`
+- **THEN** the default layout is used and `{{tmux_socket}}` substitution does not occur
+
 ### Requirement: OpenPaneGroup in existing workspace
 `session-tmux` SHALL implement `Session.OpenPaneGroup({story_name, project_id, worktree_path})` by creating a new tmux session for the project within the story's socket (if it doesn't exist). The initial working directory SHALL be `worktree_path`. The default layout SHALL run `$EDITOR` (or `vim` if unset) in the first window and a shell in the second, unless `pane_group_command` is configured.
 
@@ -58,12 +73,12 @@
 - **THEN** a tmux session is created with a first window running `$EDITOR` and a second window running `$SHELL` in `worktree_path`
 
 #### Scenario: Custom pane_group_command
-- **WHEN** `config.toml` has `pane_group_command = "laio start --config {{worktree_path}}/.swm/laio.yaml"` and `OpenPaneGroup` is called
-- **THEN** the session's first window runs `laio start --config <worktree_path>/.swm/laio.yaml` with `{{worktree_path}}` expanded
+- **WHEN** `config.toml` has `pane_group_command = "laio start --file {{worktree_path}}/.swm/laio.yaml --socket {{tmux_socket}} --skip-attach"` and `OpenPaneGroup` is called
+- **THEN** the session's first window runs `laio start --file <worktree_path>/.swm/laio.yaml --socket <tmux_socket> --skip-attach` with `{{worktree_path}}` and `{{tmux_socket}}` both expanded
 
 #### Scenario: Idempotent for existing session
-- **WHEN** `OpenPaneGroup` is called for a project that already has a session in the workspace
-- **THEN** the existing session is returned without creating a duplicate
+- **WHEN** `OpenPaneGroup` is called for a project whose session already exists on the socket
+- **THEN** the existing session is reused and no new session is created
 
 ### Requirement: SwitchTo switches active pane group
 `session-tmux` SHALL implement `Session.SwitchTo({workspace_id, pane_group_id, close_origin_workspace_id, close_origin_pane_id})` by running `tmux -S <target_socket> switch-client -t <session-name>` if already inside a tmux session, or building an `exec_argv` of `["tmux", "-S", "<target_socket>", "attach-session", "-t", "<session-name>"]` otherwise.
@@ -149,3 +164,4 @@ The canonical environment variable ownership model for a user session:
 #### Scenario: SWM_STORY present in tmux session
 - **WHEN** a workspace is opened for story `<story-name>`
 - **THEN** `SWM_STORY` is set to `<story-name>` in the tmux session environment
+

@@ -24,6 +24,11 @@ const (
 	testWorktree      = "/tmp/wt"
 	testPaneGroup     = testRepo
 	testPaneGroupFull = "github•com/kalbasit/swm"
+
+	// testLaioPaneGroupCommandTOML is the canonical pane_group_command used in tests.
+	testLaioPaneGroupCommandTOML = `pane_group_command = "laio start` +
+		` --file {{worktree_path}}/.swm/laio.yaml` +
+		` --socket {{tmux_socket}} --skip-attach"`
 )
 
 var faketmuxBin string
@@ -266,12 +271,12 @@ func TestOpenWorkspace_SetsSWMStory(t *testing.T) {
 	require.Contains(t, log, "set-environment -g SWM_STORY my-feature",
 		"tmux set-environment must be called to propagate SWM_STORY into the workspace")
 
-	// The initial new-session must also carry -e so the very first shell sees it
+	// The bootstrap new-session must carry -e so the very first shell sees it
 	// before set-environment -g has been called.
 	require.Contains(t, log, "new-session",
-		"expected a new-session invocation")
+		"expected a new-session invocation for the bootstrap session")
 	require.Contains(t, log, "-e SWM_STORY=my-feature",
-		"initial new-session must pass SWM_STORY via -e so the first shell sees it immediately")
+		"bootstrap new-session must pass SWM_STORY via -e so the first shell sees it immediately")
 }
 
 func TestOpenWorkspace_EmptyWorktreePaths(t *testing.T) {
@@ -303,14 +308,14 @@ func TestOpenWorkspace_EmptyWorktreePaths(t *testing.T) {
 		}
 	}
 
-	require.NotEmpty(t, firstNewSession, "expected a new-session invocation in log")
+	require.NotEmpty(t, firstNewSession, "expected a bootstrap new-session invocation in log")
 	require.Contains(t, firstNewSession, "-s story-only",
-		"initial session name must be the story name when no worktree paths are provided")
+		"bootstrap session name must be the story name when no worktree paths are provided")
 	require.NotContains(t, firstNewSession, "-c ",
-		"no -c flag should be present when there are no worktree paths")
+		"no -c flag should be present for the bootstrap session")
 }
 
-func TestOpenWorkspace_DeterministicInitialSession(t *testing.T) {
+func TestOpenWorkspace_NoProjectSessionsPreCreated(t *testing.T) {
 	// Cannot be parallel — uses FAKETMUX_LOG env var.
 	logFile := filepath.Join(t.TempDir(), "tmux.log")
 	t.Setenv("FAKETMUX_LOG", logFile)
@@ -330,25 +335,15 @@ func TestOpenWorkspace_DeterministicInitialSession(t *testing.T) {
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
 
-	lines := strings.Split(strings.TrimSpace(string(logBytes)), "\n")
+	log := string(logBytes)
 
-	// Find the first "new-session" invocation. This is the call that starts the
-	// tmux server; it must use the alphabetically first key "github.com/a-repo"
-	// (session name "a-repo"). Non-deterministic map iteration could produce
-	// "m-repo" or "z-repo" instead.
-	var firstNewSession string
-
-	for _, line := range lines {
-		if strings.Contains(line, "new-session") {
-			firstNewSession = line
-
-			break
-		}
-	}
-
-	require.NotEmpty(t, firstNewSession, "expected at least one new-session invocation in log")
-	require.Contains(t, firstNewSession, "-s github•com/a-repo",
-		"initial session must use full sanitized path of alphabetically first key")
+	// Only the bootstrap session (story name) must appear — never a project key.
+	// Sessions for project worktrees are created by OpenPaneGroup so that
+	// pane_group_command is applied to each one individually.
+	require.Contains(t, log, "-s feat-order",
+		"bootstrap session must use the story name")
+	require.NotContains(t, log, "github•com",
+		"OpenWorkspace must not pre-create sessions for project worktree paths")
 }
 
 func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
@@ -360,7 +355,7 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	sockPath := filepath.Join(socketDir, "feat-x.sock")
 
 	client := &fakeHostClient{
-		toml: []byte(`pane_group_command = "laio start --config {{worktree_path}}/.swm/laio.yaml"`),
+		toml: []byte(testLaioPaneGroupCommandTOML),
 	}
 
 	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
@@ -381,9 +376,44 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
 
+	wantCmd := "laio start --file /tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml" +
+		" --socket " + sockPath + " --skip-attach"
+
 	log := string(logBytes)
-	require.Contains(t, log, "laio start --config /tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml",
-		"expected substituted pane_group_command in tmux args")
+	require.Contains(t, log, wantCmd, "expected substituted pane_group_command in tmux args")
+}
+
+func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
+	// Cannot be parallel — uses t.Setenv.
+	socketDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	sockPath := filepath.Join(socketDir, "feat-sock.sock")
+
+	client := &fakeHostClient{
+		toml: []byte(testLaioPaneGroupCommandTOML),
+	}
+
+	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
+
+	if err := os.WriteFile(sockPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: "/tmp/stories/feat-sock/github.com/kalbasit/swm",
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	log := string(logBytes)
+	require.Contains(t, log, "--socket "+sockPath,
+		"{{tmux_socket}} must be substituted with the workspace socket path")
 }
 
 func TestOpenPaneGroup_InvalidProjectID(t *testing.T) {
