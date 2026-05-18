@@ -49,7 +49,7 @@ func TestOpenCmd_WithPositionalArg(t *testing.T) {
 	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
 	sess := &stubSess{}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -65,7 +65,7 @@ func TestOpenCmd_PositionalArgOverridesEnv(t *testing.T) {
 	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
 	sess := &stubSess{}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -81,7 +81,7 @@ func TestOpenCmd_DefaultStory(t *testing.T) {
 	store := &stubStore{getStory: &coreStory.Story{Name: testDefaultStory}}
 	sess := &stubSess{}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{})
@@ -96,7 +96,7 @@ func TestOpenCmd_StoryNotFound(t *testing.T) {
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 	store := &stubStore{getErr: coreStory.ErrStoryNotFound}
 	mgr := &stubMgr{}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{"nonexistent"})
@@ -111,7 +111,7 @@ func TestOpenCmd_NoProjects(t *testing.T) {
 	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName, Projects: nil}}
 	sess := &stubSess{}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -136,7 +136,7 @@ func TestOpenCmd_WithPicker_ProjectAlreadyAttached(t *testing.T) {
 	vcs := &stubVCS{}
 	picker := &stubPickerClient{selectedKey: selectedKey}
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -166,7 +166,7 @@ func TestOpenCmd_WithPicker_ProjectNotAttached(t *testing.T) {
 	vcs := &stubVCS{}
 	picker := &stubPickerClient{selectedKey: selectedKey}
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -197,7 +197,7 @@ func TestOpenCmd_WithPicker_PreWorktreeCreateHookAborts(t *testing.T) {
 	vcs := &stubVCS{}
 	picker := &stubPickerClient{selectedKey: selectedKey}
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	hooks := hookexec.RunnerFunc(func(_ context.Context, rc hookexec.RunConfig) error {
 		if rc.Event == eventPreWorktreeCreate {
@@ -230,7 +230,7 @@ func TestOpenCmd_WithPicker_PostWorktreeCreateHookFailureContinues(t *testing.T)
 	vcs := &stubVCS{}
 	picker := &stubPickerClient{selectedKey: selectedKey}
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	var postHookCalled bool
 
@@ -271,7 +271,7 @@ func TestOpenCmd_WithPicker_PostWorktreeCreateHookReceivesContext(t *testing.T) 
 	vcs := &stubVCS{}
 	picker := &stubPickerClient{selectedKey: selectedKey}
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	var capturedCfg hookexec.RunConfig
 
@@ -308,7 +308,7 @@ func TestOpenCmd_WithPicker_PostWorktreeCreateHookWorkDir(t *testing.T) {
 	vcs := &stubVCS{}
 	picker := &stubPickerClient{selectedKey: selectedKey}
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	var capturedCfgs []hookexec.RunConfig
 
@@ -343,7 +343,7 @@ func TestOpenCmd_WithPicker_Cancelled(t *testing.T) {
 	// Picker returns Aborted (user pressed Escape).
 	picker := &stubPickerClient{cancelOnRecv: true}
 	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -367,7 +367,7 @@ func TestOpenCmd_WithPicker_FailedPrecondition_FallsBack(t *testing.T) {
 	// Picker returns FailedPrecondition (e.g. no TTY available).
 	picker := &stubPickerClient{pickErr: status.Error(codes.FailedPrecondition, "no tty")}
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -398,7 +398,7 @@ func TestOpenCmd_WithPicker_RecvFailedPrecondition_FallsBack(t *testing.T) {
 	// Picker stream opens fine but Recv() returns FailedPrecondition (no TTY).
 	picker := &stubPickerClient{recvErr: status.Error(codes.FailedPrecondition, "no tty")}
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -416,7 +416,7 @@ func TestOpenCmd_WithPicker_InvalidKey_EmptyHost(t *testing.T) {
 	sess := &stubSess{}
 	picker := &stubPickerClient{selectedKey: "/seg1"} // empty host
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -434,7 +434,7 @@ func TestOpenCmd_WithPicker_InvalidKey_EmptySegments(t *testing.T) {
 	sess := &stubSess{}
 	picker := &stubPickerClient{selectedKey: "github.com/"} // empty segments
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -452,7 +452,7 @@ func TestOpenCmd_WithPicker_InvalidKey_EmptySegmentPart(t *testing.T) {
 	sess := &stubSess{}
 	picker := &stubPickerClient{selectedKey: "github.com/seg1//seg3"} // empty middle segment
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -488,7 +488,7 @@ func TestOpenCmd_WithPicker_ExecArgvIsExeced(t *testing.T) {
 	sess := &stubSess{switchToExecArgv: wantArgv}
 	picker := &stubPickerClient{selectedKey: selectedKey}
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop, workspace.WithExecFunc(testExec))
 	cmd.SetArgs([]string{testStoryName})
@@ -509,7 +509,7 @@ func TestOpenCmd_NoPicker_FallsBackToPhase1(t *testing.T) {
 	}}
 	sess := &stubSess{}
 	mgr := &stubMgr{sess: sess} // no picker configured
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName})
@@ -544,7 +544,7 @@ func TestOpenCmd_NoPicker_ExecArgvIsExeced(t *testing.T) {
 
 	sess := &stubSess{switchToExecArgv: wantArgv}
 	mgr := &stubMgr{sess: sess} // no picker configured
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop, workspace.WithExecFunc(testExec))
 	cmd.SetArgs([]string{testStoryName})
@@ -586,7 +586,7 @@ func TestOpenCmd_NoArgNoEnv_StoryPickerShown(t *testing.T) {
 		},
 	}
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
@@ -612,7 +612,7 @@ func TestOpenCmd_PositionalArg_StoryPickerSkipped(t *testing.T) {
 	// Picker is present — but should only be called for project selection, not story selection.
 	picker := &stubPickerClient{cancelOnRecv: true} // abort project picker
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
@@ -633,7 +633,7 @@ func TestOpenCmd_SWMStoryEnv_StoryPickerSkipped(t *testing.T) {
 	sess := &stubSess{}
 	picker := &stubPickerClient{cancelOnRecv: true}
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
@@ -656,7 +656,7 @@ func TestOpenCmd_StoryPickerAborted_ExitsClean(t *testing.T) {
 	sess := &stubSess{}
 	picker := &stubPickerClient{cancelOnRecv: true} // story picker aborted immediately
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
@@ -681,7 +681,7 @@ func TestOpenCmd_StoryPickerFailedPrecondition_FallsBackToDefault(t *testing.T) 
 	// Story picker returns FailedPrecondition (no TTY).
 	picker := &stubPickerClient{pickErr: status.Error(codes.FailedPrecondition, "no tty")}
 	mgr := &stubMgr{sess: sess, picker: picker}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
@@ -723,7 +723,7 @@ func TestOpenCmd_KillPane_TmuxPaneSet_PopulatesOriginFields(t *testing.T) {
 		currentContextResp: &pluginv1.CurrentContextResponse{PaneGroupId: "some-other-pane-group"},
 	}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName, flagKillPane})
@@ -748,7 +748,7 @@ func TestOpenCmd_KillPane_TmuxPaneUnset_OmitsOriginFields(t *testing.T) {
 	}}
 	sess := &stubSess{}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName, flagKillPane})
@@ -777,7 +777,7 @@ func TestOpenCmd_KillPane_CurrentContextFails_StillPopulatesOriginFields(t *test
 		currentContextErr: errFakeHook,
 	}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName, flagKillPane})
@@ -808,7 +808,7 @@ func TestOpenCmd_KillPane_AlreadyInTarget_OmitsOriginFields(t *testing.T) {
 		currentContextResp: &pluginv1.CurrentContextResponse{PaneGroupId: testTargetPaneGroupID},
 	}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName, flagKillPane})
@@ -837,7 +837,7 @@ func TestOpenCmd_KillPane_SameWorkspaceDifferentPaneGroup_PopulatesOriginFields(
 		currentContextResp: &pluginv1.CurrentContextResponse{PaneGroupId: "other-project"},
 	}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName, flagKillPane})
@@ -867,7 +867,7 @@ func TestOpenCmd_KillPane_ZellijPaneSet_PopulatesOriginFields(t *testing.T) {
 		currentContextResp: &pluginv1.CurrentContextResponse{PaneGroupId: "some-other-pane-group"},
 	}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName, flagKillPane})
@@ -890,7 +890,7 @@ func TestOpenCmd_NoKillPane_OmitsOriginFields(t *testing.T) {
 	}}
 	sess := &stubSess{}
 	mgr := &stubMgr{sess: sess}
-	resolver := layout.NewResolver(testCodeRoot)
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
 	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName}) // no --kill-pane

@@ -25,7 +25,7 @@ func setupServer(t *testing.T, cfg *config.Config, codeRoot string) pluginv1.Hos
 
 	storiesDir := t.TempDir()
 	store := story.NewJSONStore(storiesDir)
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, cfg.DefaultStory)
 
 	srv, err := hostsvc.NewServer(cfg, resolver, store)
 	require.NoError(t, err)
@@ -45,10 +45,10 @@ func setupServer(t *testing.T, cfg *config.Config, codeRoot string) pluginv1.Hos
 func TestNewServer_SocketInXDGRuntimeDir(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{CodeRoot: t.TempDir()}
+	cfg := &config.Config{CodeRoot: t.TempDir(), DefaultStory: "_default"}
 	storiesDir := t.TempDir()
 	store := story.NewJSONStore(storiesDir)
-	resolver := layout.NewResolver(cfg.CodeRoot)
+	resolver := layout.NewResolver(cfg.CodeRoot, cfg.DefaultStory)
 
 	srv, err := hostsvc.NewServer(cfg, resolver, store)
 	require.NoError(t, err)

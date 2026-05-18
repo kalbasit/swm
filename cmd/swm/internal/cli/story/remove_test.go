@@ -20,7 +20,7 @@ func TestRemoveCmd_Force_NoProjects(t *testing.T) {
 
 	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
 	mgr := &stubManager{}
-	resolver := layout.NewResolver("/code")
+	resolver := layout.NewResolver("/code", "_default")
 
 	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName, testForceFlag})
@@ -34,7 +34,7 @@ func TestRemoveCmd_NotFound(t *testing.T) {
 
 	store := &stubStore{getErr: coreStory.ErrStoryNotFound}
 	mgr := &stubManager{}
-	resolver := layout.NewResolver("/code")
+	resolver := layout.NewResolver("/code", "_default")
 
 	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{"nonexistent", testForceFlag})
@@ -54,7 +54,7 @@ func TestRemoveCmd_Force_WithProjects(t *testing.T) {
 	store := &stubStore{getStory: st}
 	vcs := &stubVCSClient{}
 	mgr := &stubManager{vcs: vcs}
-	resolver := layout.NewResolver("/code")
+	resolver := layout.NewResolver("/code", "_default")
 
 	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
 	cmd.SetArgs([]string{testStoryName, testForceFlag})
@@ -75,7 +75,7 @@ func TestRemoveCmd_Confirm_Yes_Accepted(t *testing.T) {
 	}
 	store := &stubStore{getStory: st}
 	mgr := &stubManager{vcs: &stubVCSClient{}}
-	resolver := layout.NewResolver("/code")
+	resolver := layout.NewResolver("/code", "_default")
 
 	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
 	cmd.SetIn(strings.NewReader("yes\n"))
@@ -96,7 +96,7 @@ func TestRemoveCmd_Confirm_ScanError_Aborts(t *testing.T) {
 	}
 	store := &stubStore{getStory: st}
 	mgr := &stubManager{vcs: &stubVCSClient{}}
-	resolver := layout.NewResolver("/code")
+	resolver := layout.NewResolver("/code", "_default")
 
 	var out bytes.Buffer
 
@@ -123,7 +123,7 @@ func TestRemoveCmd_WorktreeHookWorkDirs(t *testing.T) {
 	store := &stubStore{getStory: st}
 	vcs := &stubVCSClient{}
 	mgr := &stubManager{vcs: vcs}
-	resolver := layout.NewResolver("/code")
+	resolver := layout.NewResolver("/code", "_default")
 
 	capturedCfgs := make(map[string]hookexec.RunConfig)
 
@@ -157,7 +157,7 @@ func TestRemoveCmd_HooksCalledInOrder(t *testing.T) {
 	store := &stubStore{getStory: st}
 	vcs := &stubVCSClient{}
 	mgr := &stubManager{vcs: vcs}
-	resolver := layout.NewResolver("/code")
+	resolver := layout.NewResolver("/code", "_default")
 
 	var called []string
 

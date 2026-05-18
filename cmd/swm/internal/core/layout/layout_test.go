@@ -17,7 +17,7 @@ func TestCanonicalPath(t *testing.T) {
 	gitlabDeep := &pluginv1.ProjectID{Host: "gitlab.com", Segments: []string{"foo", "bar", "baz"}}
 	keybaseProject := &pluginv1.ProjectID{Host: "keybase", Segments: []string{"team", "stowix.infra", "fly-secrets"}}
 
-	r := layout.NewResolver("/home/user/code")
+	r := layout.NewResolver("/home/user/code", "_default")
 
 	tests := []struct {
 		name     string
@@ -55,7 +55,7 @@ func TestWorktreePath(t *testing.T) {
 	githubSWM := &pluginv1.ProjectID{Host: "github.com", Segments: []string{"kalbasit", "swm"}}
 	gitlabDeep := &pluginv1.ProjectID{Host: "gitlab.com", Segments: []string{"foo", "bar", "baz"}}
 
-	r := layout.NewResolver("/home/user/code")
+	r := layout.NewResolver("/home/user/code", "_default")
 
 	tests := []struct {
 		name      string
@@ -74,6 +74,12 @@ func TestWorktreePath(t *testing.T) {
 			storyName: "fix-y",
 			project:   gitlabDeep,
 			expected:  "/home/user/code/stories/fix-y/gitlab.com/foo/bar/baz",
+		},
+		{
+			name:      "default story uses canonical path",
+			storyName: "_default",
+			project:   githubSWM,
+			expected:  "/home/user/code/repositories/github.com/kalbasit/swm",
 		},
 	}
 

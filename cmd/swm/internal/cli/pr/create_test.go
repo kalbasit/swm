@@ -78,7 +78,7 @@ var _ pluginv1.ForgeClient = (*stubForgeClientCreate)(nil)
 //nolint:paralleltest // t.Chdir changes process-wide CWD; not safe to run in parallel
 func TestPRCreate_Success(t *testing.T) {
 	codeRoot := t.TempDir()
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 
 	repoDir := filepath.Join(codeRoot, "repositories", testGitHubHost, "o", "r")
 	require.NoError(t, os.MkdirAll(repoDir, 0o750))
@@ -106,7 +106,7 @@ func TestPRCreate_Success(t *testing.T) {
 //nolint:paralleltest // t.Chdir changes process-wide CWD; not safe to run in parallel
 func TestPRCreate_Draft(t *testing.T) {
 	codeRoot := t.TempDir()
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 
 	repoDir := filepath.Join(codeRoot, "repositories", testGitHubHost, "o", "r")
 	require.NoError(t, os.MkdirAll(repoDir, 0o750))
@@ -134,7 +134,7 @@ func TestPRCreate_Draft(t *testing.T) {
 //nolint:paralleltest // t.Chdir changes process-wide CWD; not safe to run in parallel
 func TestPRCreate_NoForgeForHost(t *testing.T) {
 	codeRoot := t.TempDir()
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 
 	repoDir := filepath.Join(codeRoot, "repositories", "gitlab.com", "o", "r")
 	require.NoError(t, os.MkdirAll(repoDir, 0o750))
@@ -160,7 +160,7 @@ func TestPRCreate_MissingTitle(t *testing.T) {
 	t.Parallel()
 
 	codeRoot := t.TempDir()
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 	mgr := &stubForgeManager{}
 	store := &stubStore{story: &coreStory.Story{Name: testDefaultStory}}
 	cfg := &config.Config{DefaultStory: testDefaultStory}
@@ -175,7 +175,7 @@ func TestPRCreate_MissingTitle(t *testing.T) {
 //nolint:paralleltest // t.Chdir changes process-wide CWD; not safe to run in parallel
 func TestPRCreate_StoryDerivedHeadBranch(t *testing.T) {
 	codeRoot := t.TempDir()
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 
 	repoDir := filepath.Join(codeRoot, "repositories", testGitHubHost, "o", "r")
 	require.NoError(t, os.MkdirAll(repoDir, 0o750))
@@ -207,7 +207,7 @@ func TestPRCreate_StoryDerivedHeadBranch(t *testing.T) {
 //nolint:paralleltest // t.Chdir changes process-wide CWD; not safe to run in parallel
 func TestPRCreate_ExplicitHeadOverridesStory(t *testing.T) {
 	codeRoot := t.TempDir()
-	resolver := layout.NewResolver(codeRoot)
+	resolver := layout.NewResolver(codeRoot, testDefaultStory)
 
 	repoDir := filepath.Join(codeRoot, "repositories", testGitHubHost, "o", "r")
 	require.NoError(t, os.MkdirAll(repoDir, 0o750))
