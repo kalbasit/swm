@@ -75,7 +75,8 @@ func TestOpenCmd_PositionalArgOverridesEnv(t *testing.T) {
 }
 
 func TestOpenCmd_DefaultStory(t *testing.T) {
-	t.Parallel()
+	// Cannot be parallel — uses t.Setenv to clear SWM_STORY.
+	t.Setenv("SWM_STORY", "")
 
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 	store := &stubStore{getStory: &coreStory.Story{Name: testDefaultStory}}
@@ -180,6 +181,36 @@ func TestOpenCmd_WithPicker_ProjectNotAttached(t *testing.T) {
 	require.True(t, store.updateCalled)
 
 	// Pane group was opened.
+	require.NotNil(t, sess.lastPaneGroupReq)
+}
+
+func TestOpenCmd_WithPicker_DefaultStory_ProjectNotAttached_SkipsCreateWorktree(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/dotfiles"
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testDefaultStory,
+	}}
+	sess := &stubSess{}
+	vcs := &stubVCS{}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+	mgr := &stubMgr{sess: sess, vcs: vcs, picker: picker}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testDefaultStory})
+
+	require.NoError(t, cmd.Execute())
+
+	// _default story — canonical path already exists, CreateWorktree must NOT be called.
+	require.False(t, vcs.createCalled)
+
+	// Project must still be attached to the story store.
+	require.True(t, store.updateCalled)
+
+	// Workspace and pane group must still be opened.
 	require.NotNil(t, sess.lastPaneGroupReq)
 }
 
@@ -559,7 +590,8 @@ func TestOpenCmd_NoPicker_ExecArgvIsExeced(t *testing.T) {
 // provided via arg or env, the store is listed (story picker runs) and the
 // selected story's workspace is opened.
 func TestOpenCmd_NoArgNoEnv_StoryPickerShown(t *testing.T) {
-	t.Parallel()
+	// Cannot be parallel — uses t.Setenv to clear SWM_STORY.
+	t.Setenv("SWM_STORY", "")
 
 	const selectedStory = testStoryName
 
@@ -669,7 +701,8 @@ func TestOpenCmd_StoryPickerAborted_ExitsClean(t *testing.T) {
 // TestOpenCmd_StoryPickerFailedPrecondition_FallsBackToDefault verifies that a
 // FailedPrecondition from the story picker falls back to the default story.
 func TestOpenCmd_StoryPickerFailedPrecondition_FallsBackToDefault(t *testing.T) {
-	t.Parallel()
+	// Cannot be parallel — uses t.Setenv to clear SWM_STORY.
+	t.Setenv("SWM_STORY", "")
 
 	defaultStory := &coreStory.Story{Name: testDefaultStory}
 

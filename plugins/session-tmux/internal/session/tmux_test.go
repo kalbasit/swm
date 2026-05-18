@@ -551,6 +551,7 @@ func TestSwitchTo_InsideTmux_KillsOriginPane(t *testing.T) {
 
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
+
 	log := string(logBytes)
 	require.Contains(t, log, "switch-client", "must call switch-client")
 	require.Contains(t, log, "kill-pane", "must call kill-pane on origin")
@@ -581,6 +582,7 @@ func TestSwitchTo_OutsideTmux_KillsOriginPane(t *testing.T) {
 
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
+
 	log := string(logBytes)
 	require.Contains(t, log, "kill-pane", "must call kill-pane on origin before returning exec_argv")
 	require.Contains(t, log, "%5", "must target the origin pane")

@@ -122,7 +122,7 @@ Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recen
 5. Receive the selected project ID from the picker.
 6. If the selected project is NOT already attached to the story:
    a. Run `pre-worktree-create` hooks with full project context (`ProjectHost`, `ProjectPath`, `WorktreePath`, `RepoPath`); abort if any fail.
-   b. Call `vcs.CreateWorktree` for that project.
+   b. **If `storyName` is NOT the `default_story`**: call `vcs.CreateWorktree` for that project. If `storyName` IS the `default_story`, skip this step — the canonical `repositories/` path already exists as the main git checkout.
    c. Attach the project to the story in the story store.
    d. Run `post-worktree-create` hooks with the same project context; failures are logged but do not abort.
 7. Call `session.OpenWorkspace` to ensure the workspace is active.
@@ -189,6 +189,10 @@ Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recen
 #### Scenario: Interactive selection with picker — project not yet attached
 - **WHEN** `swm workspace open feat-x` is run and picker is configured and user selects `proj-b` (not yet attached)
 - **THEN** `pre-worktree-create` hooks run, `vcs.CreateWorktree` is called for `proj-b`, `proj-b` is attached to the story in the store, `post-worktree-create` hooks run, then workspace and pane group are opened
+
+#### Scenario: Interactive selection with picker — _default story, project not yet attached
+- **WHEN** `swm workspace open` is run, `_default` is the resolved story, picker is configured, and the user selects `proj-b` which is not yet attached to `_default`
+- **THEN** `pre-worktree-create` hooks run, `vcs.CreateWorktree` is NOT called (canonical path already exists), `proj-b` is attached to the story in the store, `post-worktree-create` hooks run, then workspace and pane group are opened
 
 #### Scenario: pre-worktree-create hook aborts worktree creation
 - **WHEN** `swm workspace open feat-x` is run and user selects an unattached project and a `pre-worktree-create` hook exits non-zero

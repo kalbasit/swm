@@ -358,24 +358,26 @@ func openWithPicker(
 			return fmt.Errorf("pre-worktree-create hook: %w", err)
 		}
 
-		rawVCS, err := mgr.Get(ctx, "vcs")
-		if err != nil {
-			return fmt.Errorf("loading vcs plugin: %w", err)
-		}
+		if storyName != cfg.DefaultStory {
+			rawVCS, err := mgr.Get(ctx, "vcs")
+			if err != nil {
+				return fmt.Errorf("loading vcs plugin: %w", err)
+			}
 
-		vcs, ok := rawVCS.(pluginv1.VCSClient)
-		if !ok {
-			return fmt.Errorf("%w: %T", errUnexpectedPluginType, rawVCS)
-		}
+			vcs, ok := rawVCS.(pluginv1.VCSClient)
+			if !ok {
+				return fmt.Errorf("%w: %T", errUnexpectedPluginType, rawVCS)
+			}
 
-		if _, err := vcs.CreateWorktree(ctx, &pluginv1.CreateWorktreeRequest{
-			ProjectId:    pid,
-			StoryName:    storyName,
-			BranchName:   st.BranchName,
-			RepoPath:     resolver.CanonicalPath(pid),
-			WorktreePath: worktreePath,
-		}); err != nil {
-			return fmt.Errorf("creating worktree: %w", err)
+			if _, err := vcs.CreateWorktree(ctx, &pluginv1.CreateWorktreeRequest{
+				ProjectId:    pid,
+				StoryName:    storyName,
+				BranchName:   st.BranchName,
+				RepoPath:     repoPath,
+				WorktreePath: worktreePath,
+			}); err != nil {
+				return fmt.Errorf("creating worktree: %w", err)
+			}
 		}
 
 		// Attach the project to the story store.
