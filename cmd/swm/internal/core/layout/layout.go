@@ -62,6 +62,10 @@ func (r *Resolver) ProjectIDFromPath(path string) *pluginv1.ProjectID {
 // For the default story the project lives at the canonical repositories/ path,
 // not inside a git worktree under stories/.
 func (r *Resolver) WorktreePath(storyName string, id *pluginv1.ProjectID) string {
+	if id == nil {
+		return ""
+	}
+
 	if storyName == r.defaultStoryName {
 		return r.CanonicalPath(id)
 	}

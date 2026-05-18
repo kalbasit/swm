@@ -81,6 +81,12 @@ func TestWorktreePath(t *testing.T) {
 			project:   githubSWM,
 			expected:  "/home/user/code/repositories/github.com/kalbasit/swm",
 		},
+		{
+			name:      "nil project id returns empty string",
+			storyName: "feat-x",
+			project:   nil,
+			expected:  "",
+		},
 	}
 
 	for _, tt := range tests {
