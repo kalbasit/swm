@@ -106,8 +106,10 @@ forges = ["github"]
 "forge-github"  = "/usr/local/bin/swm-plugin-forge-github"
 
 # Per-plugin configuration. Key is the full plugin name.
-[plugins.config.forge-github]
-token_path = "~/.config/swm/github_token"
+# forge-github: token_path is optional. When absent, the plugin uses
+# `gh auth token` (GitHub CLI) or ~/.github_token as fallbacks.
+# [plugins.config.forge-github]
+# token_path = "~/.config/swm/github_token"
 
 [plugins.config.session-tmux]
 pane_group_command = ""   # optional custom command run when opening a pane group

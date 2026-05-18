@@ -84,8 +84,11 @@ vcs     = "git"
 picker  = "fzf"
 forges  = ["github"]
 
-[plugins.config.forge-github]
-token_path = "~/.config/swm/github_token"
+# forge-github authenticates via `gh auth token` by default (no config needed
+# if you have the GitHub CLI installed and logged in). Set token_path only to
+# override with an explicit file.
+# [plugins.config.forge-github]
+# token_path = "~/.config/swm/github_token"
 ```
 
 See [`cmd/swm/README.md`](cmd/swm/README.md) for the full configuration reference.

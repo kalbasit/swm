@@ -2,11 +2,14 @@
 package forge
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -22,26 +25,66 @@ import (
 // buildVersion is set via -ldflags at build time.
 var buildVersion = "dev" //nolint:gochecknoglobals // set via ldflags at link time
 
+var errGHAuthTokenEmpty = errors.New("gh auth token: empty output")
+
 type githubConfig struct {
 	TokenPath string `toml:"token_path"`
+}
+
+// Option configures a GitHub forge server.
+type Option func(*GitHub)
+
+// WithGHTokenFn overrides the function used to obtain a token via the gh CLI.
+func WithGHTokenFn(fn func(ctx context.Context) (string, error)) Option {
+	return func(g *GitHub) {
+		g.ghTokenFn = fn
+	}
+}
+
+// WithUserHomeDirFn overrides the function used to locate the user's home directory.
+func WithUserHomeDirFn(fn func() (string, error)) Option {
+	return func(g *GitHub) {
+		g.userHomeDirFn = fn
+	}
 }
 
 // GitHub implements pluginv1.ForgeServer for github.com.
 type GitHub struct {
 	pluginv1.UnimplementedForgeServer
-	hostClient pluginv1.HostClient
+	hostClient    pluginv1.HostClient
+	ghTokenFn     func(ctx context.Context) (string, error)
+	userHomeDirFn func() (string, error)
 	// baseURL, when non-empty, overrides the GitHub API base URL (for tests).
 	baseURL string
 }
 
 // New returns a GitHub forge server backed by the given host client.
-func New(hostClient pluginv1.HostClient) *GitHub {
-	return &GitHub{hostClient: hostClient}
+func New(hostClient pluginv1.HostClient, opts ...Option) *GitHub {
+	g := &GitHub{
+		hostClient:    hostClient,
+		ghTokenFn:     ghAuthToken,
+		userHomeDirFn: os.UserHomeDir,
+	}
+	for _, o := range opts {
+		o(g)
+	}
+
+	return g
 }
 
 // NewWithBaseURL returns a GitHub forge server with a custom API base URL (for tests).
-func NewWithBaseURL(hostClient pluginv1.HostClient, baseURL string) *GitHub {
-	return &GitHub{hostClient: hostClient, baseURL: baseURL}
+func NewWithBaseURL(hostClient pluginv1.HostClient, baseURL string, opts ...Option) *GitHub {
+	g := &GitHub{
+		hostClient:    hostClient,
+		baseURL:       baseURL,
+		ghTokenFn:     ghAuthToken,
+		userHomeDirFn: os.UserHomeDir,
+	}
+	for _, o := range opts {
+		o(g)
+	}
+
+	return g
 }
 
 // ownerRepo extracts the owner and repo from a ProjectID's segments.
@@ -159,6 +202,20 @@ func (g *GitHub) ListPullRequests(req *pluginv1.ListPRsRequest, stream pluginv1.
 	return nil
 }
 
+// expandPath expands a leading ~/ using userHomeDirFn.
+func (g *GitHub) expandPath(path string) (string, error) {
+	if strings.HasPrefix(path, "~/") {
+		home, err := g.userHomeDirFn()
+		if err != nil {
+			return "", fmt.Errorf("resolving home directory: %w", err)
+		}
+
+		return filepath.Join(home, path[2:]), nil
+	}
+
+	return path, nil
+}
+
 // newGitHubClient returns a GitHub API client authenticated with the user's token.
 func (g *GitHub) newGitHubClient(ctx context.Context) (*github.Client, error) {
 	token, err := g.tokenFromConfig(ctx)
@@ -186,7 +243,55 @@ func (g *GitHub) newGitHubClient(ctx context.Context) (*github.Client, error) {
 	return client, nil
 }
 
-// tokenFromConfig reads the GitHub token path from host config, then reads and returns the token.
+// ghAuthToken retrieves a GitHub token via the gh CLI.
+func ghAuthToken(ctx context.Context) (string, error) {
+	if _, err := exec.LookPath("gh"); err != nil {
+		return "", err
+	}
+
+	var stderr bytes.Buffer
+
+	cmd := exec.CommandContext(ctx, "gh", "auth", "token")
+	cmd.Stderr = &stderr
+
+	out, err := cmd.Output()
+	if err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return "", fmt.Errorf("gh auth token: %w: %s", err, msg)
+		}
+
+		return "", fmt.Errorf("gh auth token: %w", err)
+	}
+
+	token := strings.TrimSpace(string(out))
+	if token == "" {
+		return "", errGHAuthTokenEmpty
+	}
+
+	return token, nil
+}
+
+// tokenFromFile reads and returns a trimmed token from an absolute file path.
+func tokenFromFile(absPath string) (string, error) {
+	raw, err := os.ReadFile(absPath) //nolint:gosec // G304: path comes from trusted plugin config or default
+	if err != nil {
+		return "", status.Errorf(codes.FailedPrecondition, "reading GitHub token from %q: %v", absPath, err)
+	}
+
+	token := strings.TrimSpace(string(raw))
+	if token == "" {
+		return "", status.Errorf(codes.FailedPrecondition, "GitHub token file %q is empty", absPath)
+	}
+
+	return token, nil
+}
+
+// tokenFromConfig resolves the GitHub token using the following priority order:
+//  1. Explicit token_path in config — reads file and returns; never falls through on error.
+//  2. gh auth token subprocess — default when token_path is absent.
+//  3. ~/.github_token file — last-resort fallback.
+//
+// Returns FailedPrecondition if all sources fail.
 func (g *GitHub) tokenFromConfig(ctx context.Context) (string, error) {
 	if g.hostClient == nil {
 		return "", status.Error(codes.FailedPrecondition, "no host client: GitHub token unavailable")
@@ -204,31 +309,31 @@ func (g *GitHub) tokenFromConfig(ctx context.Context) (string, error) {
 		}
 	}
 
-	tokenPath := cfg.TokenPath
-	if tokenPath == "" {
-		tokenPath = "~/.github_token" //nolint:gosec // G101: default token file path, not a credential
-	}
-
-	if strings.HasPrefix(tokenPath, "~/") {
-		home, err := os.UserHomeDir()
+	// Step 1: explicit token_path — takes priority; never falls through on error.
+	if cfg.TokenPath != "" {
+		expanded, err := g.expandPath(cfg.TokenPath)
 		if err != nil {
-			return "", fmt.Errorf("resolving home directory: %w", err)
+			return "", err
 		}
 
-		tokenPath = filepath.Join(home, tokenPath[2:])
+		return tokenFromFile(expanded)
 	}
 
-	raw, err := os.ReadFile(tokenPath) //nolint:gosec // G304: path comes from trusted plugin config
-	if err != nil {
-		return "", status.Errorf(codes.FailedPrecondition, "reading GitHub token from %q: %v", tokenPath, err)
+	// Step 2: gh auth token. Resolved at call time (not cached) for consistency
+	// with the file-read path and to avoid stale tokens after `gh auth refresh`.
+	if token, err := g.ghTokenFn(ctx); err == nil {
+		return token, nil
 	}
 
-	token := strings.TrimSpace(string(raw))
-	if token == "" {
-		return "", status.Errorf(codes.FailedPrecondition, "GitHub token file %q is empty", tokenPath)
+	// Step 3: ~/.github_token fallback.
+	if home, err := g.userHomeDirFn(); err == nil {
+		if token, err := tokenFromFile(filepath.Join(home, ".github_token")); err == nil {
+			return token, nil
+		}
 	}
 
-	return token, nil
+	return "", status.Error(codes.FailedPrecondition,
+		"no GitHub token found: run `gh auth login` to authenticate, or set token_path in the forge-github plugin config")
 }
 
 // ghPRToProto converts a go-github PullRequest to a proto PullRequest message.
