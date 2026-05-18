@@ -176,3 +176,50 @@ func TestRemoveCmd_HooksCalledInOrder(t *testing.T) {
 	require.Contains(t, called, "post-worktree-remove")
 	require.Contains(t, called, "post-story-remove")
 }
+
+func TestRemoveCmd_NoArg_SWMStorySet_RemovesStory(t *testing.T) {
+	// No t.Parallel(): t.Setenv is not allowed in parallel tests.
+	t.Setenv("SWM_STORY", testStoryName)
+
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	mgr := &stubManager{}
+	resolver := layout.NewResolver("/code", "_default")
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testForceFlag})
+
+	require.NoError(t, cmd.Execute())
+	require.True(t, store.deleted)
+	require.Equal(t, testStoryName, store.lastGetName)
+}
+
+func TestRemoveCmd_NoArg_SWMStoryUnset_ReturnsError(t *testing.T) {
+	// No t.Parallel(): t.Setenv is not allowed in parallel tests.
+	t.Setenv("SWM_STORY", "")
+
+	store := &stubStore{}
+	mgr := &stubManager{}
+	resolver := layout.NewResolver("/code", "_default")
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testForceFlag})
+
+	require.Error(t, cmd.Execute())
+	require.False(t, store.deleted)
+}
+
+func TestRemoveCmd_ExplicitArg_OverridesSWMStory(t *testing.T) {
+	// No t.Parallel(): t.Setenv is not allowed in parallel tests.
+	t.Setenv("SWM_STORY", "other-story")
+
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	mgr := &stubManager{}
+	resolver := layout.NewResolver("/code", "_default")
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, testForceFlag})
+
+	require.NoError(t, cmd.Execute())
+	require.True(t, store.deleted)
+	require.Equal(t, testStoryName, store.lastGetName)
+}

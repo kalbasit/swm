@@ -32,11 +32,13 @@ const (
 	testStoryName     = "feat-x"
 	testDefaultStory  = "_default"
 	cmdCreate         = "create"
+	cmdRemove         = "remove"
 	cmdGroupStory     = "story"
 	cmdGroupWorkspace = "workspace"
 	cmdOpen           = "open"
 	cmdClone          = "clone"
 	flagStory         = "--story"
+	flagForce         = "--force"
 )
 
 // setupEnv creates an isolated environment for an integration test.
@@ -149,12 +151,63 @@ func TestStoryRemove(t *testing.T) {
 
 	// Remove story (no projects, so no VCS calls needed).
 	root := cli.NewRootCmd(cfg, mgr, store, resolver)
-	root.SetArgs([]string{cmdGroupStory, "remove", "--force", testStoryName})
+	root.SetArgs([]string{cmdGroupStory, cmdRemove, flagForce, testStoryName})
 	require.NoError(t, root.Execute())
 
 	// Story should be gone.
 	_, err = store.Get(t.Context(), testStoryName)
 	require.Error(t, err)
+}
+
+func TestStoryRemove_NoArg_SWMStorySet(t *testing.T) {
+	// No t.Parallel(): t.Setenv is not allowed in parallel tests.
+	t.Setenv("SWM_STORY", testStoryName)
+
+	cfg, resolver, store, mgr := setupEnv(t)
+
+	_, err := store.Create(t.Context(), testStoryName, "feat/"+testStoryName)
+	require.NoError(t, err)
+
+	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root.SetArgs([]string{cmdGroupStory, cmdRemove, flagForce}) // no name arg
+	require.NoError(t, root.Execute())
+
+	_, err = store.Get(t.Context(), testStoryName)
+	require.Error(t, err, "story should be deleted when $SWM_STORY is set and no arg provided")
+}
+
+func TestStoryRemove_NoArg_SWMStoryUnset_ReturnsError(t *testing.T) {
+	// No t.Parallel(): t.Setenv is not allowed in parallel tests.
+	t.Setenv("SWM_STORY", "")
+
+	cfg, resolver, store, mgr := setupEnv(t)
+
+	_, err := store.Create(t.Context(), testStoryName, "feat/"+testStoryName)
+	require.NoError(t, err)
+
+	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root.SetArgs([]string{cmdGroupStory, cmdRemove, flagForce}) // no name, no env
+	require.Error(t, root.Execute(), "should error when neither arg nor $SWM_STORY is set")
+
+	_, err = store.Get(t.Context(), testStoryName)
+	require.NoError(t, err, "story should NOT be deleted when command errors")
+}
+
+func TestStoryRemove_ExplicitArg_OverridesSWMStory(t *testing.T) {
+	// No t.Parallel(): t.Setenv is not allowed in parallel tests.
+	t.Setenv("SWM_STORY", "other-story")
+
+	cfg, resolver, store, mgr := setupEnv(t)
+
+	_, err := store.Create(t.Context(), testStoryName, "feat/"+testStoryName)
+	require.NoError(t, err)
+
+	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root.SetArgs([]string{cmdGroupStory, cmdRemove, flagForce, testStoryName}) // explicit arg
+	require.NoError(t, root.Execute())
+
+	_, err = store.Get(t.Context(), testStoryName)
+	require.Error(t, err, "explicitly named story should be deleted, not the env-var story")
 }
 
 func TestWorkspaceOpenWithPicker(t *testing.T) {

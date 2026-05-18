@@ -30,10 +30,10 @@ swm story list
 Lists all stories and their attached projects.
 
 ```sh
-swm story remove <name> [-f | --force]
+swm story remove [<name>] [-f | --force]
 ```
 
-Removes a story and all its worktrees. Prompts for confirmation unless `--force` is given.
+Removes a story and all its worktrees. Prompts for confirmation unless `--force` is given. When `<name>` is omitted, the story name is taken from `$SWM_STORY` (set automatically inside any story workspace). Exits with an error if neither is provided.
 
 ### `swm workspace`
 

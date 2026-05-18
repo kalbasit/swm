@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -27,6 +28,9 @@ type pluginManager interface {
 // errRemovalFailed is returned when one or more steps during story removal fail.
 var errRemovalFailed = errors.New("removal failed")
 
+// errNoStoryName is returned when no story name is provided and $SWM_STORY is unset.
+var errNoStoryName = errors.New("story name required: pass <name> or set $SWM_STORY")
+
 // NewRemoveCmd returns the `swm story remove` command.
 func NewRemoveCmd(
 	store coreStory.Store,
@@ -37,11 +41,20 @@ func NewRemoveCmd(
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "remove <name>",
+		Use:   "remove [<name>]",
 		Short: "Remove a story and all its worktrees",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
+			var name string
+			if len(args) == 1 {
+				name = args[0]
+			} else {
+				name = os.Getenv("SWM_STORY")
+				if name == "" {
+					return errNoStoryName
+				}
+			}
+
 			ctx := cmd.Context()
 
 			st, err := store.Get(ctx, name)
