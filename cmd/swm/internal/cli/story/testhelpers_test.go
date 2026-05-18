@@ -28,6 +28,7 @@ var errNotFound = errors.New("not found")
 type stubStore struct {
 	lastCreatedName   string
 	lastCreatedBranch string
+	lastGetName       string
 	createErr         error
 	getStory          *coreStory.Story
 	getErr            error
@@ -54,7 +55,9 @@ func (s *stubStore) Delete(_ context.Context, _ string) error {
 	return s.deleteErr
 }
 
-func (s *stubStore) Get(_ context.Context, _ string) (*coreStory.Story, error) {
+func (s *stubStore) Get(_ context.Context, name string) (*coreStory.Story, error) {
+	s.lastGetName = name
+
 	if s.getErr != nil {
 		return nil, s.getErr
 	}
