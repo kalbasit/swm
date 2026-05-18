@@ -55,14 +55,21 @@ branch_name_template = "feat/{{.Name}}"
   group future story settings.
 - Inside `[plugins]` — wrong abstraction; this is a host concern, not a plugin concern.
 
-### 3. Compile template at `Defaults()` / load time, not at call time
+### 3. Parse template per call in `branchFromTemplate`, not at config-load time
 
-**Decision**: Parse the template string once when config is loaded (in `load.go`
-or just before first use in `create.go`). Store the compiled `*template.Template`
-in memory; don't re-parse on every `swm story create`.
+**Decision**: Parse the template string inside `branchFromTemplate` on each
+invocation rather than once at config-load or command-construction time.
 
-This surfaces syntax errors early (config load, not story creation) and avoids
-repeated allocations.
+**Alternatives considered**:
+- Parse at config load (`load.go`) — requires storing a `*template.Template` in
+  `Config`, which is a Go-specific type and complicates the config struct.
+- Parse in `NewCreateCmd` — `NewCreateCmd` returns `*cobra.Command` (no error
+  return), so a parse failure would have to be deferred to `RunE` anyway via a
+  captured closure error; gains nothing over parsing in `branchFromTemplate`.
+
+Parsing per-call keeps `branchFromTemplate` a pure, easily-testable function
+with no external state. For a CLI binary the allocation overhead is negligible —
+`swm story create` is invoked once per user action.
 
 ### 4. Default value: `"feat/{{.Name}}"`
 

@@ -26,8 +26,12 @@ Before creating the story JSON the command SHALL run `hookexec.Run` for event `p
 - **THEN** the command exits non-zero with an error message referencing the template parse failure, and no story JSON is created
 
 #### Scenario: Template evaluating to empty string yields error
-- **WHEN** `config.toml` sets `branch_name_template = ""` and `swm story create feat-x` is run
+- **WHEN** `config.toml` sets `branch_name_template = "{{if false}}{{.Name}}{{end}}"` (a syntactically valid template that renders to nothing) and `swm story create feat-x` is run
 - **THEN** the command exits non-zero with an error message indicating the branch name cannot be empty, and no story JSON is created
+
+#### Scenario: Empty branch_name_template uses default
+- **WHEN** `config.toml` sets `branch_name_template = ""` and `swm story create feat-x` is run
+- **THEN** the story JSON has `branch_name="feat/feat-x"` and the command exits 0 (falls back to default `feat/{{.Name}}`)
 
 #### Scenario: Duplicate name
 - **WHEN** `swm story create feat-x` is run and a story named `feat-x` already exists

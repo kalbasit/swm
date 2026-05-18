@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/kalbasit/swm/cmd/swm/internal/cli/story"
+	"github.com/kalbasit/swm/cmd/swm/internal/config"
 )
 
 func TestBranchFromTemplate(t *testing.T) {
@@ -20,7 +21,7 @@ func TestBranchFromTemplate(t *testing.T) {
 	}{
 		{
 			name:      "default template",
-			tpl:       "feat/{{.Name}}",
+			tpl:       config.DefaultBranchNameTemplate,
 			storyName: testStoryName,
 			want:      "feat/" + testStoryName,
 		},
@@ -52,7 +53,7 @@ func TestBranchFromTemplate(t *testing.T) {
 			name:      "empty template uses default feat prefix",
 			tpl:       "",
 			storyName: testStoryName,
-			want:      "feat/" + testStoryName,
+			want:      "feat/" + testStoryName, // falls back to config.DefaultBranchNameTemplate
 		},
 		{
 			name:      "template that evaluates to empty string",

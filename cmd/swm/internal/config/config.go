@@ -17,6 +17,10 @@ type Plugins struct {
 	Config map[string]map[string]any `toml:"config"`
 }
 
+// DefaultBranchNameTemplate is the branch_name_template used when no value is
+// configured (absent or empty in config.toml).
+const DefaultBranchNameTemplate = "feat/{{.Name}}"
+
 // Story contains story-creation settings.
 type Story struct {
 	// BranchNameTemplate is a Go text/template string evaluated with .Name set
@@ -44,7 +48,7 @@ func Defaults() *Config {
 		CodeRoot:     "~/code",
 		DefaultStory: "_default",
 		Story: Story{
-			BranchNameTemplate: "feat/{{.Name}}",
+			BranchNameTemplate: DefaultBranchNameTemplate,
 		},
 	}
 }

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"text/template"
-)
 
-const defaultBranchNameTemplate = "feat/{{.Name}}"
+	"github.com/kalbasit/swm/cmd/swm/internal/config"
+)
 
 var errEmptyBranchName = errors.New("branch_name_template produced an empty branch name")
 
@@ -22,7 +22,7 @@ type branchNameData struct {
 // or evaluates to an empty string.
 func branchFromTemplate(tpl, storyName string) (string, error) {
 	if tpl == "" {
-		tpl = defaultBranchNameTemplate
+		tpl = config.DefaultBranchNameTemplate
 	}
 
 	t, err := template.New("branch").Parse(tpl)

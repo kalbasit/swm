@@ -10,10 +10,9 @@ import (
 	coreStory "github.com/kalbasit/swm/cmd/swm/internal/core/story"
 
 	"github.com/kalbasit/swm/cmd/swm/internal/cli/story"
+	"github.com/kalbasit/swm/cmd/swm/internal/config"
 	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
-
-const defaultTemplate = "feat/{{.Name}}"
 
 var errHookFailed = errors.New("hook failed")
 
@@ -21,7 +20,7 @@ func TestCreateCmd_BasicCreation(t *testing.T) {
 	t.Parallel()
 
 	store := &stubStore{}
-	cmd := story.NewCreateCmd(store, "", hookexec.Noop, defaultTemplate)
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, config.DefaultBranchNameTemplate)
 
 	cmd.SetArgs([]string{testStoryName})
 	require.NoError(t, cmd.Execute())
@@ -33,7 +32,7 @@ func TestCreateCmd_CustomBranch(t *testing.T) {
 	t.Parallel()
 
 	store := &stubStore{}
-	cmd := story.NewCreateCmd(store, "", hookexec.Noop, defaultTemplate)
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, config.DefaultBranchNameTemplate)
 
 	cmd.SetArgs([]string{"JIRA-42", "--branch", "fix/JIRA-42-crash"})
 	require.NoError(t, cmd.Execute())
@@ -112,7 +111,7 @@ func TestCreateCmd_Duplicate(t *testing.T) {
 	t.Parallel()
 
 	store := &stubStore{createErr: coreStory.ErrStoryExists}
-	cmd := story.NewCreateCmd(store, "", hookexec.Noop, defaultTemplate)
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, config.DefaultBranchNameTemplate)
 
 	cmd.SetArgs([]string{testStoryName})
 	require.Error(t, cmd.Execute())
@@ -134,7 +133,7 @@ func TestCreateCmd_PreHookAborts(t *testing.T) {
 		return nil
 	})
 
-	cmd := story.NewCreateCmd(store, "/code", captureHook, defaultTemplate)
+	cmd := story.NewCreateCmd(store, "/code", captureHook, config.DefaultBranchNameTemplate)
 	cmd.SetArgs([]string{testStoryName})
 
 	err := cmd.Execute()
@@ -157,7 +156,7 @@ func TestCreateCmd_HooksCalledInOrder(t *testing.T) {
 		return nil
 	})
 
-	cmd := story.NewCreateCmd(store, "/code", captureHook, defaultTemplate)
+	cmd := story.NewCreateCmd(store, "/code", captureHook, config.DefaultBranchNameTemplate)
 	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())

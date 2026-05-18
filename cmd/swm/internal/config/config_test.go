@@ -138,7 +138,7 @@ func TestLoad_StoryBranchNameTemplate_Default(t *testing.T) {
 
 	cfg, err := config.Load(path)
 	require.NoError(t, err)
-	require.Equal(t, "feat/{{.Name}}", cfg.Story.BranchNameTemplate)
+	require.Equal(t, config.DefaultBranchNameTemplate, cfg.Story.BranchNameTemplate)
 }
 
 func TestLoad_StoryBranchNameTemplate_Explicit(t *testing.T) {
