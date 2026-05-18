@@ -13,7 +13,6 @@ Runs all packages in parallel. For each package:
 import re
 import subprocess
 import sys
-import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -32,22 +31,15 @@ PACKAGES = [
 
 def _nix_build(pkg: str, extra_args: list[str]) -> tuple[int, str]:
     """Run `nix build .#PKG.goModules [extra_args]`; return (exit_code, stderr)."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=f".{pkg}.log", delete=False
-    ) as f:
-        logpath = Path(f.name)
-    try:
-        with logpath.open("w") as logfile:
-            result = subprocess.run(
-                ["nix", "build", "--print-build-logs", f".#{pkg}.goModules"]
-                + extra_args,
-                cwd=REPO_ROOT,
-                stdout=subprocess.DEVNULL,
-                stderr=logfile,
-            )
-        return result.returncode, logpath.read_text()
-    finally:
-        logpath.unlink(missing_ok=True)
+    result = subprocess.run(
+        ["nix", "build", "--print-build-logs", f".#{pkg}.goModules"] + extra_args,
+        cwd=REPO_ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    return result.returncode, result.stderr
 
 
 def _extract_hash(log: str) -> str | None:

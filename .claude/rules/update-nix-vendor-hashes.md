@@ -38,4 +38,4 @@ produces a different vendor hash, invalidating the stored `vendorHash` in:
 Mirrors the `generate` job in `.github/workflows/ci.yml`: for each package it
 attempts to build `.#${pkg}.goModules`, extracts the `got:` hash from the error
 output if the stored hash is wrong, and patches the `vendorHash` line in place
-with `sed`.
+using Python.
