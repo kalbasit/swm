@@ -19,6 +19,7 @@
         "CLAUDE.md"
         "LICENSE"
         "openspec/**/*.md"
+        "proto/**/*.pb.go"
         "renovate.json"
       ];
 

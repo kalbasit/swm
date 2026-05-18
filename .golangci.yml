@@ -3,6 +3,11 @@ formatters:
   enable:
     - gci
     - gofumpt
+  exclusions:
+    # Proto-generated files must not be reformatted — buf owns their style.
+    generated: lax
+    paths:
+      - \.pb\.go$
   settings:
     gci:
       sections:
@@ -116,5 +121,6 @@ linters:
           - gochecknoglobals
     paths:
       # Generated proto Go code: skip linting entirely.
-      - proto/swm/plugin/v1/.*\.pb\.go$
-      - proto/swm/plugin/v1/.*\.pb\.grpc\.go$
+      # Match by suffix so patterns work both from the workspace root and from
+      # within the proto/ module (where golangci-lint is cd'd by the pre-commit hook).
+      - \.pb\.go$
