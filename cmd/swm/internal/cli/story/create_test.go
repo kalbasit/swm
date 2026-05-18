@@ -13,13 +13,15 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
+const defaultTemplate = "feat/{{.Name}}"
+
 var errHookFailed = errors.New("hook failed")
 
 func TestCreateCmd_BasicCreation(t *testing.T) {
 	t.Parallel()
 
 	store := &stubStore{}
-	cmd := story.NewCreateCmd(store, "", hookexec.Noop)
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, defaultTemplate)
 
 	cmd.SetArgs([]string{testStoryName})
 	require.NoError(t, cmd.Execute())
@@ -31,7 +33,7 @@ func TestCreateCmd_CustomBranch(t *testing.T) {
 	t.Parallel()
 
 	store := &stubStore{}
-	cmd := story.NewCreateCmd(store, "", hookexec.Noop)
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, defaultTemplate)
 
 	cmd.SetArgs([]string{"JIRA-42", "--branch", "fix/JIRA-42-crash"})
 	require.NoError(t, cmd.Execute())
@@ -39,11 +41,78 @@ func TestCreateCmd_CustomBranch(t *testing.T) {
 	require.Equal(t, "fix/JIRA-42-crash", store.lastCreatedBranch)
 }
 
+func TestCreateCmd_TemplateFromConfig(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, "fix/{{.Name}}")
+
+	cmd.SetArgs([]string{testBugName})
+	require.NoError(t, cmd.Execute())
+	require.Equal(t, testBugName, store.lastCreatedName)
+	require.Equal(t, "fix/"+testBugName, store.lastCreatedBranch)
+}
+
+func TestCreateCmd_BranchFlagOverridesTemplate(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, "fix/{{.Name}}")
+
+	cmd.SetArgs([]string{testBugName, "--branch", "custom/branch"})
+	require.NoError(t, cmd.Execute())
+	require.Equal(t, "custom/branch", store.lastCreatedBranch)
+}
+
+func TestCreateCmd_InvalidTemplateErrors(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, "{{.Name")
+
+	cmd.SetArgs([]string{testStoryName})
+	err := cmd.Execute()
+	require.Error(t, err)
+	// No store write should have happened.
+	require.Empty(t, store.lastCreatedName)
+}
+
+func TestCreateCmd_EmptyTemplateUsesDefault(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, "")
+
+	cmd.SetArgs([]string{testStoryName})
+	require.NoError(t, cmd.Execute())
+	require.Equal(t, "feat/"+testStoryName, store.lastCreatedBranch)
+}
+
+func TestCreateCmd_InvalidTemplate_NoHooksRun(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+
+	var hooksCalled []string
+
+	captureHook := hookexec.RunnerFunc(func(_ context.Context, cfg hookexec.RunConfig) error {
+		hooksCalled = append(hooksCalled, cfg.Event)
+
+		return nil
+	})
+
+	cmd := story.NewCreateCmd(store, "/code", captureHook, "{{.Name")
+	cmd.SetArgs([]string{testStoryName})
+
+	require.Error(t, cmd.Execute())
+	require.Empty(t, hooksCalled)
+}
+
 func TestCreateCmd_Duplicate(t *testing.T) {
 	t.Parallel()
 
 	store := &stubStore{createErr: coreStory.ErrStoryExists}
-	cmd := story.NewCreateCmd(store, "", hookexec.Noop)
+	cmd := story.NewCreateCmd(store, "", hookexec.Noop, defaultTemplate)
 
 	cmd.SetArgs([]string{testStoryName})
 	require.Error(t, cmd.Execute())
@@ -65,7 +134,7 @@ func TestCreateCmd_PreHookAborts(t *testing.T) {
 		return nil
 	})
 
-	cmd := story.NewCreateCmd(store, "/code", captureHook)
+	cmd := story.NewCreateCmd(store, "/code", captureHook, defaultTemplate)
 	cmd.SetArgs([]string{testStoryName})
 
 	err := cmd.Execute()
@@ -88,7 +157,7 @@ func TestCreateCmd_HooksCalledInOrder(t *testing.T) {
 		return nil
 	})
 
-	cmd := story.NewCreateCmd(store, "/code", captureHook)
+	cmd := story.NewCreateCmd(store, "/code", captureHook, defaultTemplate)
 	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
