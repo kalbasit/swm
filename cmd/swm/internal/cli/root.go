@@ -36,9 +36,10 @@ func NewRootCmd(
 	var logLevel string
 
 	root := &cobra.Command{
-		Use:          "swm",
-		Short:        "Story-based Workflow Manager",
-		SilenceUsage: true,
+		Use:               "swm",
+		Short:             "Story-based Workflow Manager",
+		SilenceUsage:      true,
+		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true},
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			var level slog.Level
 			if err := level.UnmarshalText([]byte(logLevel)); err != nil {

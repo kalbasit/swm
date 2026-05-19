@@ -11,6 +11,19 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
 )
 
+func TestCompletionCmd_HiddenFromHelp(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+
+	root := cli.NewRootCmd(config.Defaults(), &stubMgr{}, nil, layout.NewResolver("", ""))
+	root.SetOut(&buf)
+	root.SetArgs([]string{"--help"})
+
+	require.NoError(t, root.Execute())
+	require.NotContains(t, buf.String(), "completion")
+}
+
 func TestCompletionCmd(t *testing.T) {
 	t.Parallel()
 
