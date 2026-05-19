@@ -5,6 +5,7 @@
 # Usage (inside devshell):  swm-dev <swm-args>
 # Usage (outside direnv):   ./scripts/swm-dev <swm-args>
 set -euo pipefail
+shopt -s globstar nullglob
 
 REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 DEV_BIN="$REPO_ROOT/.dev-bin"

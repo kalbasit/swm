@@ -347,7 +347,7 @@ func TestDiscover_SWMPluginPath(t *testing.T) {
 
 		// Binary only in dir2.
 		copyBinary(t, fakeVCSBin, filepath.Join(dir2, "swm-plugin-vcs-fake"))
-		t.Setenv("SWM_PLUGIN_PATH", dir1+":"+dir2)
+		t.Setenv("SWM_PLUGIN_PATH", dir1+string(filepath.ListSeparator)+dir2)
 
 		mgr := pluginmgr.New(newCfg("", fakePluginName), "")
 		defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
@@ -360,7 +360,7 @@ func TestDiscover_SWMPluginPath(t *testing.T) {
 	t.Run("non-existent entries silently skipped", func(t *testing.T) {
 		realDir := t.TempDir()
 		copyBinary(t, fakeVCSBin, filepath.Join(realDir, "swm-plugin-vcs-fake"))
-		t.Setenv("SWM_PLUGIN_PATH", "/nonexistent-pluginmgr-test:"+realDir)
+		t.Setenv("SWM_PLUGIN_PATH", "/nonexistent-pluginmgr-test"+string(filepath.ListSeparator)+realDir)
 
 		mgr := pluginmgr.New(newCfg("", fakePluginName), "")
 		defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown

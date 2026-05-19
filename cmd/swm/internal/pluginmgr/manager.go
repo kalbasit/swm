@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"strings"
 	"sync"
 
 	"github.com/adrg/xdg"
@@ -285,12 +284,9 @@ func (m *Manager) capabilityName(capability string) (string, error) {
 func (m *Manager) discover(capability, name string) (string, error) {
 	binary := "swm-plugin-" + capability + "-" + name
 
-	// 0. SWM_PLUGIN_PATH: colon-separated list, searched left-to-right.
+	// 0. SWM_PLUGIN_PATH: platform-specific path list, searched left-to-right.
 	// Non-existent or non-directory entries are silently skipped.
-	for _, dir := range strings.Split(os.Getenv("SWM_PLUGIN_PATH"), ":") {
-		if dir == "" {
-			continue
-		}
+	for _, dir := range filepath.SplitList(os.Getenv("SWM_PLUGIN_PATH")) {
 
 		candidate := filepath.Join(dir, binary)
 		if _, err := os.Stat(candidate); err == nil {
