@@ -1,7 +1,7 @@
 ## 1. Fix test constants (plugins/session-tmux)
 
 - [x] 1.1 In `plugins/session-tmux/internal/session/tmux_test.go`, update `testLaioPaneGroupCommandTOML` to insert `--replace-current-session` between `--tmux-socket {{tmux_socket}}` and `--skip-attach`
-- [x] 1.2 In the same file, update the `wantCmd` string literal in `TestOpenPaneGroup_WithPaneGroupCommand_BasicCommandSubstitution` (around line 379) to include `--replace-current-session` before `--skip-attach`
+- [x] 1.2 In the same file, update the `wantCmd` string literal in `TestOpenPaneGroup_WithPaneGroupCommand` (around line 379) to include `--replace-current-session` before `--skip-attach`
 - [x] 1.3 Run `task test` in `plugins/session-tmux/` and confirm all tests pass
 
 ## 2. Update documentation (plugins/session-tmux)
