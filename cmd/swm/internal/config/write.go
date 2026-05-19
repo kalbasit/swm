@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 
@@ -31,12 +32,33 @@ func LoadForWrite(path string) (*Config, error) {
 }
 
 // Save writes cfg to path atomically, creating parent directories if absent.
-// Only non-zero fields are written (via omitempty struct tags on Config).
-// Any comments in the original file are not preserved.
+// Unknown fields already present in the file are preserved via deep merge so
+// that future versions of swm (or manual additions) are not silently dropped.
+// Comments in the original file are not preserved.
 func Save(path string, cfg *Config) error {
-	data, err := toml.Marshal(cfg)
+	// Load existing raw TOML to preserve fields not known to this Config struct.
+	rawData := make(map[string]any)
+
+	if existing, err := os.ReadFile(path); err == nil { //nolint:gosec // user-specified config file path
+		if err := toml.Unmarshal(existing, &rawData); err != nil {
+			rawData = make(map[string]any) // reset in case of partial parse
+		}
+	}
+
+	cfgBytes, err := toml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("marshaling config: %w", err)
+	}
+
+	var cfgMap map[string]any
+
+	if err := toml.Unmarshal(cfgBytes, &cfgMap); err != nil {
+		return fmt.Errorf("parsing config map: %w", err)
+	}
+
+	data, err := toml.Marshal(deepMerge(rawData, cfgMap))
+	if err != nil {
+		return fmt.Errorf("marshaling merged config: %w", err)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
@@ -53,4 +75,29 @@ func Save(path string, cfg *Config) error {
 	}
 
 	return nil
+}
+
+// deepMerge returns a new map containing all entries from base with entries
+// from override applied on top. Nested maps are merged recursively; all other
+// value types are replaced by the override value.
+func deepMerge(base, override map[string]any) map[string]any {
+	result := make(map[string]any, len(base))
+	maps.Copy(result, base)
+
+	for k, v := range override {
+		if baseVal, ok := result[k]; ok {
+			baseMap, baseIsMap := baseVal.(map[string]any)
+			overrideMap, overrideIsMap := v.(map[string]any)
+
+			if baseIsMap && overrideIsMap {
+				result[k] = deepMerge(baseMap, overrideMap)
+
+				continue
+			}
+		}
+
+		result[k] = v
+	}
+
+	return result
 }

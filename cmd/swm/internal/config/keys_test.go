@@ -2,16 +2,12 @@ package config_test
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/kalbasit/swm/cmd/swm/internal/config"
-)
-
-const (
-	testKeyPluginPaths = "plugins.paths.vcs-git"
-	testPluginBinPath  = "/usr/bin/swm-plugin-vcs-git"
 )
 
 func TestLookupKey_StaticKeys(t *testing.T) {
@@ -134,6 +130,19 @@ func TestAllKeys_IncludesDynamicPaths(t *testing.T) {
 	}
 
 	require.Contains(t, paths, testKeyPluginPaths)
+}
+
+func TestConfiguredKeys_EmptyFile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	require.NoError(t, os.WriteFile(path, []byte{}, 0o600))
+
+	cfg := config.Defaults()
+	keys, err := config.ConfiguredKeys(path, cfg)
+	require.NoError(t, err)
+	require.Empty(t, keys)
 }
 
 func TestConfiguredKeys_NoFile(t *testing.T) {

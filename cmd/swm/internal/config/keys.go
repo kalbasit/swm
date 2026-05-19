@@ -130,6 +130,10 @@ func LookupKey(path string) (KeyDef, bool) {
 
 // isKeyPresent reports whether a dot-separated path exists in a nested map.
 func isKeyPresent(m map[string]any, dotPath string) bool {
+	if m == nil {
+		return false
+	}
+
 	top, rest, found := strings.Cut(dotPath, ".")
 	if !found {
 		_, ok := m[dotPath]

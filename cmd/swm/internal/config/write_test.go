@@ -63,6 +63,34 @@ func TestSave_OmitsZeroValueFields(t *testing.T) {
 	require.NotContains(t, string(data), "vcs")
 }
 
+func TestSave_PreservesUnknownFields(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	// Seed file with a known field and a field unknown to the current Config struct.
+	content := "code_root = \"/workspace\"\nunknown_future_key = \"preserved\"\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	cfg, err := config.LoadForWrite(path)
+	require.NoError(t, err)
+
+	k, ok := config.LookupKey(testKeySession)
+	require.True(t, ok)
+	require.NoError(t, k.Set(cfg, testValTmux))
+	require.NoError(t, config.Save(path, cfg))
+
+	data, err := os.ReadFile(path) //nolint:gosec // test temp path
+	require.NoError(t, err)
+
+	output := string(data)
+	require.Contains(t, output, "unknown_future_key")
+	require.Contains(t, output, "preserved")
+	require.Contains(t, output, "session")
+	require.Contains(t, output, testValTmux)
+}
+
 func TestLoadForWrite_ReturnsEmptyForMissingFile(t *testing.T) {
 	t.Parallel()
 
