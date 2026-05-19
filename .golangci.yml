@@ -119,6 +119,14 @@ linters:
         linters:
           - forbidigo
           - gochecknoglobals
+      # hookexec tests must run sequentially to prevent an inherent Linux ETXTBSY race:
+      # when parallel tests run concurrently, a forked child from one test can inherit
+      # an open write fd to a temp inode that another test later renames to its hook
+      # path; execve on that inode then fails because the child's inherited fd is still
+      # open. Sequential execution eliminates all concurrent fork+write windows.
+      - path: cmd/swm/internal/hookexec/hookexec_test\.go$
+        linters:
+          - paralleltest
     paths:
       # Generated proto Go code: skip linting entirely.
       # Match by suffix so patterns work both from the workspace root and from
