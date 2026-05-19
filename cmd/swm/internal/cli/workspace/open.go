@@ -271,6 +271,20 @@ func NewOpenCmd(
 	cmd.Flags().BoolVar(&killPane, "kill-pane", false,
 		"close the originating multiplexer pane after switching to the new workspace")
 
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		stories, err := store.List(cmd.Context())
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		names := make([]string, len(stories))
+		for i, s := range stories {
+			names[i] = s.Name
+		}
+
+		return names, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	return cmd
 }
 

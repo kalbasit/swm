@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
 	coreStory "github.com/kalbasit/swm/cmd/swm/internal/core/story"
@@ -222,4 +223,47 @@ func TestRemoveCmd_ExplicitArg_OverridesSWMStory(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 	require.True(t, store.deleted)
 	require.Equal(t, testStoryName, store.lastGetName)
+}
+
+func TestRemoveCmd_Completion_ReturnsStoryNames(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{
+		listStories: []*coreStory.Story{{Name: testStoryName}, {Name: testBugName}},
+	}
+	mgr := &stubManager{}
+	resolver := layout.NewResolver("/code", "_default")
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+
+	completions, directive := cmd.ValidArgsFunction(cmd, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	require.ElementsMatch(t, []string{testStoryName, testBugName}, completions)
+}
+
+func TestRemoveCmd_Completion_NoFileComp(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{listStories: []*coreStory.Story{{Name: testStoryName}}}
+	mgr := &stubManager{}
+	resolver := layout.NewResolver("/code", "_default")
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+
+	_, directive := cmd.ValidArgsFunction(cmd, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+}
+
+func TestRemoveCmd_Completion_StoreError_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{listErr: errFakeStore}
+	mgr := &stubManager{}
+	resolver := layout.NewResolver("/code", "_default")
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+
+	completions, directive := cmd.ValidArgsFunction(cmd, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveError, directive)
+	require.Empty(t, completions)
 }
