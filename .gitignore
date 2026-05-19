@@ -23,6 +23,7 @@ plugins/*/swm-plugin-*
 
 # Go workspace file
 go.work
+go.work.lock
 go.work.sum
 
 # Go and Nix-related build result
