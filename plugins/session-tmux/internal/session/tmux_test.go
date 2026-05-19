@@ -28,7 +28,7 @@ const (
 	// testLaioPaneGroupCommandTOML is the canonical pane_group_command used in tests.
 	testLaioPaneGroupCommandTOML = `pane_group_command = "laio start` +
 		` --file {{worktree_path}}/.swm/laio.yaml` +
-		` --tmux-socket {{tmux_socket}} --skip-attach"`
+		` --tmux-socket {{tmux_socket}} --replace-current-session --skip-attach"`
 )
 
 var faketmuxBin string
@@ -377,7 +377,7 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	wantCmd := "laio start --file /tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml" +
-		" --tmux-socket " + sockPath + " --skip-attach"
+		" --tmux-socket " + sockPath + " --replace-current-session --skip-attach"
 
 	log := string(logBytes)
 	require.Contains(t, log, wantCmd, "expected substituted pane_group_command in tmux args")
