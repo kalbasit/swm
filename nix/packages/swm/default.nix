@@ -42,7 +42,7 @@
             export HOME=$(mktemp -d)
           '';
 
-          postInstall = ''
+          postInstall = lib.optionalString (pkgs.stdenv.hostPlatform == pkgs.stdenv.buildPlatform) ''
             installShellCompletion --cmd swm \
               --bash <($out/bin/swm completion bash) \
               --zsh  <($out/bin/swm completion zsh)  \
