@@ -11,7 +11,6 @@
         buildInputs = [
           pkgs.buf
           pkgs.delve
-          pkgs.flock
           pkgs.go
           pkgs.go-task
           pkgs.golangci-lint
@@ -35,7 +34,7 @@
             ${config.pre-commit.installationScript}
 
             (
-              flock -x 200
+              ${pkgs.flock}/bin/flock -x 200
               if [[ ! -f go.work ]]; then
                 go work init
               fi
