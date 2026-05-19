@@ -93,6 +93,32 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Flake check
         run: nix flake check -L
+  openspec-guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check for active OpenSpec changes
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          active=$(find openspec/changes -maxdepth 1 -mindepth 1 -type d ! -name archive)
+
+          if [[ -n "$active" ]]; then
+            {
+              echo "## Active OpenSpec changes detected"
+              echo ""
+              echo "Archive these changes before merging:"
+              echo ""
+              while IFS= read -r dir; do
+                echo "- \`${dir}\`"
+              done <<< "$active"
+            } >>"$GITHUB_STEP_SUMMARY"
+            echo "::error::Active OpenSpec changes must be archived before merging — see job summary for details"
+            exit 1
+          fi
+
+          echo "No active OpenSpec changes"
   ci:
     runs-on: ubuntu-24.04
     if: always()
@@ -100,6 +126,7 @@ jobs:
       - filter
       - generate
       - flake-check
+      - openspec-guard
     steps:
       - name: Check Workflow Status
         run: |
@@ -110,6 +137,7 @@ jobs:
             "${{ needs.filter.result }}"
             "${{ needs.generate.result }}"
             "${{ needs.flake-check.result }}"
+            "${{ needs.openspec-guard.result }}"
           )
 
           for result in "${results[@]}"; do
