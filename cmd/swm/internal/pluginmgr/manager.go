@@ -287,9 +287,8 @@ func (m *Manager) discover(capability, name string) (string, error) {
 	// 0. SWM_PLUGIN_PATH: platform-specific path list, searched left-to-right.
 	// Non-existent or non-directory entries are silently skipped.
 	for _, dir := range filepath.SplitList(os.Getenv("SWM_PLUGIN_PATH")) {
-
 		candidate := filepath.Join(dir, binary)
-		if _, err := os.Stat(candidate); err == nil {
+		if _, err := os.Stat(candidate); err == nil { //nolint:gosec // SWM_PLUGIN_PATH is user-owned
 			return candidate, nil
 		}
 	}

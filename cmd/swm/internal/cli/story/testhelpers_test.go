@@ -24,6 +24,9 @@ const (
 // errNotFound is a sentinel used in tests.
 var errNotFound = errors.New("not found")
 
+// errFakeStore is a sentinel used by completion tests.
+var errFakeStore = errors.New("store unavailable")
+
 // stubStore is a minimal story.Store implementation for CLI tests.
 type stubStore struct {
 	lastCreatedName   string

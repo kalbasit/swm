@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -40,8 +41,9 @@ const (
 )
 
 var (
-	errNoPlugin = errors.New("no plugin")
-	errFakeHook = errors.New("hook error")
+	errNoPlugin  = errors.New("no plugin")
+	errFakeHook  = errors.New("hook error")
+	errFakeStore = errors.New("store unavailable")
 )
 
 func TestOpenCmd_WithPositionalArg(t *testing.T) {
@@ -1051,6 +1053,69 @@ func TestOpenCmd_NoKillPane_OmitsOriginFields(t *testing.T) {
 }
 
 // ─── stubs ───────────────────────────────────────────────────────────────────
+
+func TestOpenCmd_Completion_ReturnsStoryNames(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{
+		listStories: []*coreStory.Story{{Name: testStoryName}, {Name: testDefaultStory}},
+	}
+	mgr := &stubMgr{}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+
+	completions, directive := cmd.ValidArgsFunction(cmd, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	require.ElementsMatch(t, []string{testStoryName, testDefaultStory}, completions)
+}
+
+func TestOpenCmd_Completion_NoFileComp(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{listStories: []*coreStory.Story{{Name: testStoryName}}}
+	mgr := &stubMgr{}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+
+	_, directive := cmd.ValidArgsFunction(cmd, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+}
+
+func TestOpenCmd_Completion_StoreError_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{listErr: errFakeStore}
+	mgr := &stubMgr{}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+
+	completions, directive := cmd.ValidArgsFunction(cmd, nil, "")
+	require.Equal(t, cobra.ShellCompDirectiveError, directive)
+	require.Empty(t, completions)
+}
+
+func TestOpenCmd_Completion_ArgAlreadyProvided_NoMoreCompletions(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{
+		listStories: []*coreStory.Story{{Name: testStoryName}, {Name: testDefaultStory}},
+	}
+	mgr := &stubMgr{}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+
+	completions, directive := cmd.ValidArgsFunction(cmd, []string{testStoryName}, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	require.Empty(t, completions)
+}
 
 // stubStore is a minimal story.Store.
 type stubStore struct {
