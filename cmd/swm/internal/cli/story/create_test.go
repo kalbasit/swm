@@ -14,7 +14,91 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
-var errHookFailed = errors.New("hook failed")
+const (
+	eventPreStoryCreate  = "pre-story-create"
+	eventPostStoryCreate = "post-story-create"
+)
+
+var (
+	errHookFailed   = errors.New("hook failed")
+	errStoreFailure = errors.New("disk full")
+)
+
+func TestCreateWithHooks_HappyPath(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+
+	var called []string
+
+	captureHook := hookexec.RunnerFunc(func(_ context.Context, cfg hookexec.RunConfig) error {
+		called = append(called, cfg.Event)
+
+		return nil
+	})
+
+	err := story.CreateWithHooks(context.Background(), store, captureHook, "/code", testStoryName, "feat/"+testStoryName)
+	require.NoError(t, err)
+	require.Equal(t, testStoryName, store.lastCreatedName)
+	require.Equal(t, "feat/"+testStoryName, store.lastCreatedBranch)
+	require.Equal(t, []string{eventPreStoryCreate, eventPostStoryCreate}, called)
+}
+
+func TestCreateWithHooks_PreHookError(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+
+	failPreHook := hookexec.RunnerFunc(func(_ context.Context, cfg hookexec.RunConfig) error {
+		if cfg.Event == eventPreStoryCreate {
+			return errHookFailed
+		}
+
+		return nil
+	})
+
+	err := story.CreateWithHooks(context.Background(), store, failPreHook, "/code", testStoryName, "feat/"+testStoryName)
+	require.Error(t, err)
+	require.Empty(t, store.lastCreatedName)
+}
+
+func TestCreateWithHooks_StoreCreateError(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{createErr: errStoreFailure}
+
+	var postHookCalled bool
+
+	captureHook := hookexec.RunnerFunc(func(_ context.Context, cfg hookexec.RunConfig) error {
+		if cfg.Event == eventPostStoryCreate {
+			postHookCalled = true
+		}
+
+		return nil
+	})
+
+	err := story.CreateWithHooks(context.Background(), store, captureHook, "/code", testStoryName, "feat/"+testStoryName)
+	require.Error(t, err)
+	require.False(t, postHookCalled)
+}
+
+func TestCreateWithHooks_PostHookError(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+
+	failPostHook := hookexec.RunnerFunc(func(_ context.Context, cfg hookexec.RunConfig) error {
+		if cfg.Event == eventPostStoryCreate {
+			return errHookFailed
+		}
+
+		return nil
+	})
+
+	err := story.CreateWithHooks(context.Background(), store, failPostHook, "/code", testStoryName, "feat/"+testStoryName)
+	require.NoError(t, err)
+	require.Equal(t, testStoryName, store.lastCreatedName)
+}
 
 func TestCreateCmd_BasicCreation(t *testing.T) {
 	t.Parallel()
@@ -126,7 +210,7 @@ func TestCreateCmd_PreHookAborts(t *testing.T) {
 
 	captureHook := hookexec.RunnerFunc(func(_ context.Context, cfg hookexec.RunConfig) error {
 		called = append(called, cfg.Event)
-		if cfg.Event == "pre-story-create" {
+		if cfg.Event == eventPreStoryCreate {
 			return errHookFailed
 		}
 
@@ -138,7 +222,7 @@ func TestCreateCmd_PreHookAborts(t *testing.T) {
 
 	err := cmd.Execute()
 	require.Error(t, err)
-	require.Contains(t, called, "pre-story-create")
+	require.Contains(t, called, eventPreStoryCreate)
 	// store.Create should not have been called.
 	require.Empty(t, store.lastCreatedName)
 }
@@ -160,5 +244,5 @@ func TestCreateCmd_HooksCalledInOrder(t *testing.T) {
 	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
-	require.Equal(t, []string{"pre-story-create", "post-story-create"}, called)
+	require.Equal(t, []string{eventPreStoryCreate, eventPostStoryCreate}, called)
 }

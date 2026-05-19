@@ -12,7 +12,8 @@ require (
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/sys v0.42.0
+	golang.org/x/sys v0.44.0
+	golang.org/x/term v0.43.0
 	google.golang.org/grpc v1.81.1
 )
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,13 +24,14 @@ import (
 )
 
 const (
-	testCodeRoot     = "/code"
-	testDefaultStory = "_default"
-	testStoryName    = "feat-x"
-	testBranchName   = "feat/feat-x"
-	testHost         = "github.com"
-	testOwner        = "kalbasit"
-	testSegment      = "swm"
+	testCodeRoot         = "/code"
+	testDefaultStory     = "_default"
+	testStoryName        = "feat-x"
+	testBranchName       = "feat/feat-x"
+	testHost             = "github.com"
+	testOwner            = "kalbasit"
+	testSegment          = "swm"
+	testNonexistentStory = "nonexistent"
 
 	eventPreWorktreeCreate  = "pre-worktree-create"
 	eventPostWorktreeCreate = "post-worktree-create"
@@ -91,7 +93,7 @@ func TestOpenCmd_DefaultStory(t *testing.T) {
 	require.Equal(t, testDefaultStory, sess.lastOpenReq.GetStoryName())
 }
 
-func TestOpenCmd_StoryNotFound(t *testing.T) {
+func TestOpenCmd_StoryNotFound_NonTTY(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
@@ -99,10 +101,124 @@ func TestOpenCmd_StoryNotFound(t *testing.T) {
 	mgr := &stubMgr{}
 	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
 
-	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
-	cmd.SetArgs([]string{"nonexistent"})
+	cmd := workspace.NewOpenCmd(
+		cfg, store, mgr, resolver, hookexec.Noop,
+		workspace.WithTTYCheck(func() bool { return false }),
+	)
+	cmd.SetArgs([]string{testNonexistentStory})
 
-	require.Error(t, cmd.Execute())
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.ErrorIs(t, err, coreStory.ErrStoryNotFound)
+	require.False(t, store.createCalled)
+}
+
+func TestOpenCmd_StoryNotFound_TTY_Confirms(t *testing.T) {
+	t.Parallel()
+
+	const storyToCreate = testNonexistentStory
+
+	sess := &stubSess{}
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	// First Get returns NotFound; after creation the second Get returns the story.
+	store := &stubStore{
+		getErrs:    []error{coreStory.ErrStoryNotFound, nil},
+		getStories: []*coreStory.Story{nil, {Name: storyToCreate}},
+	}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(
+		cfg, store, mgr, resolver, hookexec.Noop,
+		workspace.WithTTYCheck(func() bool { return true }),
+		workspace.WithStdinReader(strings.NewReader("y\n")),
+	)
+	cmd.SetArgs([]string{storyToCreate})
+
+	require.NoError(t, cmd.Execute())
+	require.True(t, store.createCalled)
+	require.Equal(t, storyToCreate, sess.lastOpenReq.GetStoryName())
+}
+
+func TestOpenCmd_StoryNotFound_TTY_PreHookAborts(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getErr: coreStory.ErrStoryNotFound}
+	mgr := &stubMgr{}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	hooks := hookexec.RunnerFunc(func(_ context.Context, rc hookexec.RunConfig) error {
+		if rc.Event == "pre-story-create" {
+			return errFakeHook
+		}
+
+		return nil
+	})
+
+	cmd := workspace.NewOpenCmd(
+		cfg, store, mgr, resolver, hooks,
+		workspace.WithTTYCheck(func() bool { return true }),
+		workspace.WithStdinReader(strings.NewReader("y\n")),
+	)
+	cmd.SetArgs([]string{testNonexistentStory})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.False(t, store.createCalled)
+}
+
+func TestOpenCmd_StoryNotFound_TTY_Declines(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getErr: coreStory.ErrStoryNotFound}
+	mgr := &stubMgr{}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(
+		cfg, store, mgr, resolver, hookexec.Noop,
+		workspace.WithTTYCheck(func() bool { return true }),
+		workspace.WithStdinReader(strings.NewReader("n\n")),
+	)
+	cmd.SetArgs([]string{testNonexistentStory})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.ErrorIs(t, err, coreStory.ErrStoryNotFound)
+	require.False(t, store.createCalled)
+}
+
+func TestOpenCmd_StoryNotFound_TTY_UsesConfigTemplate(t *testing.T) {
+	t.Parallel()
+
+	const customTemplate = "fix/{{.Name}}"
+
+	const storyToCreate = testNonexistentStory
+
+	sess := &stubSess{}
+	cfg := &config.Config{
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
+		Story:        config.Story{BranchNameTemplate: customTemplate},
+	}
+	store := &stubStore{
+		getErrs:    []error{coreStory.ErrStoryNotFound, nil},
+		getStories: []*coreStory.Story{nil, {Name: storyToCreate}},
+	}
+	mgr := &stubMgr{sess: sess}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(
+		cfg, store, mgr, resolver, hookexec.Noop,
+		workspace.WithTTYCheck(func() bool { return true }),
+		workspace.WithStdinReader(strings.NewReader("y\n")),
+	)
+	cmd.SetArgs([]string{storyToCreate})
+
+	require.NoError(t, cmd.Execute())
+	require.True(t, store.createCalled)
+	require.Equal(t, "fix/"+storyToCreate, store.lastCreatedBranch)
 }
 
 func TestOpenCmd_NoProjects(t *testing.T) {
@@ -944,20 +1060,65 @@ type stubStore struct {
 	listStories  []*coreStory.Story
 	listErr      error
 	listCalled   bool
+
+	createCalled      bool
+	createStory       *coreStory.Story
+	createErr         error
+	lastCreatedBranch string
+
+	// getCallCount lets tests return different values on successive Get calls.
+	getCallCount int
+	getErrs      []error // if set, consumed in order; last value repeated
+	getStories   []*coreStory.Story
 }
 
-func (s *stubStore) Create(context.Context, string, string) (*coreStory.Story, error) {
-	panic("stub")
+func (s *stubStore) Create(_ context.Context, name, branch string) (*coreStory.Story, error) {
+	s.createCalled = true
+	s.lastCreatedBranch = branch
+
+	if s.createErr != nil {
+		return nil, s.createErr
+	}
+
+	if s.createStory != nil {
+		return s.createStory, nil
+	}
+
+	return &coreStory.Story{Name: name, BranchName: branch}, nil
 }
 
 func (s *stubStore) Delete(context.Context, string) error { return nil }
 
 func (s *stubStore) Get(_ context.Context, _ string) (*coreStory.Story, error) {
-	if s.getErr != nil {
+	idx := s.getCallCount
+	s.getCallCount++
+
+	// Per-call error sequence.
+	if len(s.getErrs) > 0 {
+		if idx >= len(s.getErrs) {
+			idx = len(s.getErrs) - 1
+		}
+
+		if s.getErrs[idx] != nil {
+			return nil, s.getErrs[idx]
+		}
+		// nil entry in getErrs → fall through to story lookup
+	} else if s.getErr != nil {
 		return nil, s.getErr
 	}
 
-	if s.getStory != nil {
+	// Per-call story sequence.
+	if len(s.getStories) > 0 {
+		sidx := s.getCallCount - 1
+
+		if sidx >= len(s.getStories) {
+			sidx = len(s.getStories) - 1
+		}
+
+		if s.getStories[sidx] != nil {
+			return s.getStories[sidx], nil
+		}
+	} else if s.getStory != nil {
 		return s.getStory, nil
 	}
 

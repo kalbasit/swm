@@ -2,6 +2,7 @@
 package workspace
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -15,9 +16,11 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	clistory "github.com/kalbasit/swm/cmd/swm/internal/cli/story"
 	coreStory "github.com/kalbasit/swm/cmd/swm/internal/core/story"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
@@ -67,12 +70,26 @@ type ExecFunc func(argv0 string, argv []string, envv []string) error
 type OpenOption func(*openCmdConfig)
 
 type openCmdConfig struct {
-	exec ExecFunc
+	exec  ExecFunc
+	isTTY func() bool
+	stdin io.Reader
 }
 
 // WithExecFunc injects an alternative to syscall.Exec. Intended for tests only.
 func WithExecFunc(fn ExecFunc) OpenOption {
 	return func(c *openCmdConfig) { c.exec = fn }
+}
+
+// WithTTYCheck overrides the TTY detection used by the story-not-found prompt.
+// Intended for tests only.
+func WithTTYCheck(fn func() bool) OpenOption {
+	return func(c *openCmdConfig) { c.isTTY = fn }
+}
+
+// WithStdinReader overrides the stdin reader used by the story-not-found prompt.
+// Intended for tests only.
+func WithStdinReader(r io.Reader) OpenOption {
+	return func(c *openCmdConfig) { c.stdin = r }
 }
 
 // NewOpenCmd returns the `swm workspace open` command.
@@ -84,7 +101,11 @@ func NewOpenCmd(
 	hooks hookexec.Runner,
 	opts ...OpenOption,
 ) *cobra.Command {
-	ocfg := &openCmdConfig{exec: syscall.Exec}
+	ocfg := &openCmdConfig{
+		exec:  syscall.Exec,
+		isTTY: func() bool { return term.IsTerminal(int(os.Stdin.Fd())) },
+		stdin: os.Stdin,
+	}
 	for _, o := range opts {
 		o(ocfg)
 	}
@@ -155,10 +176,40 @@ func NewOpenCmd(
 			st, err := store.Get(ctx, storyName)
 			if err != nil {
 				if errors.Is(err, coreStory.ErrStoryNotFound) {
-					return fmt.Errorf("%w: %s", coreStory.ErrStoryNotFound, storyName)
-				}
+					if !ocfg.isTTY() {
+						return fmt.Errorf("%w: %s", coreStory.ErrStoryNotFound, storyName)
+					}
 
-				return fmt.Errorf("loading story %q: %w", storyName, err)
+					fmt.Fprintf(os.Stderr, "Story %q does not exist. Create it? [y/N]: ", storyName)
+
+					// ReadString returns io.EOF on last line without newline; that's fine — treat partial read as the answer.
+					answer, readErr := bufio.NewReader(ocfg.stdin).ReadString('\n')
+					if readErr != nil && !errors.Is(readErr, io.EOF) {
+						return fmt.Errorf("%w: %s", coreStory.ErrStoryNotFound, storyName)
+					}
+
+					answer = strings.TrimSpace(answer)
+
+					if answer != "y" && answer != "Y" {
+						return fmt.Errorf("%w: %s", coreStory.ErrStoryNotFound, storyName)
+					}
+
+					branch, branchErr := clistory.BranchFromTemplate(cfg.Story.BranchNameTemplate, storyName)
+					if branchErr != nil {
+						return fmt.Errorf("deriving branch name: %w", branchErr)
+					}
+
+					if err := clistory.CreateWithHooks(ctx, store, hooks, cfg.CodeRoot, storyName, branch); err != nil {
+						return err
+					}
+
+					st, err = store.Get(ctx, storyName)
+					if err != nil {
+						return fmt.Errorf("loading story %q after creation: %w", storyName, err)
+					}
+				} else {
+					return fmt.Errorf("loading story %q: %w", storyName, err)
+				}
 			}
 
 			slog.DebugContext(
