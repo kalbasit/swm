@@ -1100,6 +1100,23 @@ func TestOpenCmd_Completion_StoreError_ReturnsError(t *testing.T) {
 	require.Empty(t, completions)
 }
 
+func TestOpenCmd_Completion_ArgAlreadyProvided_NoMoreCompletions(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{
+		listStories: []*coreStory.Story{{Name: testStoryName}, {Name: testDefaultStory}},
+	}
+	mgr := &stubMgr{}
+	resolver := layout.NewResolver(testCodeRoot, testDefaultStory)
+
+	cmd := workspace.NewOpenCmd(cfg, store, mgr, resolver, hookexec.Noop)
+
+	completions, directive := cmd.ValidArgsFunction(cmd, []string{testStoryName}, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	require.Empty(t, completions)
+}
+
 // stubStore is a minimal story.Store.
 type stubStore struct {
 	getStory     *coreStory.Story

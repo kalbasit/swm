@@ -267,3 +267,19 @@ func TestRemoveCmd_Completion_StoreError_ReturnsError(t *testing.T) {
 	require.Equal(t, cobra.ShellCompDirectiveError, directive)
 	require.Empty(t, completions)
 }
+
+func TestRemoveCmd_Completion_ArgAlreadyProvided_NoMoreCompletions(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{
+		listStories: []*coreStory.Story{{Name: testStoryName}, {Name: testBugName}},
+	}
+	mgr := &stubManager{}
+	resolver := layout.NewResolver("/code", "_default")
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+
+	completions, directive := cmd.ValidArgsFunction(cmd, []string{testStoryName}, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	require.Empty(t, completions)
+}
