@@ -6,6 +6,7 @@
 *.dylib
 cmd/swm/swm
 plugins/*/swm-plugin-*
+/.dev-bin/
 
 # Test binary, built with `go test -c`
 *.test

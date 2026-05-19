@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/adrg/xdg"
@@ -280,9 +281,22 @@ func (m *Manager) capabilityName(capability string) (string, error) {
 }
 
 // discover finds the binary for the plugin providing the given capability with the given name.
-// Search order: (1) explicit config path, (2) XDG plugins dir, (3) PATH.
+// Search order: (0) SWM_PLUGIN_PATH dirs, (1) explicit config path, (2) XDG plugins dir, (3) PATH.
 func (m *Manager) discover(capability, name string) (string, error) {
 	binary := "swm-plugin-" + capability + "-" + name
+
+	// 0. SWM_PLUGIN_PATH: colon-separated list, searched left-to-right.
+	// Non-existent or non-directory entries are silently skipped.
+	for _, dir := range strings.Split(os.Getenv("SWM_PLUGIN_PATH"), ":") {
+		if dir == "" {
+			continue
+		}
+
+		candidate := filepath.Join(dir, binary)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+	}
 
 	// 1. Explicit config path.
 	if explicit, ok := m.cfg.Plugins.Paths[name]; ok {

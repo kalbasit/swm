@@ -29,6 +29,8 @@
             goVersion = pkgs.go.version;
           in
           ''
+            export PATH="$PWD/scripts:$PATH"
+
             ${config.pre-commit.installationScript}
 
             if [[ ! -f go.work ]]; then

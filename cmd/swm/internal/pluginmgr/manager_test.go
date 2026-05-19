@@ -271,6 +271,121 @@ func TestGet_NoDebugLogs_AtWarnLevel(t *testing.T) { //nolint:paralleltest // mu
 	require.NotContains(t, sink.String(), `"@level":"trace"`)
 }
 
+// copyBinary copies src to dst with executable permissions.
+func copyBinary(t *testing.T, src, dst string) {
+	t.Helper()
+
+	data, err := os.ReadFile(src) //nolint:gosec // reading trusted test binary
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(dst, data, 0o755)) //nolint:gosec // binary must be executable
+}
+
+func TestDiscover_SWMPluginPath(t *testing.T) {
+	// Cannot use t.Parallel with t.Setenv.
+
+	t.Run("finds binary in SWM_PLUGIN_PATH", func(t *testing.T) {
+		dir := t.TempDir()
+		copyBinary(t, fakeVCSBin, filepath.Join(dir, "swm-plugin-vcs-fake"))
+		t.Setenv("SWM_PLUGIN_PATH", dir)
+
+		mgr := pluginmgr.New(newCfg("", fakePluginName), "")
+		defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+		raw, err := mgr.Get(context.Background(), "vcs")
+		require.NoError(t, err)
+		require.NotNil(t, raw)
+	})
+
+	t.Run("takes precedence over PATH", func(t *testing.T) {
+		devDir := t.TempDir()
+		sysDir := t.TempDir()
+
+		copyBinary(t, fakeVCSBin, filepath.Join(devDir, "swm-plugin-vcs-fake"))
+		// dummy file on PATH — valid executable size but not a go-plugin binary
+		require.NoError(t, os.WriteFile(filepath.Join(sysDir, "swm-plugin-vcs-fake"), []byte("#!/bin/sh\nexit 1"), 0o755)) //nolint:gosec // test dummy
+
+		t.Setenv("SWM_PLUGIN_PATH", devDir)
+		t.Setenv("PATH", sysDir+string(filepath.ListSeparator)+os.Getenv("PATH"))
+
+		mgr := pluginmgr.New(newCfg("", fakePluginName), "")
+		defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+		raw, err := mgr.Get(context.Background(), "vcs")
+		require.NoError(t, err)
+		require.NotNil(t, raw)
+	})
+
+	t.Run("takes precedence over explicit config path", func(t *testing.T) {
+		devDir := t.TempDir()
+
+		copyBinary(t, fakeVCSBin, filepath.Join(devDir, "swm-plugin-vcs-fake"))
+
+		// dummy file at explicit config path — exists but not a real plugin
+		dummyPath := filepath.Join(t.TempDir(), "swm-plugin-vcs-fake")
+		require.NoError(t, os.WriteFile(dummyPath, []byte("#!/bin/sh\nexit 1"), 0o755)) //nolint:gosec // test dummy
+
+		t.Setenv("SWM_PLUGIN_PATH", devDir)
+
+		cfg := &config.Config{
+			Plugins: config.Plugins{
+				VCS:   fakePluginName,
+				Paths: map[string]string{fakePluginName: dummyPath},
+			},
+		}
+
+		mgr := pluginmgr.New(cfg, "")
+		defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+		raw, err := mgr.Get(context.Background(), "vcs")
+		require.NoError(t, err)
+		require.NotNil(t, raw)
+	})
+
+	t.Run("colon-separated list searched left-to-right", func(t *testing.T) {
+		dir1 := t.TempDir()
+		dir2 := t.TempDir()
+
+		// Binary only in dir2.
+		copyBinary(t, fakeVCSBin, filepath.Join(dir2, "swm-plugin-vcs-fake"))
+		t.Setenv("SWM_PLUGIN_PATH", dir1+":"+dir2)
+
+		mgr := pluginmgr.New(newCfg("", fakePluginName), "")
+		defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+		raw, err := mgr.Get(context.Background(), "vcs")
+		require.NoError(t, err)
+		require.NotNil(t, raw)
+	})
+
+	t.Run("non-existent entries silently skipped", func(t *testing.T) {
+		realDir := t.TempDir()
+		copyBinary(t, fakeVCSBin, filepath.Join(realDir, "swm-plugin-vcs-fake"))
+		t.Setenv("SWM_PLUGIN_PATH", "/nonexistent-pluginmgr-test:"+realDir)
+
+		mgr := pluginmgr.New(newCfg("", fakePluginName), "")
+		defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+		raw, err := mgr.Get(context.Background(), "vcs")
+		require.NoError(t, err)
+		require.NotNil(t, raw)
+	})
+
+	t.Run("unset leaves existing discovery unchanged", func(t *testing.T) {
+		t.Setenv("SWM_PLUGIN_PATH", "")
+
+		dir := t.TempDir()
+		copyBinary(t, fakeVCSBin, filepath.Join(dir, "swm-plugin-vcs-fake"))
+		t.Setenv("PATH", dir+string(filepath.ListSeparator)+os.Getenv("PATH"))
+
+		mgr := pluginmgr.New(newCfg("", fakePluginName), "")
+		defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+		raw, err := mgr.Get(context.Background(), "vcs")
+		require.NoError(t, err)
+		require.NotNil(t, raw)
+	})
+}
+
 func TestGet_DebugLogs_AtDebugLevel(t *testing.T) { //nolint:paralleltest // mutates slog.Default global state
 	original := slog.Default()
 
