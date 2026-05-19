@@ -32,11 +32,21 @@
           };
 
           doCheck = true;
-          nativeBuildInputs = [ pkgs.git ];
+          nativeBuildInputs = [
+            pkgs.git
+            pkgs.installShellFiles
+          ];
 
           preCheck = ''
             export XDG_RUNTIME_DIR=$(mktemp -d)
             export HOME=$(mktemp -d)
+          '';
+
+          postInstall = ''
+            installShellCompletion --cmd swm \
+              --bash <($out/bin/swm completion bash) \
+              --zsh  <($out/bin/swm completion zsh)  \
+              --fish <($out/bin/swm completion fish)
           '';
 
           meta = {
