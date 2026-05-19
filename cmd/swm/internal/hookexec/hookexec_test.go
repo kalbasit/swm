@@ -106,8 +106,6 @@ func installFakehook(t *testing.T, tierDir, event, name string) {
 }
 
 func TestRun_NoHooksExist(t *testing.T) {
-	t.Parallel()
-
 	// No hooks exist — should succeed silently.
 	cfg := hookexec.RunConfig{
 		Event:      "pre-story-create",
@@ -120,8 +118,6 @@ func TestRun_NoHooksExist(t *testing.T) {
 }
 
 func TestRun_LexicalOrder(t *testing.T) {
-	t.Parallel()
-
 	configHome := t.TempDir()
 
 	sentinelDir := t.TempDir()
@@ -175,8 +171,6 @@ func TestRun_PreHookAborts(t *testing.T) {
 }
 
 func TestRun_PostHookFailsButContinues(t *testing.T) {
-	t.Parallel()
-
 	configHome := t.TempDir()
 
 	sentinelDir := t.TempDir()
@@ -200,8 +194,6 @@ func TestRun_PostHookFailsButContinues(t *testing.T) {
 }
 
 func TestRun_EnvVarsSet(t *testing.T) {
-	t.Parallel()
-
 	configHome := t.TempDir()
 
 	logFile := filepath.Join(t.TempDir(), "env.log")
@@ -236,8 +228,6 @@ func TestRun_EnvVarsSet(t *testing.T) {
 }
 
 func TestRun_StdinJSON(t *testing.T) {
-	t.Parallel()
-
 	configHome := t.TempDir()
 
 	logFile := filepath.Join(t.TempDir(), "stdin.log")
@@ -268,8 +258,6 @@ func TestRun_StdinJSON(t *testing.T) {
 }
 
 func TestRun_WorkDirIsSet(t *testing.T) {
-	t.Parallel()
-
 	configHome := t.TempDir()
 	workDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "pwd.log")
@@ -293,8 +281,6 @@ func TestRun_WorkDirIsSet(t *testing.T) {
 }
 
 func TestRun_WorkDirEmpty_InheritsCwd(t *testing.T) {
-	t.Parallel()
-
 	configHome := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "pwd.log")
 
