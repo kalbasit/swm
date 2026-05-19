@@ -38,14 +38,14 @@
               if [[ ! -f go.work ]]; then
                 go work init
               fi
-              for __go_mod__ in cmd/**/go.mod sdk/**/go.mod plugins/**/go.mod proto/go.mod; do
+              while IFS= read -r __go_mod__; do
                 go work use "$(dirname "$__go_mod__")"
-              done
-              for __go_mod__ in go.work cmd/**/go.mod sdk/**/go.mod plugins/**/go.mod proto/go.mod; do
+              done < <(${pkgs.findutils}/bin/find cmd sdk plugins proto -name go.mod)
+              while IFS= read -r __go_mod__; do
                 if [[ "$(${pkgs.gnugrep}/bin/grep '^\(go \)[0-9.]*$' "$__go_mod__")" != "go ${goVersion}" ]]; then
                   ${pkgs.gnused}/bin/sed -e "s:^\(go \)[0-9.]*$:\1${goVersion}:" -i "$__go_mod__"
                 fi
-              done
+              done < <({ echo "go.work"; ${pkgs.findutils}/bin/find cmd sdk plugins proto -name go.mod; })
             ) 200>"$PWD/go.work.lock"
           '';
       };
