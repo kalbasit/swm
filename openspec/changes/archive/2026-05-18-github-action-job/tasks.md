@@ -8,4 +8,4 @@
 
 - [x] 2.1 Confirm the guard job passes on the current branch (no active changes other than `archive`)
 - [x] 2.2 Manually verify the check logic: create a dummy directory under `openspec/changes/` locally and confirm `find` returns it; remove the directory
-- [ ] 2.3 Open a draft PR and confirm the `ci` check fails when an active change is present, and passes after archiving it
+- [x] 2.3 Open a draft PR and confirm the `ci` check fails when an active change is present, and passes after archiving it
