@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Development wrapper: builds swm and all plugins from source, then execs swm
+# with SWM_PLUGIN_PATH set so the freshly built binaries take priority.
+#
+# Usage (inside devshell):  swm-dev <swm-args>
+# Usage (outside direnv):   ./scripts/swm-dev <swm-args>
+set -euo pipefail
+shopt -s globstar nullglob
+
+REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
+DEV_BIN="$REPO_ROOT/.dev-bin"
+
+mkdir -p "$DEV_BIN"
+
+# Ensure go.work exists so go build resolves the local modules correctly.
+if [[ ! -f "$REPO_ROOT/go.work" ]]; then
+  (cd "$REPO_ROOT" && go work init)
+  for mod in cmd/**/go.mod sdk/**/go.mod plugins/**/go.mod proto/go.mod; do
+    (cd "$REPO_ROOT" && go work use "$(dirname "$mod")")
+  done
+fi
+
+echo "swm-dev: building swm..." >&2
+go build -o "$DEV_BIN/swm" "$REPO_ROOT/cmd/swm"
+
+for plugin_dir in "$REPO_ROOT"/plugins/*/; do
+  plugin_name="$(basename "$plugin_dir")"
+  binary_name="swm-plugin-$plugin_name"
+  echo "swm-dev: building $binary_name..." >&2
+  go build -o "$DEV_BIN/$binary_name" "$plugin_dir"
+done
+
+export SWM_PLUGIN_PATH="$DEV_BIN"
+exec "$DEV_BIN/swm" "$@"
