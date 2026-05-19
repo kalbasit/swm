@@ -96,7 +96,7 @@ Place a `laio.yaml` inside the repository (e.g. `.swm/laio.yaml`) and reference 
 ```toml
 # config.toml
 [plugins.config.session-tmux]
-pane_group_command = "laio start --file '{{worktree_path}}/.swm/laio.yaml' --tmux-socket '{{tmux_socket}}' --skip-attach"
+pane_group_command = "laio start --file '{{worktree_path}}/.swm/laio.yaml' --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"
 ```
 
 `path: .` in the laio.yaml resolves relative to the config file, which lives inside the
@@ -122,17 +122,21 @@ windows:
 ```toml
 # config.toml
 [plugins.config.session-tmux]
-pane_group_command = "laio start --file ~/.config/swm/laio.yaml --tmux-socket '{{tmux_socket}}' --skip-attach --var path='{{worktree_path}}'"
+pane_group_command = "laio start --file ~/.config/swm/laio.yaml --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach --var path='{{worktree_path}}'"
 ```
 
 See [`examples/laio.yaml`](examples/laio.yaml) for a complete annotated sample.
 
-### Why `--skip-attach` is required
+### Why `--replace-current-session` and `--skip-attach` are required
 
 laio is invoked inside an already-attached tmux session (the one swm just created and switched
-into). Calling `attach-session` or `switch-client` from inside a detached pane would either
-fail silently or have no effect. `--skip-attach` tells laio to configure the session without
-trying to attach.
+into). Two flags are needed:
+
+- `--replace-current-session` — without this flag, laio creates or switches to a new named
+  session instead of reconfiguring the one swm already attached to. This flag tells laio to
+  apply the layout to the current session in place.
+- `--skip-attach` — laio would otherwise attempt to call `attach-session` or `switch-client`,
+  which fails silently or has no effect from inside an active session.
 
 ## Limitations
 

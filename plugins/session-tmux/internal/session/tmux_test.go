@@ -27,8 +27,8 @@ const (
 
 	// testLaioPaneGroupCommandTOML is the canonical pane_group_command used in tests.
 	testLaioPaneGroupCommandTOML = `pane_group_command = "laio start` +
-		` --file {{worktree_path}}/.swm/laio.yaml` +
-		` --tmux-socket {{tmux_socket}} --skip-attach"`
+		` --file '{{worktree_path}}/.swm/laio.yaml'` +
+		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
 )
 
 var faketmuxBin string
@@ -376,8 +376,8 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
 
-	wantCmd := "laio start --file /tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml" +
-		" --tmux-socket " + sockPath + " --skip-attach"
+	wantCmd := "laio start --file '/tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml'" +
+		" --tmux-socket '" + sockPath + "' --replace-current-session --skip-attach"
 
 	log := string(logBytes)
 	require.Contains(t, log, wantCmd, "expected substituted pane_group_command in tmux args")
@@ -412,7 +412,7 @@ func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
 	require.NoError(t, err)
 
 	log := string(logBytes)
-	require.Contains(t, log, "--tmux-socket "+sockPath,
+	require.Contains(t, log, "--tmux-socket '"+sockPath+"'",
 		"{{tmux_socket}} must be substituted with the workspace socket path")
 }
 
