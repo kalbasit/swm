@@ -49,8 +49,31 @@ func TestMain(m *testing.M) {
 func writeScript(t *testing.T, path, body string) {
 	t.Helper()
 
-	//nolint:gosec // G306: hook scripts must be executable
-	require.NoError(t, os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o750))
+	// Write to a temp file in the same dir, then rename atomically. This
+	// ensures the target inode has no open write fd when exec'd, preventing
+	// ETXTBSY on Linux when parallel goroutines fork while this write is in
+	// flight.
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".hook-*")
+	require.NoError(t, err)
+
+	_, err = tmp.WriteString("#!/bin/sh\n" + body)
+	if err == nil {
+		err = tmp.Chmod(0o750)
+	}
+
+	if err == nil {
+		err = tmp.Close()
+	} else {
+		tmp.Close() //nolint:errcheck,gosec // G104: best-effort close before cleanup
+	}
+
+	if err != nil {
+		os.Remove(tmp.Name()) //nolint:errcheck,gosec // G104: best-effort cleanup
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, os.Rename(tmp.Name(), path))
 }
 
 // installScript installs a shell script as an executable hook in tier/eventDir/name.
@@ -73,8 +96,29 @@ func installFakehook(t *testing.T, tierDir, event, name string) {
 	data, err := os.ReadFile(fakehookBin) //nolint:gosec // G304: reading trusted test binary
 	require.NoError(t, err)
 
-	//nolint:gosec // G306: hook binary must be executable
-	require.NoError(t, os.WriteFile(filepath.Join(hookDir, name), data, 0o750))
+	// Write via temp-then-rename to avoid ETXTBSY when the binary is exec'd
+	// immediately after writing on Linux (same race as writeScript above).
+	finalPath := filepath.Join(hookDir, name)
+	tmp, err := os.CreateTemp(hookDir, ".fakehook-*")
+	require.NoError(t, err)
+
+	_, err = tmp.Write(data)
+	if err == nil {
+		err = tmp.Chmod(0o750)
+	}
+
+	if err == nil {
+		err = tmp.Close()
+	} else {
+		tmp.Close() //nolint:errcheck,gosec // G104: best-effort close before cleanup
+	}
+
+	if err != nil {
+		os.Remove(tmp.Name()) //nolint:errcheck,gosec // G104: best-effort cleanup
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, os.Rename(tmp.Name(), finalPath))
 }
 
 func TestRun_NoHooksExist(t *testing.T) {
