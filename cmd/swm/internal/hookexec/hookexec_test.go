@@ -45,12 +45,37 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// atomicInstallExec writes content to a temp file in dir via write, marks it
+// executable (0o750), and atomically renames it to finalPath. A deferred
+// cleanup removes the temp file if any step fails — including a failed rename
+// — preventing ETXTBSY on Linux: the final inode has no open write fd by the
+// time it is visible at finalPath.
+func atomicInstallExec(t *testing.T, dir, finalPath string, write func(*os.File) error) {
+	t.Helper()
+
+	tmp, err := os.CreateTemp(dir, ".exec-*")
+	require.NoError(t, err)
+
+	defer func() {
+		_ = tmp.Close()           //nolint:errcheck // best-effort: file may already be closed
+		_ = os.Remove(tmp.Name()) //nolint:errcheck // best-effort: file may have been renamed
+	}()
+
+	require.NoError(t, write(tmp))
+	require.NoError(t, tmp.Chmod(0o750))
+	require.NoError(t, tmp.Close())
+	require.NoError(t, os.Rename(tmp.Name(), finalPath))
+}
+
 // writeScript writes an executable shell script to path.
 func writeScript(t *testing.T, path, body string) {
 	t.Helper()
 
-	//nolint:gosec // G306: hook scripts must be executable
-	require.NoError(t, os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o750))
+	atomicInstallExec(t, filepath.Dir(path), path, func(f *os.File) error {
+		_, err := f.WriteString("#!/bin/sh\n" + body)
+
+		return err
+	})
 }
 
 // installScript installs a shell script as an executable hook in tier/eventDir/name.
@@ -73,8 +98,11 @@ func installFakehook(t *testing.T, tierDir, event, name string) {
 	data, err := os.ReadFile(fakehookBin) //nolint:gosec // G304: reading trusted test binary
 	require.NoError(t, err)
 
-	//nolint:gosec // G306: hook binary must be executable
-	require.NoError(t, os.WriteFile(filepath.Join(hookDir, name), data, 0o750))
+	atomicInstallExec(t, hookDir, filepath.Join(hookDir, name), func(f *os.File) error {
+		_, err := f.Write(data)
+
+		return err
+	})
 }
 
 func TestRun_NoHooksExist(t *testing.T) {
