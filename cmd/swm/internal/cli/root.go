@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	cliconfig "github.com/kalbasit/swm/cmd/swm/internal/cli/config"
 	coreStory "github.com/kalbasit/swm/cmd/swm/internal/core/story"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
@@ -28,6 +29,7 @@ type PluginManager interface {
 
 // NewRootCmd builds the top-level swm cobra.Command.
 func NewRootCmd(
+	cfgPath string,
 	cfg *config.Config,
 	mgr PluginManager,
 	store coreStory.Store,
@@ -79,6 +81,8 @@ func NewRootCmd(
 	prGroup.AddCommand(pr.NewListCmd(store, mgr, cfg))
 	prGroup.AddCommand(pr.NewCreateCmd(mgr, resolver, store, cfg))
 	root.AddCommand(prGroup)
+
+	root.AddCommand(cliconfig.NewConfigCmd(cfgPath, cfg))
 
 	return root
 }

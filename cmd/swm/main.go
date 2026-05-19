@@ -20,7 +20,9 @@ import (
 var version = "v2.0.0-dev"
 
 func main() {
-	cfg, err := config.Load(config.ResolveConfigPath(os.Getenv("SWM_CONFIG"), xdg.ConfigHome))
+	cfgPath := config.ResolveConfigPath(os.Getenv("SWM_CONFIG"), xdg.ConfigHome)
+
+	cfg, err := config.Load(cfgPath)
 	if err != nil && !errors.Is(err, config.ErrConfigNotFound) {
 		fmt.Fprintf(os.Stderr, "swm: loading config: %v\n", err)
 		os.Exit(1)
@@ -44,7 +46,7 @@ func main() {
 	mgr := pluginmgr.New(cfg, hostSrv.SocketPath())
 	defer mgr.Close() //nolint:errcheck // best-effort close on exit
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd(cfgPath, cfg, mgr, store, resolver)
 	root.Version = version
 
 	if err := root.Execute(); err != nil {

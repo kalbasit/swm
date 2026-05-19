@@ -16,7 +16,7 @@ func TestCompletionCmd_HiddenFromHelp(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	root := cli.NewRootCmd(config.Defaults(), &stubMgr{}, nil, layout.NewResolver("", ""))
+	root := cli.NewRootCmd("", config.Defaults(), &stubMgr{}, nil, layout.NewResolver("", ""))
 	root.SetOut(&buf)
 	root.SetArgs([]string{"--help"})
 
@@ -33,7 +33,7 @@ func TestCompletionCmd(t *testing.T) {
 
 			var buf bytes.Buffer
 
-			root := cli.NewRootCmd(config.Defaults(), &stubMgr{}, nil, layout.NewResolver("", ""))
+			root := cli.NewRootCmd("", config.Defaults(), &stubMgr{}, nil, layout.NewResolver("", ""))
 			root.SetOut(&buf)
 			root.SetArgs([]string{"completion", shell})
 

@@ -115,7 +115,7 @@ func TestCloneAndStoryCreate(t *testing.T) {
 	srcRepo := initLocalRepo(t)
 	fileURL := "file://" + srcRepo
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdClone, fileURL})
 	require.NoError(t, root.Execute())
 
@@ -126,7 +126,7 @@ func TestCloneAndStoryCreate(t *testing.T) {
 		"expected .git at canonical path %s", canonical)
 
 	// Create a story.
-	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root2 := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root2.SetArgs([]string{cmdGroupStory, cmdCreate, testStoryName})
 	require.NoError(t, root2.Execute())
 
@@ -150,7 +150,7 @@ func TestStoryRemove(t *testing.T) {
 	require.NoError(t, err)
 
 	// Remove story (no projects, so no VCS calls needed).
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdGroupStory, cmdRemove, flagForce, testStoryName})
 	require.NoError(t, root.Execute())
 
@@ -168,7 +168,7 @@ func TestStoryRemove_NoArg_SWMStorySet(t *testing.T) {
 	_, err := store.Create(t.Context(), testStoryName, "feat/"+testStoryName)
 	require.NoError(t, err)
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdGroupStory, cmdRemove, flagForce}) // no name arg
 	require.NoError(t, root.Execute())
 
@@ -185,7 +185,7 @@ func TestStoryRemove_NoArg_SWMStoryUnset_ReturnsError(t *testing.T) {
 	_, err := store.Create(t.Context(), testStoryName, "feat/"+testStoryName)
 	require.NoError(t, err)
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdGroupStory, cmdRemove, flagForce}) // no name, no env
 	require.Error(t, root.Execute(), "should error when neither arg nor $SWM_STORY is set")
 
@@ -202,7 +202,7 @@ func TestStoryRemove_ExplicitArg_OverridesSWMStory(t *testing.T) {
 	_, err := store.Create(t.Context(), testStoryName, "feat/"+testStoryName)
 	require.NoError(t, err)
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdGroupStory, cmdRemove, flagForce, testStoryName}) // explicit arg
 	require.NoError(t, root.Execute())
 
@@ -260,7 +260,7 @@ func TestWorkspaceOpenWithPicker(t *testing.T) {
 	srcRepo := initLocalRepo(t)
 	fileURL := "file://" + srcRepo
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdClone, fileURL})
 	require.NoError(t, root.Execute())
 
@@ -270,7 +270,7 @@ func TestWorkspaceOpenWithPicker(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root2 := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root2.SetArgs([]string{cmdGroupWorkspace, cmdOpen, testStoryName})
 	root2.SetOut(&buf)
 	require.NoError(t, root2.Execute())
@@ -346,14 +346,14 @@ func TestWorkspaceOpenWithStoryPicker(t *testing.T) { //nolint:paralleltest // u
 	srcRepo := initLocalRepo(t)
 	fileURL := "file://" + srcRepo
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdClone, fileURL})
 	require.NoError(t, root.Execute())
 
 	// Run workspace open with NO story argument — story picker must be shown.
 	var buf bytes.Buffer
 
-	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root2 := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root2.SetArgs([]string{cmdGroupWorkspace, cmdOpen}) // no story name
 	root2.SetOut(&buf)
 	require.NoError(t, root2.Execute())
@@ -388,7 +388,7 @@ func TestWorkspaceOpenWithSWMStorySkipsStoryPicker(t *testing.T) {
 	srcRepo := initLocalRepo(t)
 	fileURL := "file://" + srcRepo
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdClone, fileURL})
 	require.NoError(t, root.Execute())
 
@@ -397,7 +397,7 @@ func TestWorkspaceOpenWithSWMStorySkipsStoryPicker(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root2 := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root2.SetArgs([]string{cmdGroupWorkspace, cmdOpen}) // no positional arg
 	root2.SetOut(&buf)
 	require.NoError(t, root2.Execute())
@@ -432,13 +432,13 @@ func TestWorkspaceOpenWithPositionalArgSkipsStoryPicker(t *testing.T) { //nolint
 	srcRepo := initLocalRepo(t)
 	fileURL := "file://" + srcRepo
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdClone, fileURL})
 	require.NoError(t, root.Execute())
 
 	var buf bytes.Buffer
 
-	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root2 := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root2.SetArgs([]string{cmdGroupWorkspace, cmdOpen, testStoryName}) // positional arg provided
 	root2.SetOut(&buf)
 	require.NoError(t, root2.Execute())
@@ -470,13 +470,13 @@ func TestWorkspaceOpenStoryPickerRespectsTerminalWidth(t *testing.T) {
 	srcRepo := initLocalRepo(t)
 	fileURL := "file://" + srcRepo
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdClone, fileURL})
 	require.NoError(t, root.Execute())
 
 	var buf bytes.Buffer
 
-	root2 := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root2 := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root2.SetArgs([]string{cmdGroupWorkspace, cmdOpen}) // no story name — triggers story picker
 	root2.SetOut(&buf)
 	require.NoError(t, root2.Execute())
@@ -499,7 +499,7 @@ func TestWorkspaceOpen(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	root := cli.NewRootCmd(cfg, mgr, store, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
 	root.SetArgs([]string{cmdGroupWorkspace, cmdOpen, testStoryName})
 	root.SetOut(&buf)
 	require.NoError(t, root.Execute())
@@ -598,7 +598,7 @@ func TestPRListAndCreate(t *testing.T) {
 	// --- pr list ---
 	var listBuf bytes.Buffer
 
-	root := cli.NewRootCmd(cfg, mgr, st, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, st, resolver)
 	root.SetArgs([]string{"pr", "list", flagStory, "feat-pr"})
 	root.SetOut(&listBuf)
 	require.NoError(t, root.Execute())
@@ -615,7 +615,7 @@ func TestPRListAndCreate(t *testing.T) {
 
 	var createBuf bytes.Buffer
 
-	root2 := cli.NewRootCmd(cfg, mgr, st, resolver)
+	root2 := cli.NewRootCmd("", cfg, mgr, st, resolver)
 	root2.SetArgs([]string{"pr", "create", "--title", "New PR", "--head", "feat/new"})
 	root2.SetOut(&createBuf)
 	require.NoError(t, root2.Execute())
@@ -642,7 +642,7 @@ func TestHooksRunOnStoryCreate(t *testing.T) {
 	cfg, resolver, st, mgr := setupEnv(t)
 	cfg.HooksConfigHome = hooksConfigHome
 
-	root := cli.NewRootCmd(cfg, mgr, st, resolver)
+	root := cli.NewRootCmd("", cfg, mgr, st, resolver)
 	root.SetArgs([]string{cmdGroupStory, cmdCreate, testStoryName})
 	require.NoError(t, root.Execute())
 
