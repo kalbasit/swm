@@ -199,19 +199,22 @@ func (m *Manager) Warm(ctx context.Context, capabilities ...string) error {
 	bgCtx := context.WithoutCancel(ctx)
 
 	for _, c := range capabilities {
-		stored, _ := m.launched.LoadOrStore(c, &launchOnce{})
+		stored, loaded := m.launched.LoadOrStore(c, &launchOnce{})
+		if loaded {
+			continue
+		}
 
 		lo, ok := stored.(*launchOnce)
 		if !ok {
 			continue
 		}
 
-		go func() {
+		go func(capability string) {
 			lo.once.Do(func() {
-				lo.client, lo.raw, lo.err = m.launch(bgCtx, c)
+				lo.client, lo.raw, lo.err = m.launch(bgCtx, capability)
 				lo.done.Store(true)
 			})
-		}()
+		}(c)
 	}
 
 	return nil

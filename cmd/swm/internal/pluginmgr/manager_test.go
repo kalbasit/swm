@@ -516,6 +516,36 @@ func TestWarm_AlreadyLaunchedNotRelaunched(t *testing.T) {
 	require.Equal(t, raw1, raw2, "Warm must not relaunch an already-running plugin")
 }
 
+func TestWarm_CalledTwiceDoesNotRelaunch(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
+		Plugins: config.Plugins{
+			VCS: fakePluginName,
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	mgr := pluginmgr.New(cfg, "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	// Two Warm calls for the same capability must not relaunch the plugin.
+	require.NoError(t, mgr.Warm(context.Background(), "vcs"))
+	require.NoError(t, mgr.Warm(context.Background(), "vcs"))
+
+	raw1, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+	require.NotNil(t, raw1)
+
+	raw2, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+	require.Equal(t, raw1, raw2, "Warm called twice must not relaunch the plugin")
+}
+
 func TestGet_FailedLaunchIsCached(t *testing.T) {
 	t.Parallel()
 
