@@ -11,7 +11,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -135,19 +134,12 @@ func NewOpenCmd(
 			"environment variable, and then to the default story configured in swm.",
 		Args: cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			// Warm picker concurrently but discard its error — picker is optional;
-			// RunE silently falls back to non-interactive mode when it is absent.
-			var wg sync.WaitGroup
+			// Fire background startup for all three capabilities; errors surface in
+			// RunE when the plugin is first used via Get.
+			//nolint:errcheck,gosec // Warm always returns nil; errors deferred to Get
+			mgr.Warm(cmd.Context(), "picker", "session", "vcs")
 
-			wg.Go(func() {
-				_ = mgr.Warm(cmd.Context(), "picker") //nolint:errcheck // picker is optional
-			})
-
-			err := mgr.Warm(cmd.Context(), "session", "vcs")
-
-			wg.Wait()
-
-			return err
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

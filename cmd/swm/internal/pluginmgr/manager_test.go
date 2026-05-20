@@ -427,7 +427,8 @@ func TestWarm_StartsBothConcurrently(t *testing.T) {
 	mgr := pluginmgr.New(cfg, "")
 	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
 
-	// Warm starts both plugins; both must be accessible afterwards.
+	// Warm fires background goroutines and returns immediately; both plugins must
+	// be accessible via Get once they finish starting.
 	require.NoError(t, mgr.Warm(context.Background(), "vcs", "picker"))
 
 	rawVCS, err := mgr.Get(context.Background(), "vcs")
@@ -439,7 +440,7 @@ func TestWarm_StartsBothConcurrently(t *testing.T) {
 	require.NotNil(t, rawPicker)
 }
 
-func TestWarm_ReturnsFirstError(t *testing.T) {
+func TestWarm_ReturnsNilImmediately(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{
@@ -457,7 +458,31 @@ func TestWarm_ReturnsFirstError(t *testing.T) {
 	mgr := pluginmgr.New(cfg, "")
 	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
 
-	err := mgr.Warm(context.Background(), "vcs", "picker")
+	// Warm must return nil even when a capability will fail to launch.
+	require.NoError(t, mgr.Warm(context.Background(), "vcs", "picker"))
+}
+
+func TestWarm_ErrorSurfacedByGet(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
+		Plugins: config.Plugins{
+			VCS:    fakePluginName,
+			Picker: "nonexistent",
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	mgr := pluginmgr.New(cfg, "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	require.NoError(t, mgr.Warm(context.Background(), "picker"))
+
+	_, err := mgr.Get(context.Background(), "picker")
 	require.Error(t, err)
 }
 
