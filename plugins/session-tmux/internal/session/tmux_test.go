@@ -26,11 +26,6 @@ const (
 	testWorktree      = "/tmp/wt"
 	testPaneGroup     = testRepo
 	testPaneGroupFull = "github•com/kalbasit/swm"
-
-	// testLaioPaneGroupCommandTOML is the canonical pane_group_command used in tests.
-	testLaioPaneGroupCommandTOML = `pane_group_command = "laio start` +
-		` --file '{{worktree_path}}/.swm/laio.yaml'` +
-		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
 )
 
 var faketmuxBin string
@@ -356,8 +351,14 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 
 	sockPath := filepath.Join(socketDir, "feat-x.sock")
 
+	// Use faketmuxBin (guaranteed to exist) so binary validation passes.
+	// testLaioPaneGroupCommandTOML references laio, which may not be installed.
+	toml := `pane_group_command = "` + faketmuxBin +
+		` start --file '{{worktree_path}}/.swm/laio.yaml'` +
+		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
+
 	client := &fakeHostClient{
-		toml: []byte(testLaioPaneGroupCommandTOML),
+		toml: []byte(toml),
 	}
 
 	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
@@ -378,7 +379,7 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
 
-	wantCmd := "laio start --file '/tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml'" +
+	wantCmd := faketmuxBin + " start --file '/tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml'" +
 		" --tmux-socket '" + sockPath + "' --replace-current-session --skip-attach"
 
 	log := string(logBytes)
@@ -393,8 +394,13 @@ func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
 
 	sockPath := filepath.Join(socketDir, "feat-sock.sock")
 
+	// Use faketmuxBin (guaranteed to exist) so binary validation passes.
+	toml := `pane_group_command = "` + faketmuxBin +
+		` start --file '{{worktree_path}}/.swm/laio.yaml'` +
+		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
+
 	client := &fakeHostClient{
-		toml: []byte(testLaioPaneGroupCommandTOML),
+		toml: []byte(toml),
 	}
 
 	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
