@@ -34,6 +34,7 @@ func NewRootCmd(
 	mgr PluginManager,
 	store coreStory.Store,
 	resolver *layout.Resolver,
+	openOpts ...workspace.OpenOption,
 ) *cobra.Command {
 	var logLevel string
 
@@ -73,7 +74,7 @@ func NewRootCmd(
 	root.AddCommand(NewCloneCmd(mgr, resolver, hooks))
 
 	wsGroup := &cobra.Command{Use: "workspace", Short: "Manage workspaces"}
-	wsGroup.AddCommand(workspace.NewOpenCmd(cfg, store, mgr, resolver, hooks))
+	wsGroup.AddCommand(workspace.NewOpenCmd(cfg, store, mgr, resolver, hooks, openOpts...))
 	wsGroup.AddCommand(workspace.NewListCmd(store, cfg.DefaultStory))
 	root.AddCommand(wsGroup)
 

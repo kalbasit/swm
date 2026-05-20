@@ -9,7 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
@@ -35,6 +35,11 @@ type Server struct {
 	grpcSrv    *grpc.Server
 	socketPath string
 	fsPath     string
+
+	// scan cache — populated once per process lifetime via sync.Once.
+	scanOnce      sync.Once
+	cachedRepos   []*pluginv1.ProjectID
+	cachedScanErr error
 }
 
 // NewServer starts a Host gRPC server on a Unix socket under XDG_RUNTIME_DIR.
@@ -115,57 +120,27 @@ func (s *Server) GetCurrentStory(ctx context.Context, _ *pluginv1.Empty) (*plugi
 	return storyToProto(st), nil
 }
 
-// ListProjects walks repositories/ and streams project messages for directories
-// containing VCS markers.
+// ListProjects streams on-disk projects to the calling plugin.
+// Results are served from the scan cache populated by Projects().
 func (s *Server) ListProjects(
 	_ *pluginv1.ListProjectsRequest,
 	stream grpc.ServerStreamingServer[pluginv1.Project],
 ) error {
-	reposDir := filepath.Join(s.cfg.CodeRoot, "repositories")
+	projects, err := s.Projects(stream.Context())
+	if err != nil {
+		return status.Errorf(codes.Internal, "scanning repositories: %v", err)
+	}
 
-	var currentRootPrefix string
-
-	return filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			if os.IsNotExist(err) {
-				return nil
-			}
-
+	for _, id := range projects {
+		if err := stream.Send(&pluginv1.Project{
+			Host:     id.Host,
+			Segments: id.Segments,
+		}); err != nil {
 			return err
 		}
+	}
 
-		if !d.IsDir() {
-			return nil
-		}
-
-		// Skip any directory nested inside the current project root.
-		if currentRootPrefix != "" && strings.HasPrefix(path, currentRootPrefix) {
-			return filepath.SkipDir
-		}
-
-		if d.Name() == ".git" {
-			// Parent of .git is a project directory.
-			projectDir := filepath.Dir(path)
-			id := s.resolver.ProjectIDFromPath(projectDir)
-
-			if id == nil {
-				return nil
-			}
-
-			currentRootPrefix = projectDir + string(filepath.Separator)
-
-			if err := stream.Send(&pluginv1.Project{
-				Host:     id.Host,
-				Segments: id.Segments,
-			}); err != nil {
-				return err
-			}
-
-			return filepath.SkipDir
-		}
-
-		return nil
-	})
+	return nil
 }
 
 // Log writes a log message to the host's structured logger.
@@ -186,6 +161,18 @@ func (s *Server) Log(ctx context.Context, req *pluginv1.LogRequest) (*pluginv1.E
 	slog.Log(ctx, level, req.GetMessage(), "fields", req.GetFields())
 
 	return &pluginv1.Empty{}, nil
+}
+
+// Projects returns all on-disk repositories under the configured code root.
+// The result is scanned once and cached for the lifetime of the server process.
+// Callers such as the workspace open command can use this directly to avoid
+// a second filesystem scan.
+func (s *Server) Projects(ctx context.Context) ([]*pluginv1.ProjectID, error) {
+	s.scanOnce.Do(func() {
+		s.cachedRepos, s.cachedScanErr = s.resolver.ScanRepos(ctx)
+	})
+
+	return s.cachedRepos, s.cachedScanErr
 }
 
 // SocketPath returns the gRPC dial address for this server.

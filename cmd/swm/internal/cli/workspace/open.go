@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -33,6 +32,18 @@ import (
 // pluginManager is the subset of the CLI plugin manager used by this command.
 type pluginManager interface {
 	Get(ctx context.Context, capability string) (any, error)
+}
+
+// ProjectLister supplies the on-disk project list to the workspace open command.
+// Satisfied by *hostsvc.Server; the interface lives here per consumer-defines-interface convention.
+type ProjectLister interface {
+	Projects(ctx context.Context) ([]*pluginv1.ProjectID, error)
+}
+
+// WithProjectLister injects a custom ProjectLister (e.g. *hostsvc.Server with its scan cache).
+// If not provided, the command falls back to scanning via the resolver directly.
+func WithProjectLister(l ProjectLister) OpenOption {
+	return func(c *openCmdConfig) { c.lister = l }
 }
 
 // Sentinel errors.
@@ -70,9 +81,10 @@ type ExecFunc func(argv0 string, argv []string, envv []string) error
 type OpenOption func(*openCmdConfig)
 
 type openCmdConfig struct {
-	exec  ExecFunc
-	isTTY func() bool
-	stdin io.Reader
+	exec   ExecFunc
+	isTTY  func() bool
+	stdin  io.Reader
+	lister ProjectLister
 }
 
 // WithExecFunc injects an alternative to syscall.Exec. Intended for tests only.
@@ -102,9 +114,10 @@ func NewOpenCmd(
 	opts ...OpenOption,
 ) *cobra.Command {
 	ocfg := &openCmdConfig{
-		exec:  syscall.Exec,
-		isTTY: func() bool { return term.IsTerminal(int(os.Stdin.Fd())) },
-		stdin: os.Stdin,
+		exec:   syscall.Exec,
+		isTTY:  func() bool { return term.IsTerminal(int(os.Stdin.Fd())) },
+		stdin:  os.Stdin,
+		lister: resolver,
 	}
 	for _, o := range opts {
 		o(ocfg)
@@ -242,7 +255,7 @@ func NewOpenCmd(
 			if pickerClient != nil {
 				openErr = openWithPicker(
 					ctx, cmd, cfg, st, store, mgr, sess,
-					pickerClient, resolver, hooks, storyName, killPane, ocfg.exec,
+					pickerClient, ocfg.lister, resolver, hooks, storyName, killPane, ocfg.exec,
 				)
 				if openErr != nil {
 					slog.DebugContext(
@@ -355,6 +368,7 @@ func openWithPicker(
 	mgr pluginManager,
 	sess pluginv1.SessionClient,
 	pickerClient pluginv1.PickerClient,
+	lister ProjectLister,
 	resolver *layout.Resolver,
 	hooks hookexec.Runner,
 	storyName string,
@@ -362,7 +376,7 @@ func openWithPicker(
 	execFn ExecFunc,
 ) error {
 	// Build a deduplicated candidate set: attached projects + all on-disk repos.
-	candidates := buildCandidates(cfg.CodeRoot, st, resolver)
+	candidates := buildCandidates(ctx, lister, st)
 
 	slog.DebugContext(
 		ctx, "picker candidates built",
@@ -593,7 +607,8 @@ func openAllAttached(
 
 // buildCandidates returns a deduplicated list of project key strings,
 // combining projects already attached to the story with all repositories on disk.
-func buildCandidates(codeRoot string, st *coreStory.Story, resolver *layout.Resolver) []string {
+// Attached projects appear first so they are highlighted at the top of the picker.
+func buildCandidates(ctx context.Context, lister ProjectLister, st *coreStory.Story) []string {
 	seen := make(map[string]struct{})
 
 	var result []string
@@ -611,43 +626,15 @@ func buildCandidates(codeRoot string, st *coreStory.Story, resolver *layout.Reso
 		addKey(p.Host + "/" + strings.Join(p.Segments, "/"))
 	}
 
-	// All on-disk repositories.
-	reposDir := filepath.Join(codeRoot, "repositories")
+	// All on-disk repositories via the shared scan cache.
+	projects, err := lister.Projects(ctx)
+	if err != nil {
+		slog.Default().Debug("scanning repos failed, continuing with attached only", "err", err)
+	}
 
-	slog.Default().Debug("scanning repos dir", "path", reposDir)
-
-	var currentRootPrefix string
-
-	//nolint:errcheck // walking the repos dir is best-effort; missing repos are simply excluded
-	_ = filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil //nolint:nilerr // skip unreadable entries silently
-		}
-
-		if !d.IsDir() {
-			return nil
-		}
-
-		// Skip any directory nested inside the current project root.
-		if currentRootPrefix != "" && strings.HasPrefix(path, currentRootPrefix) {
-			return filepath.SkipDir
-		}
-
-		if d.Name() != ".git" {
-			return nil
-		}
-
-		id := resolver.ProjectIDFromPath(filepath.Dir(path))
-		if id == nil {
-			return nil
-		}
-
-		currentRootPrefix = filepath.Dir(path) + string(filepath.Separator)
-
+	for _, id := range projects {
 		addKey(id.Host + "/" + strings.Join(id.GetSegments(), "/"))
-
-		return filepath.SkipDir
-	})
+	}
 
 	return result
 }

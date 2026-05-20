@@ -93,6 +93,36 @@ func TestGetCodeRoot(t *testing.T) {
 	require.Equal(t, "/my/code", resp.GetPath())
 }
 
+func TestServer_ProjectsCachesResult(t *testing.T) {
+	t.Parallel()
+
+	codeRoot := t.TempDir()
+	require.NoError(t, os.MkdirAll(
+		filepath.Join(codeRoot, "repositories", "github.com", "user", "repo", ".git"), 0o750,
+	))
+
+	cfg := &config.Config{CodeRoot: codeRoot, DefaultStory: "_default"}
+	store := story.NewJSONStore(t.TempDir())
+	resolver := layout.NewResolver(codeRoot, cfg.DefaultStory)
+
+	srv, err := hostsvc.NewServer(cfg, resolver, store)
+	require.NoError(t, err)
+	t.Cleanup(func() { srv.Stop() })
+
+	// First call: scans the filesystem.
+	r1, err := srv.Projects(context.Background())
+	require.NoError(t, err)
+	require.Len(t, r1, 1)
+
+	// Remove all repos from disk — a second scan would return nothing.
+	require.NoError(t, os.RemoveAll(filepath.Join(codeRoot, "repositories")))
+
+	// Second call must serve from cache, not rescan.
+	r2, err := srv.Projects(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, r1, r2)
+}
+
 func TestListProjects_SkipsSubRepositories(t *testing.T) {
 	t.Parallel()
 
