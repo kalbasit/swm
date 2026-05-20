@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"github.com/adrg/xdg"
 
@@ -56,8 +57,11 @@ var (
 // launchOnce holds the result of a single plugin launch attempt.
 // once.Do ensures the launch runs exactly once; the result is cached permanently
 // (including errors — a failed launch is not retried).
+// done is set to true after once.Do's function returns; Close checks this instead of
+// calling once.Do(func(){}) (which would steal the Once if launch hasn't started yet).
 type launchOnce struct {
 	once   sync.Once
+	done   atomic.Bool
 	client *goplugin.Client
 	raw    any
 	err    error
@@ -119,10 +123,10 @@ func (m *Manager) Close() error {
 			return true
 		}
 
-		// Wait for any in-progress launch before killing, to avoid racing on lo.client.
-		lo.once.Do(func() {})
-
-		if lo.client != nil {
+		// Only kill if launch has fully completed; done is set after once.Do's function
+		// returns, ensuring client is visible without a data race.
+		// A launch that is in-progress or never started is skipped — the OS cleans up.
+		if lo.done.Load() && lo.client != nil {
 			lo.client.Kill()
 		}
 
@@ -157,6 +161,7 @@ func (m *Manager) Get(ctx context.Context, capability string) (any, error) {
 
 	entry.once.Do(func() {
 		entry.client, entry.raw, entry.err = m.launch(ctx, capability)
+		entry.done.Store(true)
 	})
 
 	return entry.raw, entry.err
@@ -186,26 +191,33 @@ func (m *Manager) GetForge(ctx context.Context, hostname string) (pluginv1.Forge
 }
 
 // Warm pre-starts the listed capabilities concurrently.
-// Each capability is launched in its own goroutine; the first error encountered is returned.
+// Each capability is launched in its own goroutine; the first error cancels the rest
+// and is returned after all goroutines finish.
 // Capabilities already running are reused without relaunching.
 func (m *Manager) Warm(ctx context.Context, capabilities ...string) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	var (
 		wg       sync.WaitGroup
-		firstMu  sync.Mutex
 		firstErr error
 		setFirst sync.Once
 	)
 
-	for _, cap := range capabilities {
-		wg.Go(func() {
-			if _, err := m.Get(ctx, cap); err != nil {
+	for _, c := range capabilities {
+		wg.Add(1)
+
+		go func(c string) {
+			defer wg.Done()
+
+			if _, err := m.Get(ctx, c); err != nil {
 				setFirst.Do(func() {
-					firstMu.Lock()
 					firstErr = err
-					firstMu.Unlock()
+
+					cancel()
 				})
 			}
-		})
+		}(c)
 	}
 
 	wg.Wait()

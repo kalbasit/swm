@@ -439,6 +439,28 @@ func TestWarm_StartsBothConcurrently(t *testing.T) {
 	require.NotNil(t, rawPicker)
 }
 
+func TestWarm_ReturnsFirstError(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
+		Plugins: config.Plugins{
+			VCS:    fakePluginName,
+			Picker: "nonexistent",
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	mgr := pluginmgr.New(cfg, "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	err := mgr.Warm(context.Background(), "vcs", "picker")
+	require.Error(t, err)
+}
+
 func TestWarm_AlreadyLaunchedNotRelaunched(t *testing.T) {
 	t.Parallel()
 
