@@ -10,6 +10,7 @@ import (
 	"github.com/adrg/xdg"
 
 	"github.com/kalbasit/swm/cmd/swm/internal/cli"
+	"github.com/kalbasit/swm/cmd/swm/internal/cli/workspace"
 	"github.com/kalbasit/swm/cmd/swm/internal/config"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/story"
@@ -46,7 +47,7 @@ func main() {
 	mgr := pluginmgr.New(cfg, hostSrv.SocketPath())
 	defer mgr.Close() //nolint:errcheck // best-effort close on exit
 
-	root := cli.NewRootCmd(cfgPath, cfg, mgr, store, resolver)
+	root := cli.NewRootCmd(cfgPath, cfg, mgr, store, resolver, workspace.WithProjectLister(hostSrv))
 	root.Version = version
 
 	if err := root.Execute(); err != nil {
