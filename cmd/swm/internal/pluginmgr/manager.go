@@ -190,39 +190,34 @@ func (m *Manager) GetForge(ctx context.Context, hostname string) (pluginv1.Forge
 	return nil, fmt.Errorf("%w: %q", errNoForgePlugin, hostname)
 }
 
-// Warm pre-starts the listed capabilities concurrently.
-// Each capability is launched in its own goroutine; the first error cancels the rest
-// and is returned after all goroutines finish.
+// Warm pre-starts the listed capabilities in background goroutines and returns
+// immediately. Errors from plugin startup are not returned here; they are
+// surfaced by the first Get call for the failing capability.
 // Capabilities already running are reused without relaunching.
 func (m *Manager) Warm(ctx context.Context, capabilities ...string) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	var (
-		wg       sync.WaitGroup
-		firstErr error
-		setFirst sync.Once
-	)
+	// Strip cancellation so goroutines outlive the caller's context (e.g. PreRunE).
+	bgCtx := context.WithoutCancel(ctx)
 
 	for _, c := range capabilities {
-		wg.Add(1)
+		stored, loaded := m.launched.LoadOrStore(c, &launchOnce{})
+		if loaded {
+			continue
+		}
 
-		go func(c string) {
-			defer wg.Done()
+		lo, ok := stored.(*launchOnce)
+		if !ok {
+			continue
+		}
 
-			if _, err := m.Get(ctx, c); err != nil {
-				setFirst.Do(func() {
-					firstErr = err
-
-					cancel()
-				})
-			}
+		go func(capability string) {
+			lo.once.Do(func() {
+				lo.client, lo.raw, lo.err = m.launch(bgCtx, capability)
+				lo.done.Store(true)
+			})
 		}(c)
 	}
 
-	wg.Wait()
-
-	return firstErr
+	return nil
 }
 
 // hclogLevelFromSlog maps a slog logger's effective level to the corresponding hclog level.

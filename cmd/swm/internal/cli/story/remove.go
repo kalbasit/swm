@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
@@ -47,19 +46,9 @@ func NewRemoveCmd(
 		Short: "Remove a story and all its worktrees",
 		Args:  cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			// Warm session concurrently but discard its error — session is optional;
-			// RunE silently falls back when it is absent (closeStoryWorkspace is best-effort).
-			var wg sync.WaitGroup
+			mgr.Warm(cmd.Context(), "vcs", "session") //nolint:errcheck,gosec // Warm always returns nil; errors deferred to Get
 
-			wg.Go(func() {
-				_ = mgr.Warm(cmd.Context(), "session") //nolint:errcheck // session is optional
-			})
-
-			err := mgr.Warm(cmd.Context(), "vcs")
-
-			wg.Wait()
-
-			return err
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var name string

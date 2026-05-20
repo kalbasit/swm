@@ -1132,7 +1132,7 @@ func TestOpenCmd_PreRunE_WarmsPlugins(t *testing.T) {
 
 	require.NoError(t, cmd.Execute())
 	require.ElementsMatch(t, []string{"picker", "session", "vcs"}, rec.warmedCaps,
-		"workspace open PreRunE must warm session, vcs, and picker (picker error is discarded)")
+		"workspace open PreRunE must warm session, vcs, and picker in a single non-blocking call")
 }
 
 // warmRecordingMgr wraps stubMgr and records capabilities passed to Warm.
