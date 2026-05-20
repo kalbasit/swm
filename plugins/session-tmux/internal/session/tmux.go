@@ -195,6 +195,12 @@ func (t *Tmux) OpenPaneGroup(ctx context.Context, req *pluginv1.OpenPaneGroupReq
 	// Determine the initial command for the session.
 	initialCmd := t.paneGroupCommand(ctx, req)
 
+	if initialCmd != "" {
+		if err := validateCommandBinary(initialCmd); err != nil {
+			return nil, err
+		}
+	}
+
 	// Create session if it doesn't exist yet.
 	if _, err := t.run(ctx, "-S", sock, "has-session", "-t", name); err != nil {
 		args := []string{"-S", sock, "new-session", "-d", "-s", name, "-c", req.GetWorktreePath()}
@@ -353,6 +359,25 @@ func (t *Tmux) paneGroupCommand(ctx context.Context, req *pluginv1.OpenPaneGroup
 	cmd = strings.ReplaceAll(cmd, "{{tmux_socket}}", req.GetWorkspaceId())
 
 	return cmd
+}
+
+// validateCommandBinary checks that the first token of cmd resolves to an
+// executable in PATH. Returns FailedPrecondition if not found, so callers can
+// surface a clear error before handing the command to tmux.
+func validateCommandBinary(cmd string) error {
+	fields := strings.Fields(cmd)
+	if len(fields) == 0 {
+		return status.Errorf(codes.FailedPrecondition, "pane_group_command contains no command")
+	}
+
+	binary := fields[0]
+
+	if _, err := exec.LookPath(binary); err != nil {
+		return status.Errorf(codes.FailedPrecondition,
+			"pane_group_command binary %q not found in PATH: install it or update pane_group_command in config", binary)
+	}
+
+	return nil
 }
 
 func (t *Tmux) run(ctx context.Context, args ...string) (string, error) {

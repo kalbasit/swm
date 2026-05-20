@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
@@ -24,11 +26,6 @@ const (
 	testWorktree      = "/tmp/wt"
 	testPaneGroup     = testRepo
 	testPaneGroupFull = "github•com/kalbasit/swm"
-
-	// testLaioPaneGroupCommandTOML is the canonical pane_group_command used in tests.
-	testLaioPaneGroupCommandTOML = `pane_group_command = "laio start` +
-		` --file '{{worktree_path}}/.swm/laio.yaml'` +
-		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
 )
 
 var faketmuxBin string
@@ -354,8 +351,14 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 
 	sockPath := filepath.Join(socketDir, "feat-x.sock")
 
+	// Use faketmuxBin (guaranteed to exist) so binary validation passes.
+	// testLaioPaneGroupCommandTOML references laio, which may not be installed.
+	toml := `pane_group_command = "` + faketmuxBin +
+		` start --file '{{worktree_path}}/.swm/laio.yaml'` +
+		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
+
 	client := &fakeHostClient{
-		toml: []byte(testLaioPaneGroupCommandTOML),
+		toml: []byte(toml),
 	}
 
 	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
@@ -376,7 +379,7 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
 
-	wantCmd := "laio start --file '/tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml'" +
+	wantCmd := faketmuxBin + " start --file '/tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml'" +
 		" --tmux-socket '" + sockPath + "' --replace-current-session --skip-attach"
 
 	log := string(logBytes)
@@ -391,8 +394,13 @@ func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
 
 	sockPath := filepath.Join(socketDir, "feat-sock.sock")
 
+	// Use faketmuxBin (guaranteed to exist) so binary validation passes.
+	toml := `pane_group_command = "` + faketmuxBin +
+		` start --file '{{worktree_path}}/.swm/laio.yaml'` +
+		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
+
 	client := &fakeHostClient{
-		toml: []byte(testLaioPaneGroupCommandTOML),
+		toml: []byte(toml),
 	}
 
 	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
@@ -414,6 +422,67 @@ func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
 	log := string(logBytes)
 	require.Contains(t, log, "--tmux-socket '"+sockPath+"'",
 		"{{tmux_socket}} must be substituted with the workspace socket path")
+}
+
+func TestOpenPaneGroup_PaneGroupCommandWhitespaceOnly(t *testing.T) {
+	// Cannot be parallel — uses t.Setenv.
+	socketDir := t.TempDir()
+	t.Setenv("FAKETMUX_LOG", filepath.Join(t.TempDir(), "tmux.log"))
+
+	sockPath := filepath.Join(socketDir, "feat-x.sock")
+
+	const whitespaceOnlyTOML = `pane_group_command = "   "`
+
+	client := &fakeHostClient{toml: []byte(whitespaceOnlyTOML)}
+	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
+
+	if err := os.WriteFile(sockPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: testWorktree,
+	})
+	require.Error(t, err)
+	require.Equal(t, codes.FailedPrecondition, status.Code(err),
+		"whitespace-only pane_group_command must return FailedPrecondition, not panic")
+}
+
+func TestOpenPaneGroup_PaneGroupCommandBinaryNotFound(t *testing.T) {
+	// Cannot be parallel — uses t.Setenv.
+	socketDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	sockPath := filepath.Join(socketDir, "feat-x.sock")
+
+	const missingBinaryTOML = `pane_group_command = "__swm_nonexistent_binary__ --some-flag"`
+
+	client := &fakeHostClient{toml: []byte(missingBinaryTOML)}
+	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
+
+	if err := os.WriteFile(sockPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: testWorktree,
+	})
+	require.Error(t, err)
+	require.Equal(t, codes.FailedPrecondition, status.Code(err),
+		"expected FailedPrecondition when pane_group_command binary is not in PATH")
+	require.Contains(t, err.Error(), "__swm_nonexistent_binary__",
+		"error message must name the missing binary")
+
+	// No tmux session must have been created.
+	//nolint:gosec // G304: test-controlled path
+	logBytes, _ := os.ReadFile(logFile) //nolint:errcheck // log may not exist if tmux was never called
+	require.NotContains(t, string(logBytes), "new-session",
+		"no tmux session must be created when pane_group_command binary is missing")
 }
 
 func TestOpenPaneGroup_InvalidProjectID(t *testing.T) {
