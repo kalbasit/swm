@@ -123,7 +123,7 @@ func (s *Server) ListProjects(
 ) error {
 	reposDir := filepath.Join(s.cfg.CodeRoot, "repositories")
 
-	var projectRoots []string
+	var currentRootPrefix string
 
 	return filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -138,11 +138,9 @@ func (s *Server) ListProjects(
 			return nil
 		}
 
-		// Skip any directory nested inside an already-discovered project root.
-		for _, root := range projectRoots {
-			if strings.HasPrefix(path, root+string(filepath.Separator)) {
-				return filepath.SkipDir
-			}
+		// Skip any directory nested inside the current project root.
+		if currentRootPrefix != "" && strings.HasPrefix(path, currentRootPrefix) {
+			return filepath.SkipDir
 		}
 
 		if d.Name() == ".git" {
@@ -154,7 +152,7 @@ func (s *Server) ListProjects(
 				return nil
 			}
 
-			projectRoots = append(projectRoots, projectDir)
+			currentRootPrefix = projectDir + string(filepath.Separator)
 
 			if err := stream.Send(&pluginv1.Project{
 				Host:     id.Host,
