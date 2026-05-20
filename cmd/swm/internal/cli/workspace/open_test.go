@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -1130,18 +1131,23 @@ func TestOpenCmd_PreRunE_WarmsPlugins(t *testing.T) {
 	cmd.SetArgs([]string{testStoryName})
 
 	require.NoError(t, cmd.Execute())
-	require.ElementsMatch(t, []string{"session", "vcs"}, rec.warmedCaps,
-		"workspace open PreRunE must warm session and vcs (picker is optional, warmed lazily)")
+	require.ElementsMatch(t, []string{"picker", "session", "vcs"}, rec.warmedCaps,
+		"workspace open PreRunE must warm session, vcs, and picker (picker error is discarded)")
 }
 
 // warmRecordingMgr wraps stubMgr and records capabilities passed to Warm.
+// Warm may be called from concurrent goroutines, so access to warmedCaps is
+// guarded by mu.
 type warmRecordingMgr struct {
 	*stubMgr
+	mu         sync.Mutex
 	warmedCaps []string
 }
 
 func (w *warmRecordingMgr) Warm(_ context.Context, caps ...string) error {
+	w.mu.Lock()
 	w.warmedCaps = append(w.warmedCaps, caps...)
+	w.mu.Unlock()
 
 	return nil
 }
