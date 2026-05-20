@@ -418,6 +418,32 @@ func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
 		"{{tmux_socket}} must be substituted with the workspace socket path")
 }
 
+func TestOpenPaneGroup_PaneGroupCommandWhitespaceOnly(t *testing.T) {
+	// Cannot be parallel — uses t.Setenv.
+	socketDir := t.TempDir()
+	t.Setenv("FAKETMUX_LOG", filepath.Join(t.TempDir(), "tmux.log"))
+
+	sockPath := filepath.Join(socketDir, "feat-x.sock")
+
+	const whitespaceOnlyTOML = `pane_group_command = "   "`
+
+	client := &fakeHostClient{toml: []byte(whitespaceOnlyTOML)}
+	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
+
+	if err := os.WriteFile(sockPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: testWorktree,
+	})
+	require.Error(t, err)
+	require.Equal(t, codes.FailedPrecondition, status.Code(err),
+		"whitespace-only pane_group_command must return FailedPrecondition, not panic")
+}
+
 func TestOpenPaneGroup_PaneGroupCommandBinaryNotFound(t *testing.T) {
 	// Cannot be parallel — uses t.Setenv.
 	socketDir := t.TempDir()

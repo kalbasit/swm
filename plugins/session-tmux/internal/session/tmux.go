@@ -365,7 +365,12 @@ func (t *Tmux) paneGroupCommand(ctx context.Context, req *pluginv1.OpenPaneGroup
 // executable in PATH. Returns FailedPrecondition if not found, so callers can
 // surface a clear error before handing the command to tmux.
 func validateCommandBinary(cmd string) error {
-	binary := strings.Fields(cmd)[0]
+	fields := strings.Fields(cmd)
+	if len(fields) == 0 {
+		return status.Errorf(codes.FailedPrecondition, "pane_group_command contains no command")
+	}
+
+	binary := fields[0]
 
 	if _, err := exec.LookPath(binary); err != nil {
 		return status.Errorf(codes.FailedPrecondition,
