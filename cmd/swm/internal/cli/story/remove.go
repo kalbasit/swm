@@ -23,6 +23,7 @@ import (
 // pluginManager is the subset of the CLI plugin manager used by this command.
 type pluginManager interface {
 	Get(ctx context.Context, capability string) (any, error)
+	Warm(ctx context.Context, capabilities ...string) error
 }
 
 // errRemovalFailed is returned when one or more steps during story removal fail.
@@ -44,6 +45,9 @@ func NewRemoveCmd(
 		Use:   "remove [<name>]",
 		Short: "Remove a story and all its worktrees",
 		Args:  cobra.MaximumNArgs(1),
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			return mgr.Warm(cmd.Context(), "vcs", "session")
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var name string
 			if len(args) == 1 {

@@ -64,6 +64,35 @@ func TestCloneCmd_AlreadyCloned(t *testing.T) {
 	require.False(t, vcs.cloneCalled)
 }
 
+func TestCloneCmd_PreRunE_WarmsVCS(t *testing.T) {
+	t.Parallel()
+
+	codeRoot := t.TempDir()
+	resolver := layout.NewResolver(codeRoot, "_default")
+	vcs := &stubVCS{}
+
+	rec := &warmRecordingMgr{stubMgr: &stubMgr{vcs: vcs}}
+
+	cmd := cli.NewCloneCmd(rec, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testSSHURL})
+
+	require.NoError(t, cmd.Execute())
+	require.Equal(t, []string{"vcs"}, rec.warmedCaps,
+		"clone PreRunE must warm vcs")
+}
+
+// warmRecordingMgr wraps stubMgr and records capabilities passed to Warm.
+type warmRecordingMgr struct {
+	*stubMgr
+	warmedCaps []string
+}
+
+func (w *warmRecordingMgr) Warm(_ context.Context, caps ...string) error {
+	w.warmedCaps = append(w.warmedCaps, caps...)
+
+	return nil
+}
+
 func TestCloneCmd_CloneError(t *testing.T) {
 	t.Parallel()
 
@@ -101,6 +130,10 @@ func (s *stubMgr) Get(_ context.Context, capability string) (any, error) {
 
 func (s *stubMgr) GetForge(_ context.Context, _ string) (pluginv1.ForgeClient, error) {
 	return nil, fmt.Errorf("%w: no forge configured", errNoPlugin)
+}
+
+func (s *stubMgr) Warm(_ context.Context, _ ...string) error {
+	return nil
 }
 
 // stubVCS is a minimal VCSClient for clone tests.

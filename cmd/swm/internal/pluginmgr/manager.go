@@ -53,9 +53,14 @@ var (
 	errUnsupported        = errors.New("unsupported capability")
 )
 
-type entry struct {
+// launchOnce holds the result of a single plugin launch attempt.
+// once.Do ensures the launch runs exactly once; the result is cached permanently
+// (including errors — a failed launch is not retried).
+type launchOnce struct {
+	once   sync.Once
 	client *goplugin.Client
 	raw    any
+	err    error
 }
 
 type forgeEntry struct {
@@ -82,8 +87,11 @@ type Manager struct {
 	hostSocket string
 	stderr     io.Writer
 
-	mu           sync.Mutex
-	launched     map[string]*entry
+	// launched stores *launchOnce per capability, enabling per-capability locking
+	// so concurrent Get/Warm calls for different capabilities do not serialize.
+	launched sync.Map
+
+	mu           sync.Mutex // guards forge state only
 	forgeClients []*forgeEntry
 	forgesLoaded bool
 }
@@ -94,7 +102,6 @@ func New(cfg *config.Config, hostSocket string, opts ...Option) *Manager {
 		cfg:        cfg,
 		hostSocket: hostSocket,
 		stderr:     os.Stderr,
-		launched:   make(map[string]*entry),
 	}
 
 	for _, o := range opts {
@@ -106,16 +113,26 @@ func New(cfg *config.Config, hostSocket string, opts ...Option) *Manager {
 
 // Close terminates all launched plugin processes.
 func (m *Manager) Close() error {
+	m.launched.Range(func(k, v any) bool {
+		lo, ok := v.(*launchOnce)
+		if !ok {
+			return true
+		}
+
+		// Wait for any in-progress launch before killing, to avoid racing on lo.client.
+		lo.once.Do(func() {})
+
+		if lo.client != nil {
+			lo.client.Kill()
+		}
+
+		m.launched.Delete(k)
+
+		return true
+	})
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	var errs []error
-
-	for _, e := range m.launched {
-		e.client.Kill()
-	}
-
-	m.launched = make(map[string]*entry)
 
 	for _, fe := range m.forgeClients {
 		fe.client.Kill()
@@ -124,67 +141,25 @@ func (m *Manager) Close() error {
 	m.forgeClients = nil
 	m.forgesLoaded = false
 
-	return errors.Join(errs...)
+	return nil
 }
 
 // Get returns the client for the configured plugin of the given capability.
 // The plugin is lazily launched on the first call and cached for subsequent calls.
+// A failed launch is also cached — the same error is returned on every subsequent call.
 func (m *Manager) Get(ctx context.Context, capability string) (any, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	stored, _ := m.launched.LoadOrStore(capability, &launchOnce{})
 
-	if e, ok := m.launched[capability]; ok {
-		return e.raw, nil
+	entry, ok := stored.(*launchOnce)
+	if !ok {
+		return nil, fmt.Errorf("%w: launched map contains unexpected type %T", errUnknownCapability, stored)
 	}
 
-	// Look up the plugin name from config.
-	name, err := m.capabilityName(capability)
-	if err != nil {
-		return nil, err
-	}
+	entry.once.Do(func() {
+		entry.client, entry.raw, entry.err = m.launch(ctx, capability)
+	})
 
-	binary, err := m.discover(capability, name)
-	if err != nil {
-		return nil, err
-	}
-
-	set := pluginSet(capability)
-	if len(set) == 0 {
-		return nil, fmt.Errorf("%w: %s", errUnsupported, capability)
-	}
-
-	// Pre-populate Cmd.Env with the host socket address; go-plugin will append
-	// os.Environ() (since SkipHostEnv defaults to false), so this var stays first.
-	pluginCmd := exec.Command(binary) //nolint:gosec // binary is discovered from trusted sources
-	if m.hostSocket != "" {
-		pluginCmd.Env = []string{"SWM_HOST_SOCKET=" + m.hostSocket}
-	}
-
-	client := goplugin.NewClient(m.buildClientConfig(ctx, pluginCmd, set))
-
-	rpcClient, err := client.Client()
-	if err != nil {
-		client.Kill()
-
-		return nil, fmt.Errorf("connecting to plugin %s: %w", binary, err)
-	}
-
-	raw, err := rpcClient.Dispense(capability)
-	if err != nil {
-		client.Kill()
-
-		return nil, fmt.Errorf("dispensing capability %s: %w", capability, err)
-	}
-
-	if err := m.validateDeps(ctx, capability, raw); err != nil {
-		client.Kill()
-
-		return nil, err
-	}
-
-	m.launched[capability] = &entry{client: client, raw: raw}
-
-	return raw, nil
+	return entry.raw, entry.err
 }
 
 // GetForge returns the ForgeClient for the plugin claiming the given hostname.
@@ -208,6 +183,34 @@ func (m *Manager) GetForge(ctx context.Context, hostname string) (pluginv1.Forge
 	}
 
 	return nil, fmt.Errorf("%w: %q", errNoForgePlugin, hostname)
+}
+
+// Warm pre-starts the listed capabilities concurrently.
+// Each capability is launched in its own goroutine; the first error encountered is returned.
+// Capabilities already running are reused without relaunching.
+func (m *Manager) Warm(ctx context.Context, capabilities ...string) error {
+	var (
+		wg       sync.WaitGroup
+		firstMu  sync.Mutex
+		firstErr error
+		setFirst sync.Once
+	)
+
+	for _, cap := range capabilities {
+		wg.Go(func() {
+			if _, err := m.Get(ctx, cap); err != nil {
+				setFirst.Do(func() {
+					firstMu.Lock()
+					firstErr = err
+					firstMu.Unlock()
+				})
+			}
+		})
+	}
+
+	wg.Wait()
+
+	return firstErr
 }
 
 // hclogLevelFromSlog maps a slog logger's effective level to the corresponding hclog level.
@@ -312,6 +315,56 @@ func (m *Manager) discover(capability, name string) (string, error) {
 	}
 
 	return "", fmt.Errorf("%w: %q not in config paths, %s, or PATH", errPluginNotFound, binary, xdgPath)
+}
+
+// launch performs the actual plugin binary discovery, exec, and gRPC handshake.
+// It is called inside launchOnce.once.Do and must not hold any Manager-level locks.
+func (m *Manager) launch(ctx context.Context, capability string) (*goplugin.Client, any, error) {
+	name, err := m.capabilityName(capability)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	binary, err := m.discover(capability, name)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	set := pluginSet(capability)
+	if len(set) == 0 {
+		return nil, nil, fmt.Errorf("%w: %s", errUnsupported, capability)
+	}
+
+	// Pre-populate Cmd.Env with the host socket address; go-plugin will append
+	// os.Environ() (since SkipHostEnv defaults to false), so this var stays first.
+	pluginCmd := exec.Command(binary) //nolint:gosec // binary is discovered from trusted sources
+	if m.hostSocket != "" {
+		pluginCmd.Env = []string{"SWM_HOST_SOCKET=" + m.hostSocket}
+	}
+
+	client := goplugin.NewClient(m.buildClientConfig(ctx, pluginCmd, set))
+
+	rpcClient, err := client.Client()
+	if err != nil {
+		client.Kill()
+
+		return nil, nil, fmt.Errorf("connecting to plugin %s: %w", binary, err)
+	}
+
+	raw, err := rpcClient.Dispense(capability)
+	if err != nil {
+		client.Kill()
+
+		return nil, nil, fmt.Errorf("dispensing capability %s: %w", capability, err)
+	}
+
+	if err := m.validateDeps(ctx, capability, raw); err != nil {
+		client.Kill()
+
+		return nil, nil, err
+	}
+
+	return client, raw, nil
 }
 
 // loadForges launches all configured forge plugins and populates m.forgeClients.

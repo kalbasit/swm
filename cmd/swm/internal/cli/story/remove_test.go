@@ -16,6 +16,34 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
+func TestRemoveCmd_PreRunE_WarmsPlugins(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	resolver := layout.NewResolver("/code", "_default")
+
+	rec := &warmRecordingManager{stubManager: &stubManager{}}
+
+	cmd := story.NewRemoveCmd(store, rec, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, testForceFlag})
+
+	require.NoError(t, cmd.Execute())
+	require.ElementsMatch(t, []string{"vcs", "session"}, rec.warmedCaps,
+		"story remove PreRunE must warm vcs and session")
+}
+
+// warmRecordingManager wraps stubManager and records capabilities passed to Warm.
+type warmRecordingManager struct {
+	*stubManager
+	warmedCaps []string
+}
+
+func (w *warmRecordingManager) Warm(_ context.Context, caps ...string) error {
+	w.warmedCaps = append(w.warmedCaps, caps...)
+
+	return nil
+}
+
 func TestRemoveCmd_Force_NoProjects(t *testing.T) {
 	t.Parallel()
 

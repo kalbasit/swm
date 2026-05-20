@@ -21,10 +21,15 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/pluginmgr"
 )
 
-const fakePluginName = "fake"
+const (
+	fakePluginName   = "fake"
+	testCodeRoot     = "/tmp/code"
+	testDefaultStory = "_default"
+)
 
 var (
 	fakeVCSBin    string
+	fakePickerBin string
 	fakeStderrBin string
 )
 
@@ -67,6 +72,17 @@ func TestMain(m *testing.M) {
 		panic("building fake plugin: " + err.Error())
 	}
 
+	fakePickerBin = filepath.Join(dir, "swm-plugin-picker-fake")
+
+	cmd = exec.Command("go", "build", "-o", fakePickerBin, //nolint:gosec // building from trusted test paths
+		"./testdata/fakepicker/")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		panic("building fake picker plugin: " + err.Error())
+	}
+
 	fakeStderrBin = filepath.Join(dir, "swm-plugin-vcs-fakestderr")
 
 	cmd = exec.Command("go", "build", "-o", fakeStderrBin, //nolint:gosec // building from trusted test paths
@@ -83,8 +99,8 @@ func TestMain(m *testing.M) {
 
 func newCfg(vcs string) *config.Config {
 	return &config.Config{
-		CodeRoot:     "/tmp/code",
-		DefaultStory: "_default",
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
 		Plugins: config.Plugins{
 			VCS: vcs,
 		},
@@ -115,8 +131,8 @@ func TestGet_LazyLaunch(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{
-		CodeRoot:     "/tmp/code",
-		DefaultStory: "_default",
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
 		Plugins: config.Plugins{
 			VCS: fakePluginName,
 			Paths: map[string]string{
@@ -383,6 +399,107 @@ func TestDiscover_SWMPluginPath(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, raw)
 	})
+}
+
+func TestWarm_StartsBothConcurrently(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
+		Plugins: config.Plugins{
+			VCS:    fakePluginName,
+			Picker: fakePluginName,
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	// Override picker path to the real picker binary.
+	cfg.Plugins.Paths = map[string]string{
+		"fake-vcs":    fakeVCSBin,
+		"fake-picker": fakePickerBin,
+	}
+	cfg.Plugins.VCS = "fake-vcs"
+	cfg.Plugins.Picker = "fake-picker"
+
+	mgr := pluginmgr.New(cfg, "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	// Warm starts both plugins; both must be accessible afterwards.
+	require.NoError(t, mgr.Warm(context.Background(), "vcs", "picker"))
+
+	rawVCS, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+	require.NotNil(t, rawVCS)
+
+	rawPicker, err := mgr.Get(context.Background(), "picker")
+	require.NoError(t, err)
+	require.NotNil(t, rawPicker)
+}
+
+func TestWarm_AlreadyLaunchedNotRelaunched(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
+		Plugins: config.Plugins{
+			VCS: fakePluginName,
+			Paths: map[string]string{
+				fakePluginName: fakeVCSBin,
+			},
+		},
+	}
+
+	mgr := pluginmgr.New(cfg, "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	// First Get launches the plugin.
+	raw1, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+	require.NotNil(t, raw1)
+
+	// Warm on the same capability must return the cached client.
+	require.NoError(t, mgr.Warm(context.Background(), "vcs"))
+
+	raw2, err := mgr.Get(context.Background(), "vcs")
+	require.NoError(t, err)
+	require.Equal(t, raw1, raw2, "Warm must not relaunch an already-running plugin")
+}
+
+func TestGet_FailedLaunchIsCached(t *testing.T) {
+	t.Parallel()
+
+	// Configure a binary path that doesn't exist yet.
+	missingBin := filepath.Join(t.TempDir(), "swm-plugin-vcs-missing")
+	cfg := &config.Config{
+		CodeRoot:     testCodeRoot,
+		DefaultStory: testDefaultStory,
+		Plugins: config.Plugins{
+			VCS: "missing",
+			Paths: map[string]string{
+				"missing": missingBin,
+			},
+		},
+	}
+
+	mgr := pluginmgr.New(cfg, "")
+	defer mgr.Close() //nolint:errcheck // best-effort cleanup in test teardown
+
+	// First call fails: binary is absent.
+	_, err := mgr.Get(context.Background(), "vcs")
+	require.Error(t, err)
+
+	// Now place a valid binary at that path — a retry would succeed.
+	data, readErr := os.ReadFile(fakeVCSBin) //nolint:gosec // reading trusted test binary
+	require.NoError(t, readErr)
+	require.NoError(t, os.WriteFile(missingBin, data, 0o755)) //nolint:gosec // binary must be executable
+
+	// Second call must return the cached error, not succeed.
+	_, err2 := mgr.Get(context.Background(), "vcs")
+	require.Error(t, err2, "expected cached error; got nil (plugin was re-launched instead of using cache)")
 }
 
 func TestGet_DebugLogs_AtDebugLevel(t *testing.T) { //nolint:paralleltest // mutates slog.Default global state

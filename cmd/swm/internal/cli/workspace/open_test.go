@@ -1117,6 +1117,35 @@ func TestOpenCmd_Completion_ArgAlreadyProvided_NoMoreCompletions(t *testing.T) {
 	require.Empty(t, completions)
 }
 
+func TestOpenCmd_PreRunE_WarmsPlugins(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	sess := &stubSess{}
+
+	rec := &warmRecordingMgr{stubMgr: &stubMgr{sess: sess}}
+
+	cmd := workspace.NewOpenCmd(cfg, store, rec, layout.NewResolver(testCodeRoot, testDefaultStory), hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.ElementsMatch(t, []string{"session", "vcs"}, rec.warmedCaps,
+		"workspace open PreRunE must warm session and vcs (picker is optional, warmed lazily)")
+}
+
+// warmRecordingMgr wraps stubMgr and records capabilities passed to Warm.
+type warmRecordingMgr struct {
+	*stubMgr
+	warmedCaps []string
+}
+
+func (w *warmRecordingMgr) Warm(_ context.Context, caps ...string) error {
+	w.warmedCaps = append(w.warmedCaps, caps...)
+
+	return nil
+}
+
 // stubStore is a minimal story.Store.
 type stubStore struct {
 	getStory     *coreStory.Story
@@ -1228,6 +1257,14 @@ func (s *stubMgr) Get(_ context.Context, capability string) (any, error) {
 	}
 
 	return nil, fmt.Errorf("%w: %s", errNoPlugin, capability)
+}
+
+func (s *stubMgr) GetForge(_ context.Context, _ string) (pluginv1.ForgeClient, error) {
+	return nil, fmt.Errorf("%w: no forge configured", errNoPlugin)
+}
+
+func (s *stubMgr) Warm(_ context.Context, _ ...string) error {
+	return nil
 }
 
 // stubSess records session plugin calls.

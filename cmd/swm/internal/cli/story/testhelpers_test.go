@@ -101,6 +101,10 @@ func (s *stubManager) Get(_ context.Context, capability string) (any, error) {
 	return nil, errNotFound
 }
 
+func (s *stubManager) Warm(_ context.Context, _ ...string) error {
+	return nil
+}
+
 // stubVCSClient implements pluginv1.VCSClient for tests.
 type stubVCSClient struct {
 	removeWorktreeCalled bool
