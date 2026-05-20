@@ -3,9 +3,11 @@ package layout
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 )
@@ -24,6 +26,12 @@ func (r *Resolver) Projects(ctx context.Context) ([]*pluginv1.ProjectID, error) 
 // host's children: one goroutine per child, each checking for .git before
 // descending, stopping as soon as a repo root is found.
 func (r *Resolver) ScanRepos(ctx context.Context) ([]*pluginv1.ProjectID, error) {
+	start := time.Now()
+
+	defer func() {
+		slog.DebugContext(ctx, "ScanRepos complete", "duration", time.Since(start))
+	}()
+
 	hostsDir := filepath.Join(r.codeRoot, "repositories")
 
 	hosts, err := os.ReadDir(hostsDir)

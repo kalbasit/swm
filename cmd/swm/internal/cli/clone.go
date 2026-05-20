@@ -24,6 +24,9 @@ func NewCloneCmd(mgr PluginManager, resolver *layout.Resolver, hooks hookexec.Ru
 		Use:   "clone <url>",
 		Short: "Clone a repository to its canonical path",
 		Args:  cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			return mgr.Warm(cmd.Context(), "vcs")
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			url := args[0]
 			ctx := cmd.Context()

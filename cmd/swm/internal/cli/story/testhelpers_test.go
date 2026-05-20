@@ -19,7 +19,11 @@ const (
 	testStoryName   = "feat-x"
 	testBugName     = "my-bug"
 	testForceFlag   = "--force"
+	capSession      = "session"
+	capVCS          = "vcs"
 )
+
+var errFakeSession = errors.New("session unavailable")
 
 // errNotFound is a sentinel used in tests.
 var errNotFound = errors.New("not found")
@@ -82,23 +86,34 @@ var _ coreStory.Store = (*stubStore)(nil)
 
 // stubManager implements the pluginManager interface for tests.
 type stubManager struct {
-	vcs  pluginv1.VCSClient
-	sess pluginv1.SessionClient
+	vcs      pluginv1.VCSClient
+	sess     pluginv1.SessionClient
+	warmErrs map[string]error // optional per-capability warm errors
 }
 
 func (s *stubManager) Get(_ context.Context, capability string) (any, error) {
 	switch capability {
-	case "vcs":
+	case capVCS:
 		if s.vcs != nil {
 			return s.vcs, nil
 		}
-	case "session":
+	case capSession:
 		if s.sess != nil {
 			return s.sess, nil
 		}
 	}
 
 	return nil, errNotFound
+}
+
+func (s *stubManager) Warm(_ context.Context, caps ...string) error {
+	for _, c := range caps {
+		if err, ok := s.warmErrs[c]; ok {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // stubVCSClient implements pluginv1.VCSClient for tests.

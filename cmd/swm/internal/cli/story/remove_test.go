@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -15,6 +16,54 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
 	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
+
+func TestRemoveCmd_PreRunE_WarmsPlugins(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	resolver := layout.NewResolver("/code", "_default")
+
+	rec := &warmRecordingManager{stubManager: &stubManager{}}
+
+	cmd := story.NewRemoveCmd(store, rec, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, testForceFlag})
+
+	require.NoError(t, cmd.Execute())
+	require.ElementsMatch(t, []string{capVCS, capSession}, rec.warmedCaps,
+		"story remove PreRunE must warm vcs and session")
+}
+
+// warmRecordingManager wraps stubManager and records capabilities passed to Warm.
+// mu guards warmedCaps because PreRunE may call Warm from concurrent goroutines.
+type warmRecordingManager struct {
+	*stubManager
+	mu         sync.Mutex
+	warmedCaps []string
+}
+
+func (w *warmRecordingManager) Warm(_ context.Context, caps ...string) error {
+	w.mu.Lock()
+	w.warmedCaps = append(w.warmedCaps, caps...)
+	w.mu.Unlock()
+
+	return nil
+}
+
+func TestRemoveCmd_PreRunE_SessionFailure_DoesNotBlock(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	resolver := layout.NewResolver("/code", "_default")
+	mgr := &stubManager{
+		warmErrs: map[string]error{capSession: errFakeSession},
+	}
+
+	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName, testForceFlag})
+
+	require.NoError(t, cmd.Execute(), "session plugin failure must not abort story remove")
+	require.True(t, store.deleted, "story must be deleted even when session plugin is unavailable")
+}
 
 func TestRemoveCmd_Force_NoProjects(t *testing.T) {
 	t.Parallel()

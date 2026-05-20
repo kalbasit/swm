@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -1117,6 +1118,40 @@ func TestOpenCmd_Completion_ArgAlreadyProvided_NoMoreCompletions(t *testing.T) {
 	require.Empty(t, completions)
 }
 
+func TestOpenCmd_PreRunE_WarmsPlugins(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{Name: testStoryName}}
+	sess := &stubSess{}
+
+	rec := &warmRecordingMgr{stubMgr: &stubMgr{sess: sess}}
+
+	cmd := workspace.NewOpenCmd(cfg, store, rec, layout.NewResolver(testCodeRoot, testDefaultStory), hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.ElementsMatch(t, []string{"picker", "session", "vcs"}, rec.warmedCaps,
+		"workspace open PreRunE must warm session, vcs, and picker (picker error is discarded)")
+}
+
+// warmRecordingMgr wraps stubMgr and records capabilities passed to Warm.
+// Warm may be called from concurrent goroutines, so access to warmedCaps is
+// guarded by mu.
+type warmRecordingMgr struct {
+	*stubMgr
+	mu         sync.Mutex
+	warmedCaps []string
+}
+
+func (w *warmRecordingMgr) Warm(_ context.Context, caps ...string) error {
+	w.mu.Lock()
+	w.warmedCaps = append(w.warmedCaps, caps...)
+	w.mu.Unlock()
+
+	return nil
+}
+
 // stubStore is a minimal story.Store.
 type stubStore struct {
 	getStory     *coreStory.Story
@@ -1228,6 +1263,14 @@ func (s *stubMgr) Get(_ context.Context, capability string) (any, error) {
 	}
 
 	return nil, fmt.Errorf("%w: %s", errNoPlugin, capability)
+}
+
+func (s *stubMgr) GetForge(_ context.Context, _ string) (pluginv1.ForgeClient, error) {
+	return nil, fmt.Errorf("%w: no forge configured", errNoPlugin)
+}
+
+func (s *stubMgr) Warm(_ context.Context, _ ...string) error {
+	return nil
 }
 
 // stubSess records session plugin calls.

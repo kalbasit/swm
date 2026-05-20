@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
@@ -23,6 +24,7 @@ import (
 // pluginManager is the subset of the CLI plugin manager used by this command.
 type pluginManager interface {
 	Get(ctx context.Context, capability string) (any, error)
+	Warm(ctx context.Context, capabilities ...string) error
 }
 
 // errRemovalFailed is returned when one or more steps during story removal fail.
@@ -44,6 +46,21 @@ func NewRemoveCmd(
 		Use:   "remove [<name>]",
 		Short: "Remove a story and all its worktrees",
 		Args:  cobra.MaximumNArgs(1),
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			// Warm session concurrently but discard its error — session is optional;
+			// RunE silently falls back when it is absent (closeStoryWorkspace is best-effort).
+			var wg sync.WaitGroup
+
+			wg.Go(func() {
+				_ = mgr.Warm(cmd.Context(), "session") //nolint:errcheck // session is optional
+			})
+
+			err := mgr.Warm(cmd.Context(), "vcs")
+
+			wg.Wait()
+
+			return err
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var name string
 			if len(args) == 1 {

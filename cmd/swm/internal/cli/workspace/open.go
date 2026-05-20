@@ -11,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 // pluginManager is the subset of the CLI plugin manager used by this command.
 type pluginManager interface {
 	Get(ctx context.Context, capability string) (any, error)
+	Warm(ctx context.Context, capabilities ...string) error
 }
 
 // ProjectLister supplies the on-disk project list to the workspace open command.
@@ -132,6 +134,21 @@ func NewOpenCmd(
 			"If [story-name] is omitted, the command falls back to the $SWM_STORY " +
 			"environment variable, and then to the default story configured in swm.",
 		Args: cobra.MaximumNArgs(1),
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			// Warm picker concurrently but discard its error — picker is optional;
+			// RunE silently falls back to non-interactive mode when it is absent.
+			var wg sync.WaitGroup
+
+			wg.Go(func() {
+				_ = mgr.Warm(cmd.Context(), "picker") //nolint:errcheck // picker is optional
+			})
+
+			err := mgr.Warm(cmd.Context(), "session", "vcs")
+
+			wg.Wait()
+
+			return err
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
