@@ -93,6 +93,41 @@ func TestGetCodeRoot(t *testing.T) {
 	require.Equal(t, "/my/code", resp.GetPath())
 }
 
+func TestListProjects_SkipsSubRepositories(t *testing.T) {
+	t.Parallel()
+
+	codeRoot := t.TempDir()
+
+	// Top-level project: github.com/acme/infra
+	repoDir := filepath.Join(codeRoot, "repositories", "github.com", "acme", "infra")
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, ".git"), 0o750))
+
+	// Nested sub-repos inside the project (simulating tool caches and temp clones).
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, ".terraform", "modules", "vpc", ".git"), 0o750))
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "tmp", "clone", ".git"), 0o750))
+
+	cfg := &config.Config{CodeRoot: codeRoot}
+	client := setupServer(t, cfg, codeRoot)
+
+	stream, err := client.ListProjects(context.Background(), &pluginv1.ListProjectsRequest{})
+	require.NoError(t, err)
+
+	var projects []*pluginv1.Project
+
+	for {
+		p, recvErr := stream.Recv()
+		if recvErr != nil {
+			break
+		}
+
+		projects = append(projects, p)
+	}
+
+	require.Len(t, projects, 1)
+	require.Equal(t, "github.com", projects[0].GetHost())
+	require.Equal(t, []string{"acme", "infra"}, projects[0].GetSegments())
+}
+
 func TestListProjects_MarkerDetection(t *testing.T) {
 	t.Parallel()
 

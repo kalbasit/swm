@@ -616,13 +616,24 @@ func buildCandidates(codeRoot string, st *coreStory.Story, resolver *layout.Reso
 
 	slog.Default().Debug("scanning repos dir", "path", reposDir)
 
+	var currentRootPrefix string
+
 	//nolint:errcheck // walking the repos dir is best-effort; missing repos are simply excluded
 	_ = filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil //nolint:nilerr // skip unreadable entries silently
 		}
 
-		if !d.IsDir() || d.Name() != ".git" {
+		if !d.IsDir() {
+			return nil
+		}
+
+		// Skip any directory nested inside the current project root.
+		if currentRootPrefix != "" && strings.HasPrefix(path, currentRootPrefix) {
+			return filepath.SkipDir
+		}
+
+		if d.Name() != ".git" {
 			return nil
 		}
 
@@ -630,6 +641,8 @@ func buildCandidates(codeRoot string, st *coreStory.Story, resolver *layout.Reso
 		if id == nil {
 			return nil
 		}
+
+		currentRootPrefix = filepath.Dir(path) + string(filepath.Separator)
 
 		addKey(id.Host + "/" + strings.Join(id.GetSegments(), "/"))
 

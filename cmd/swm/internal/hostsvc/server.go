@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
@@ -122,6 +123,8 @@ func (s *Server) ListProjects(
 ) error {
 	reposDir := filepath.Join(s.cfg.CodeRoot, "repositories")
 
+	var currentRootPrefix string
+
 	return filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -135,6 +138,11 @@ func (s *Server) ListProjects(
 			return nil
 		}
 
+		// Skip any directory nested inside the current project root.
+		if currentRootPrefix != "" && strings.HasPrefix(path, currentRootPrefix) {
+			return filepath.SkipDir
+		}
+
 		if d.Name() == ".git" {
 			// Parent of .git is a project directory.
 			projectDir := filepath.Dir(path)
@@ -143,6 +151,8 @@ func (s *Server) ListProjects(
 			if id == nil {
 				return nil
 			}
+
+			currentRootPrefix = projectDir + string(filepath.Separator)
 
 			if err := stream.Send(&pluginv1.Project{
 				Host:     id.Host,
