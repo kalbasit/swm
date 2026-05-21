@@ -113,6 +113,10 @@ type stubMgr struct {
 	sess pluginv1.SessionClient
 }
 
+func (s *stubMgr) Close() error {
+	return nil
+}
+
 func (s *stubMgr) Get(_ context.Context, capability string) (any, error) {
 	switch capability {
 	case "vcs":

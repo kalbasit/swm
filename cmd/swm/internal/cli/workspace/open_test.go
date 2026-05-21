@@ -38,13 +38,16 @@ const (
 	eventPreWorktreeCreate  = "pre-worktree-create"
 	eventPostWorktreeCreate = "post-worktree-create"
 
-	flagKillPane = "--kill-pane"
+	flagKillPane          = "--kill-pane"
+	testTmuxBin           = "/usr/bin/tmux"
+	testTmuxAttachSession = "attach-session"
 )
 
 var (
 	errNoPlugin  = errors.New("no plugin")
 	errFakeHook  = errors.New("hook error")
 	errFakeStore = errors.New("store unavailable")
+	errFakeClose = errors.New("close failed")
 )
 
 func TestOpenCmd_WithPositionalArg(t *testing.T) {
@@ -617,7 +620,7 @@ func TestOpenCmd_WithPicker_ExecArgvIsExeced(t *testing.T) {
 
 	const selectedKey = "github.com/kalbasit/swm"
 
-	wantArgv := []string{"/usr/bin/tmux", "-S", "/tmp/feat-x.sock", "attach-session", "-t", "swm"}
+	wantArgv := []string{testTmuxBin, "-S", "/tmp/feat-x.sock", testTmuxAttachSession, "-t", testSegment}
 
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 	store := &stubStore{getStory: &coreStory.Story{
@@ -674,7 +677,7 @@ func TestOpenCmd_NoPicker_FallsBackToPhase1(t *testing.T) {
 func TestOpenCmd_NoPicker_ExecArgvIsExeced(t *testing.T) {
 	t.Parallel()
 
-	wantArgv := []string{"/usr/bin/tmux", "attach-session", "-t", testStoryName}
+	wantArgv := []string{testTmuxBin, testTmuxAttachSession, "-t", testStoryName}
 
 	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
 	store := &stubStore{getStory: &coreStory.Story{
@@ -1118,6 +1121,132 @@ func TestOpenCmd_Completion_ArgAlreadyProvided_NoMoreCompletions(t *testing.T) {
 	require.Empty(t, completions)
 }
 
+func TestOpenCmd_WithPicker_ExecArgvIsExeced_ClosesPluginsFirst(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/swm"
+
+	wantArgv := []string{testTmuxBin, "-S", testTargetWorkspaceID, testTmuxAttachSession, "-t", testSegment}
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+
+	var callOrder []string
+
+	sess := &stubSess{switchToExecArgv: wantArgv}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+
+	mgr := &closeRecordingMgr{
+		stubMgr: &stubMgr{sess: sess, picker: picker},
+		onClose: func() { callOrder = append(callOrder, "close") },
+	}
+
+	testExec := workspace.ExecFunc(func(_ string, _ []string, _ []string) error {
+		callOrder = append(callOrder, "exec")
+
+		return nil
+	})
+
+	cmd := workspace.NewOpenCmd(
+		cfg, store, mgr,
+		layout.NewResolver(testCodeRoot, testDefaultStory),
+		hookexec.Noop,
+		workspace.WithExecFunc(testExec),
+	)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.Equal(t, []string{"close", "exec"}, callOrder, "mgr.Close() must be called before execFn")
+}
+
+func TestOpenCmd_NoPicker_ExecArgvIsExeced_ClosesPluginsFirst(t *testing.T) {
+	t.Parallel()
+
+	wantArgv := []string{testTmuxBin, testTmuxAttachSession, "-t", testStoryName}
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+
+	var callOrder []string
+
+	sess := &stubSess{switchToExecArgv: wantArgv}
+
+	mgr := &closeRecordingMgr{
+		stubMgr: &stubMgr{sess: sess}, // no picker
+		onClose: func() { callOrder = append(callOrder, "close") },
+	}
+
+	testExec := workspace.ExecFunc(func(_ string, _ []string, _ []string) error {
+		callOrder = append(callOrder, "exec")
+
+		return nil
+	})
+
+	cmd := workspace.NewOpenCmd(
+		cfg, store, mgr,
+		layout.NewResolver(testCodeRoot, testDefaultStory),
+		hookexec.Noop,
+		workspace.WithExecFunc(testExec),
+	)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.Equal(t, []string{"close", "exec"}, callOrder, "mgr.Close() must be called before execFn in no-picker path")
+}
+
+func TestOpenCmd_ExecPath_CloseError_DoesNotPreventExec(t *testing.T) {
+	t.Parallel()
+
+	const selectedKey = "github.com/kalbasit/swm"
+
+	wantArgv := []string{testTmuxBin, "-S", testTargetWorkspaceID, testTmuxAttachSession, "-t", testSegment}
+
+	cfg := &config.Config{CodeRoot: testCodeRoot, DefaultStory: testDefaultStory}
+	store := &stubStore{getStory: &coreStory.Story{
+		Name: testStoryName,
+		Projects: []coreStory.Project{
+			{Host: testHost, Segments: []string{testOwner, testSegment}},
+		},
+	}}
+
+	var execCalled bool
+
+	sess := &stubSess{switchToExecArgv: wantArgv}
+	picker := &stubPickerClient{selectedKey: selectedKey}
+
+	mgr := &closeRecordingMgr{
+		stubMgr:  &stubMgr{sess: sess, picker: picker},
+		closeErr: errFakeClose,
+	}
+
+	testExec := workspace.ExecFunc(func(_ string, _ []string, _ []string) error {
+		execCalled = true
+
+		return nil
+	})
+
+	cmd := workspace.NewOpenCmd(
+		cfg, store, mgr,
+		layout.NewResolver(testCodeRoot, testDefaultStory),
+		hookexec.Noop,
+		workspace.WithExecFunc(testExec),
+	)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute())
+	require.True(t, execCalled, "exec must still be called even when mgr.Close() returns an error")
+}
+
 func TestOpenCmd_PreRunE_WarmsPlugins(t *testing.T) {
 	t.Parallel()
 
@@ -1133,6 +1262,21 @@ func TestOpenCmd_PreRunE_WarmsPlugins(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 	require.ElementsMatch(t, []string{"picker", "session", "vcs"}, rec.warmedCaps,
 		"workspace open PreRunE must warm session, vcs, and picker in a single non-blocking call")
+}
+
+// closeRecordingMgr wraps stubMgr, adds Close(), and invokes onClose when closed.
+type closeRecordingMgr struct {
+	*stubMgr
+	onClose  func()
+	closeErr error
+}
+
+func (m *closeRecordingMgr) Close() error {
+	if m.onClose != nil {
+		m.onClose()
+	}
+
+	return m.closeErr
 }
 
 // warmRecordingMgr wraps stubMgr and records capabilities passed to Warm.
@@ -1246,6 +1390,10 @@ type stubMgr struct {
 	picker pluginv1.PickerClient
 }
 
+func (s *stubMgr) Close() error {
+	return nil
+}
+
 func (s *stubMgr) Get(_ context.Context, capability string) (any, error) {
 	switch capability {
 	case "session":
@@ -1340,7 +1488,7 @@ func (s *stubSess) OpenPaneGroup(
 	s.lastPaneGroupReq = req
 
 	return &pluginv1.PaneGroup{
-		PaneGroupId: "swm",
+		PaneGroupId: testSegment,
 		WorkspaceId: req.GetWorkspaceId(),
 	}, nil
 }
