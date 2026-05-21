@@ -26,6 +26,7 @@ type PluginManager interface {
 	Get(ctx context.Context, capability string) (any, error)
 	GetForge(ctx context.Context, hostname string) (pluginv1.ForgeClient, error)
 	Warm(ctx context.Context, capabilities ...string) error
+	Close() error
 }
 
 // NewRootCmd builds the top-level swm cobra.Command.

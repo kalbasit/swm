@@ -33,6 +33,7 @@ import (
 type pluginManager interface {
 	Get(ctx context.Context, capability string) (any, error)
 	Warm(ctx context.Context, capabilities ...string) error
+	Close() error
 }
 
 // ProjectLister supplies the on-disk project list to the workspace open command.
@@ -260,11 +261,21 @@ func NewOpenCmd(
 				return fmt.Errorf("pre-workspace-open hook: %w", err)
 			}
 
+			// Wrap exec so plugins are terminated before the process image is replaced.
+			// Close errors are logged but do not prevent exec.
+			closingExec := ExecFunc(func(argv0 string, argv, envv []string) error {
+				if err := mgr.Close(); err != nil {
+					slog.WarnContext(ctx, "error closing plugins before exec", "err", err)
+				}
+
+				return ocfg.exec(argv0, argv, envv)
+			})
+
 			var openErr error
 			if pickerClient != nil {
 				openErr = openWithPicker(
 					ctx, cmd, cfg, st, store, mgr, sess,
-					pickerClient, ocfg.lister, resolver, hooks, storyName, killPane, ocfg.exec,
+					pickerClient, ocfg.lister, resolver, hooks, storyName, killPane, closingExec,
 				)
 				if openErr != nil {
 					slog.DebugContext(
@@ -276,13 +287,13 @@ func NewOpenCmd(
 					if grpcCode(openErr) == codes.FailedPrecondition {
 						slog.DebugContext(ctx, "falling back to openAllAttached (no TTY)")
 						openErr = openAllAttached(
-							ctx, cmd, cfg, st, sess, resolver, hooks, storyName, killPane, ocfg.exec,
+							ctx, cmd, cfg, st, sess, resolver, hooks, storyName, killPane, closingExec,
 						)
 					}
 				}
 			} else {
 				openErr = openAllAttached(
-					ctx, cmd, cfg, st, sess, resolver, hooks, storyName, killPane, ocfg.exec,
+					ctx, cmd, cfg, st, sess, resolver, hooks, storyName, killPane, closingExec,
 				)
 			}
 
