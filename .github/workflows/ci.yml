@@ -1,7 +1,8 @@
 name: CI
-permissions:
-  contents: read
-  packages: write
+
+# Thin caller of kalbasit/gh-actions' reusable CI workflow.
+# Pinned to the feat branch until v0.1.0 is tagged — bump to @v0.1.0 once ready.
+
 on:
   pull_request:
     branches:
@@ -12,139 +13,29 @@ on:
       - main
       - "release-*"
   workflow_dispatch:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  filter:
-    runs-on: ubuntu-24.04
-    outputs:
-      go_deps: ${{ steps.filter.outputs.go_deps }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            go_deps:
-              - "go.mod"
-              - "go.sum"
-  generate:
-    needs: filter
-    if: (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)) && needs.filter.outputs.go_deps == 'true'
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.GHA_PAT_TOKEN }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-      - uses: cachix/install-nix-action@v31
-      - uses: cachix/cachix-action@v17
-        with:
-          name: swm
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - name: Update vendor hashes
-        run: |
-          go mod tidy
-
-          for pkg in swm swm-plugin-forge-github swm-plugin-picker-fzf swm-plugin-session-tmux swm-plugin-vcs-git; do
-            set +e
-            nix build --print-build-logs ".#${pkg}.goModules" 2> /tmp/log
-            ret=$?
-            set -e
-
-            if [[ "$ret" -eq 0 ]]; then
-              set +e
-              nix build --print-build-logs ".#${pkg}.goModules" --rebuild 2> /tmp/log
-              ret=$?
-              set -e
-            fi
-
-            if [[ "$ret" -eq 0 ]]; then
-              echo "::notice::Hash is up to date for $pkg"
-              continue
-            fi
-
-            hash="$(grep 'got:' /tmp/log | awk '{print $2}')"
-            echo "hash=$hash for $pkg"
-
-            if [[ -z "$hash" ]]; then
-              cat /tmp/log
-              echo "::error::hash is empty for $pkg"
-              exit 1
-            fi
-
-            sed -e "s#vendorHash =.*\$#vendorHash = \"${hash}\";#g" -i "nix/packages/${pkg}/default.nix"
-          done
-      - run: git diff
-      - uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: "chore: update vendor hashes"
-  flake-check:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/flake-checker-action@main
-      - uses: cachix/install-nix-action@v31
-      - uses: cachix/cachix-action@v17
-        with:
-          name: swm
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - name: Flake check
-        run: nix flake check -L
-  openspec-guard:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-      - name: Check for active OpenSpec changes
-        run: |
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          active=$(find openspec/changes -maxdepth 1 -mindepth 1 -type d ! -name archive)
-
-          if [[ -n "$active" ]]; then
-            {
-              echo "## Active OpenSpec changes detected"
-              echo ""
-              echo "Archive these changes before merging:"
-              echo ""
-              while IFS= read -r dir; do
-                echo "- \`${dir}\`"
-              done <<< "$active"
-            } >>"$GITHUB_STEP_SUMMARY"
-            echo "::error::Active OpenSpec changes must be archived before merging — see job summary for details"
-            exit 1
-          fi
-
-          echo "No active OpenSpec changes"
   ci:
-    runs-on: ubuntu-24.04
-    if: always()
-    needs:
-      - filter
-      - generate
-      - flake-check
-      - openspec-guard
-    steps:
-      - name: Check Workflow Status
-        run: |
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          results=(
-            "${{ needs.filter.result }}"
-            "${{ needs.generate.result }}"
-            "${{ needs.flake-check.result }}"
-            "${{ needs.openspec-guard.result }}"
-          )
-
-          for result in "${results[@]}"; do
-            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
-              echo "::error::Job failed with result: $result"
-              exit 1
-            fi
-          done
-
-          echo "All jobs passed"
+    uses: kalbasit/gh-actions/.github/workflows/ci.yml@feat-add-reusable-ci-workflows
+    with:
+      cachix_cache: swm
+      oci: false
+      languages: |
+        {"go":{"packages":[
+          "swm",
+          "swm-plugin-forge-github",
+          "swm-plugin-picker-fzf",
+          "swm-plugin-session-tmux",
+          "swm-plugin-vcs-git"
+        ]}}
+    secrets:
+      cachix_auth_token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      gha_pat_token: ${{ secrets.GHA_PAT_TOKEN }}
