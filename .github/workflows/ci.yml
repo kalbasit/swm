@@ -24,17 +24,17 @@ permissions:
 
 jobs:
   ci:
-    uses: kalbasit/gh-actions/.github/workflows/ci.yml@main
+    uses: kalbasit/gh-actions/.github/workflows/ci.yml@feat-generate-configurable-targets
     with:
       cachix_cache: swm
       oci: false
       languages: |
-        {"go":{"packages":[
-          "swm",
-          "swm-plugin-forge-github",
-          "swm-plugin-picker-fzf",
-          "swm-plugin-session-tmux",
-          "swm-plugin-vcs-git"
+        {"go":{"targets":[
+          {"attr":"swm",                     "file":"nix/packages/swm/default.nix"},
+          {"attr":"swm-plugin-forge-github", "file":"nix/packages/swm-plugin-forge-github/default.nix"},
+          {"attr":"swm-plugin-picker-fzf",   "file":"nix/packages/swm-plugin-picker-fzf/default.nix"},
+          {"attr":"swm-plugin-session-tmux", "file":"nix/packages/swm-plugin-session-tmux/default.nix"},
+          {"attr":"swm-plugin-vcs-git",      "file":"nix/packages/swm-plugin-vcs-git/default.nix"}
         ]}}
     secrets:
       cachix_auth_token: ${{ secrets.CACHIX_AUTH_TOKEN }}
