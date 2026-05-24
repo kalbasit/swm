@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "automerge": false,
+  "schedule": ["on monday"],
+  "labels": ["dependencies", "renovate"],
+  "nix": {
+    "enabled": true
+  },
+  "gomod": {
+    "fileMatch": [
+      "cmd/swm/go\\.mod",
+      "sdk/go/go\\.mod",
+      "proto/go\\.mod",
+      "plugins/vcs-git/go\\.mod",
+      "plugins/picker-fzf/go\\.mod",
+      "plugins/session-tmux/go\\.mod",
+      "plugins/forge-github/go\\.mod"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "One PR per Go module — no cross-module grouping",
+      "matchManagers": ["gomod"],
+      "additionalBranchPrefix": "{{packageFileDir}}-",
+      "groupName": null,
+      "prBodyNotes": [
+        "**Nix vendor hashes:** after merging, run `task update-nix-vendor-hashes` to keep Nix `vendorHash` values in sync."
+      ]
+    },
+    {
+      "description": "One PR per Nix flake input — no cross-input grouping",
+      "matchManagers": ["nix"],
+      "groupName": null
+    },
+    {
+      "description": "One PR per GitHub Action — no grouping",
+      "matchManagers": ["github-actions"],
+      "groupName": null
+    }
+  ]
+}
