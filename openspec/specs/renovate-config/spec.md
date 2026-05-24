@@ -42,7 +42,7 @@ Each flake input MUST receive its own PR.
 
 #### Scenario: Nix flake input publishes new commit
 - **WHEN** a tracked flake input (e.g., `nixpkgs`) has a newer revision available
-- **THEN** Renovate opens one PR updating only that input's `url` in `flake.nix`
+- **THEN** Renovate opens one PR updating only that input's revision in `flake.nix`
 
 ---
 
