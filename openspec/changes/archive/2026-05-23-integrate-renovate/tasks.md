@@ -14,5 +14,5 @@
 ## 3. Validation
 
 - [x] 3.1 Run `npx --yes renovate-config-validator renovate.json` and confirm it exits with no errors
-- [ ] 3.2 Push the branch and open a draft PR; verify Renovate's onboarding check (or existing scan) detects `renovate.json` and lists all expected dependency sources in its log/dashboard
-- [ ] 3.3 Confirm no existing PRs or CI steps are broken by the new config (Renovate is read-only until it opens its first scheduled PR)
+- [x] 3.2 Push the branch and open a draft PR; verify Renovate's onboarding check (or existing scan) detects `renovate.json` and lists all expected dependency sources in its log/dashboard
+- [x] 3.3 Confirm no existing PRs or CI steps are broken by the new config (Renovate is read-only until it opens its first scheduled PR)
