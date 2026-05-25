@@ -8,14 +8,14 @@
     "enabled": true
   },
   "gomod": {
-    "fileMatch": [
-      "cmd/swm/go\\.mod",
-      "sdk/go/go\\.mod",
-      "proto/go\\.mod",
-      "plugins/vcs-git/go\\.mod",
-      "plugins/picker-fzf/go\\.mod",
-      "plugins/session-tmux/go\\.mod",
-      "plugins/forge-github/go\\.mod"
+    "managerFilePatterns": [
+      "/cmd/swm/go\\.mod/",
+      "/sdk/go/go\\.mod/",
+      "/proto/go\\.mod/",
+      "/plugins/vcs-git/go\\.mod/",
+      "/plugins/picker-fzf/go\\.mod/",
+      "/plugins/session-tmux/go\\.mod/",
+      "/plugins/forge-github/go\\.mod/"
     ]
   },
   "packageRules": [
