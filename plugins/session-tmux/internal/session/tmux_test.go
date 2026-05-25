@@ -1,7 +1,9 @@
 package session_test
 
 import (
+	"bytes"
 	"context"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,6 +57,20 @@ func newTmux(t *testing.T) (*session.Tmux, string) {
 	socketDir := t.TempDir()
 
 	return session.NewWithBin(faketmuxBin, socketDir), socketDir
+}
+
+func newTmuxWithConfigHome(t *testing.T, configHome string) (*session.Tmux, string) {
+	t.Helper()
+	socketDir := t.TempDir()
+
+	return session.NewWithBinAndConfigHome(faketmuxBin, socketDir, configHome), socketDir
+}
+
+func writeLayoutConfig(t *testing.T, dir, content string) {
+	t.Helper()
+	p := filepath.Join(dir, "session-tmux.toml")
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	require.NoError(t, os.WriteFile(p, []byte(content), 0o600))
 }
 
 func TestInfo(t *testing.T) {
@@ -750,6 +766,182 @@ func TestSwitchTo_NoKill_WhenOriginPaneIdEmpty(t *testing.T) {
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
 	require.NotContains(t, string(logBytes), "kill-pane", "must not call kill-pane when origin pane id is empty")
+}
+
+func TestOpenPaneGroup_DefaultLayoutApplied(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+	t.Setenv("EDITOR", "test-editor")
+
+	worktree := t.TempDir() // no .swm/session-tmux.toml
+	tmux, socketDir := newTmuxWithConfigHome(t, t.TempDir())
+	sockPath := filepath.Join(socketDir, "feat-default.sock")
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: worktree,
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	tmuxLog := string(logBytes)
+	require.Contains(t, tmuxLog, "rename-window", "default layout must rename the first window")
+	require.Contains(t, tmuxLog, "editor", "default layout must include an 'editor' window")
+	require.Contains(t, tmuxLog, "new-window", "default layout must create a 'shell' window")
+	require.Contains(t, tmuxLog, "shell", "default layout must name the second window 'shell'")
+	require.Contains(t, tmuxLog, "test-editor", "default layout must send the EDITOR command")
+}
+
+func TestOpenPaneGroup_PerRepoLayoutApplied(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	worktree := t.TempDir()
+	writeLayoutConfig(t, filepath.Join(worktree, ".swm"), `
+[[windows]]
+name = "per-repo-window"
+
+  [[windows.panes]]
+  commands = ["per-repo-cmd"]
+`)
+
+	tmux, socketDir := newTmuxWithConfigHome(t, t.TempDir())
+	sockPath := filepath.Join(socketDir, "feat-per-repo.sock")
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: worktree,
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	tmuxLog := string(logBytes)
+	require.Contains(t, tmuxLog, "per-repo-window", "per-repo layout window name must be applied")
+	require.Contains(t, tmuxLog, "per-repo-cmd", "per-repo layout command must be sent")
+}
+
+func TestOpenPaneGroup_GlobalLayoutFallback(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	worktree := t.TempDir() // no per-repo config
+	configHome := t.TempDir()
+	writeLayoutConfig(t, filepath.Join(configHome, "swm"), `
+[[windows]]
+name = "global-window"
+
+  [[windows.panes]]
+  commands = ["global-cmd"]
+`)
+
+	tmux, socketDir := newTmuxWithConfigHome(t, configHome)
+	sockPath := filepath.Join(socketDir, "feat-global.sock")
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: worktree,
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	tmuxLog := string(logBytes)
+	require.Contains(t, tmuxLog, "global-window", "global layout must be applied when no per-repo config exists")
+	require.Contains(t, tmuxLog, "global-cmd", "global layout command must be sent")
+}
+
+func TestOpenPaneGroup_PerRepoLayoutWinsOverGlobal(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	worktree := t.TempDir()
+	writeLayoutConfig(t, filepath.Join(worktree, ".swm"), `
+[[windows]]
+name = "per-repo-wins"
+`)
+
+	configHome := t.TempDir()
+	writeLayoutConfig(t, filepath.Join(configHome, "swm"), `
+[[windows]]
+name = "global-loses"
+`)
+
+	tmux, socketDir := newTmuxWithConfigHome(t, configHome)
+	sockPath := filepath.Join(socketDir, "feat-resolution.sock")
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: worktree,
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	tmuxLog := string(logBytes)
+	require.Contains(t, tmuxLog, "per-repo-wins", "per-repo layout must take priority over global")
+	require.NotContains(t, tmuxLog, "global-loses", "global layout must be ignored when per-repo config exists")
+}
+
+func TestOpenPaneGroup_PaneGroupCommandWinsOverLayout(t *testing.T) {
+	// Cannot be parallel — sets env vars and redirects global log output.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	worktree := t.TempDir()
+	configHome := t.TempDir()
+
+	// Create a per-repo layout config so the warning path is triggered.
+	writeLayoutConfig(t, filepath.Join(worktree, ".swm"), `
+[[windows]]
+name = "layout-window"
+`)
+
+	// Redirect log output to capture the warning.
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+
+	defer log.SetOutput(os.Stderr)
+
+	tomlConfig := `pane_group_command = "` + faketmuxBin + ` fake-cmd"`
+	client := &fakeHostClient{toml: []byte(tomlConfig)}
+	socketDir := t.TempDir()
+	tmux := session.NewWithBinClientAndConfigHome(faketmuxBin, socketDir, configHome, client)
+
+	sockPath := filepath.Join(socketDir, "feat-pgcmd.sock")
+	require.NoError(t, os.WriteFile(sockPath, nil, 0o600))
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: worktree,
+	})
+	require.NoError(t, err)
+
+	// pane_group_command must win — layout must not be applied.
+	tmuxLog, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	require.NotContains(t, string(tmuxLog), "layout-window",
+		"layout must not be applied when pane_group_command is set")
+
+	// Warning must have been logged.
+	require.Contains(t, logBuf.String(), "pane_group_command",
+		"warning must mention pane_group_command")
+	require.Contains(t, logBuf.String(), "ignoring",
+		"warning must indicate the layout config is being ignored")
 }
 
 // fakeHostClient implements pluginv1.HostClient for tests.
