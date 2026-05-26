@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +19,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
+
+	"github.com/kalbasit/swm/plugins/session-tmux/internal/layout"
 )
 
 // buildVersion is set via -ldflags at build time.
@@ -35,6 +38,7 @@ type tmuxConfig struct {
 type Tmux struct {
 	tmuxBin    string
 	socketDir  string
+	configHome string
 	hostClient pluginv1.HostClient
 	grpcConn   *grpc.ClientConn
 }
@@ -48,8 +52,9 @@ func New() (*Tmux, error) {
 	}
 
 	t := &Tmux{
-		tmuxBin:   bin,
-		socketDir: filepath.Join(xdg.RuntimeDir, "swm", "tmux"),
+		tmuxBin:    bin,
+		socketDir:  filepath.Join(xdg.RuntimeDir, "swm", "tmux"),
+		configHome: xdg.ConfigHome,
 	}
 
 	if sock := os.Getenv("SWM_HOST_SOCKET"); sock != "" {
@@ -70,13 +75,25 @@ func New() (*Tmux, error) {
 
 // NewWithBin returns a Tmux instance with an injected binary path and socket dir (for tests).
 func NewWithBin(tmuxBin, socketDir string) *Tmux {
-	return &Tmux{tmuxBin: tmuxBin, socketDir: socketDir}
+	return &Tmux{tmuxBin: tmuxBin, socketDir: socketDir, configHome: xdg.ConfigHome}
 }
 
 // NewWithBinAndClient returns a Tmux instance with an injected binary, socket dir,
 // and host client (for tests that exercise pane_group_command).
 func NewWithBinAndClient(tmuxBin, socketDir string, client pluginv1.HostClient) *Tmux {
-	return &Tmux{tmuxBin: tmuxBin, socketDir: socketDir, hostClient: client}
+	return &Tmux{tmuxBin: tmuxBin, socketDir: socketDir, configHome: xdg.ConfigHome, hostClient: client}
+}
+
+// NewWithBinAndConfigHome returns a Tmux instance with an injected binary, socket dir,
+// and XDG config home (for tests that exercise layout config resolution).
+func NewWithBinAndConfigHome(tmuxBin, socketDir, configHome string) *Tmux {
+	return &Tmux{tmuxBin: tmuxBin, socketDir: socketDir, configHome: configHome}
+}
+
+// NewWithBinClientAndConfigHome returns a Tmux instance with all dependencies injected
+// (for tests that exercise both pane_group_command and layout config).
+func NewWithBinClientAndConfigHome(tmuxBin, socketDir, configHome string, client pluginv1.HostClient) *Tmux {
+	return &Tmux{tmuxBin: tmuxBin, socketDir: socketDir, configHome: configHome, hostClient: client}
 }
 
 // Close releases the gRPC connection to the host service.
@@ -211,6 +228,14 @@ func (t *Tmux) OpenPaneGroup(ctx context.Context, req *pluginv1.OpenPaneGroupReq
 		if _, err := t.run(ctx, args...); err != nil {
 			return nil, err
 		}
+
+		if initialCmd == "" {
+			if err := t.applyLayout(ctx, sock, name, req); err != nil {
+				return nil, err
+			}
+		} else if t.layoutConfigExists(req.GetWorktreePath()) {
+			log.Printf("session-tmux: pane_group_command is set; ignoring layout config for %s", name)
+		}
 	}
 
 	return &pluginv1.PaneGroup{
@@ -290,6 +315,28 @@ func (t *Tmux) SwitchTo(ctx context.Context, req *pluginv1.SwitchToRequest) (*pl
 	return resp, nil
 }
 
+// applyLayout resolves and applies the session-tmux layout for a newly created pane group.
+// Falls back to the built-in default layout (editor + shell) when no config file exists.
+func (t *Tmux) applyLayout(ctx context.Context, sock, sessionName string, req *pluginv1.OpenPaneGroupRequest) error {
+	storyName := strings.TrimSuffix(filepath.Base(req.GetWorkspaceId()), ".sock")
+	vars := layout.TemplateVars{
+		WorktreePath: req.GetWorktreePath(),
+		StoryName:    storyName,
+		TmuxSocket:   req.GetWorkspaceId(),
+	}
+
+	cfg, err := layout.LoadConfig(req.GetWorktreePath(), t.configHome, vars)
+	if err != nil {
+		return err
+	}
+
+	if cfg == nil {
+		cfg = defaultLayout()
+	}
+
+	return layout.Apply(ctx, t.run, sock, sessionName, cfg)
+}
+
 // killOriginPane kills the specified pane in the origin workspace after a switch.
 // It is a no-op when either argument is empty.
 // "No such pane" errors from tmux are swallowed — the pane may have already closed.
@@ -325,6 +372,23 @@ func isKillPaneNotFound(err error) bool {
 	return strings.Contains(msg, "no such pane") ||
 		strings.Contains(msg, "can't find pane") ||
 		strings.Contains(msg, "no sessions")
+}
+
+// layoutConfigExists reports whether a layout config file exists at either tier
+// (per-repo .swm/session-tmux.toml or global $XDG_CONFIG_HOME/swm/session-tmux.toml).
+func (t *Tmux) layoutConfigExists(worktreePath string) bool {
+	candidates := []string{
+		filepath.Join(worktreePath, ".swm", "session-tmux.toml"),
+		filepath.Join(t.configHome, "swm", "session-tmux.toml"),
+	}
+
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 // paneGroupCommand returns the command string for a new pane group session, applying
@@ -378,6 +442,21 @@ func validateCommandBinary(cmd string) error {
 	}
 
 	return nil
+}
+
+// defaultLayout returns the built-in two-window layout (editor + shell).
+func defaultLayout() *layout.Config {
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vim"
+	}
+
+	return &layout.Config{
+		Windows: []layout.Window{
+			{Name: "editor", Panes: []layout.Pane{{Commands: []string{editor}}}},
+			{Name: "shell"},
+		},
+	}
 }
 
 func (t *Tmux) run(ctx context.Context, args ...string) (string, error) {

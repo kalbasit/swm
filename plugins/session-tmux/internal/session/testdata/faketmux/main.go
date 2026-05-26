@@ -67,6 +67,9 @@ func main() {
 			name = "test-session"
 		}
 		fmt.Println(name)
+	case "split-window":
+		// Return a fake pane ID so layout.Apply can reference the new pane.
+		fmt.Println("%1")
 	}
 }
 
