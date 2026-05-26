@@ -369,10 +369,9 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	sockPath := filepath.Join(socketDir, "feat-x.sock")
 
 	// Use faketmuxBin (guaranteed to exist) so binary validation passes.
-	// testLaioPaneGroupCommandTOML references laio, which may not be installed.
 	toml := `pane_group_command = "` + faketmuxBin +
-		` start --file '{{worktree_path}}/.swm/laio.yaml'` +
-		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
+		` --path '{{.WorktreePath}}'` +
+		` --socket '{{.TmuxSocket}}'"`
 
 	client := &fakeHostClient{
 		toml: []byte(toml),
@@ -396,8 +395,8 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
 
-	wantCmd := faketmuxBin + " start --file '/tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml'" +
-		" --tmux-socket '" + sockPath + "' --replace-current-session --skip-attach"
+	wantCmd := faketmuxBin + " --path '/tmp/stories/feat-x/github.com/kalbasit/swm'" +
+		" --socket '" + sockPath + "'"
 
 	log := string(logBytes)
 	require.Contains(t, log, wantCmd, "expected substituted pane_group_command in tmux args")
@@ -413,8 +412,7 @@ func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
 
 	// Use faketmuxBin (guaranteed to exist) so binary validation passes.
 	toml := `pane_group_command = "` + faketmuxBin +
-		` start --file '{{worktree_path}}/.swm/laio.yaml'` +
-		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
+		` --socket '{{.TmuxSocket}}'"`
 
 	client := &fakeHostClient{
 		toml: []byte(toml),
@@ -437,8 +435,8 @@ func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
 	require.NoError(t, err)
 
 	log := string(logBytes)
-	require.Contains(t, log, "--tmux-socket '"+sockPath+"'",
-		"{{tmux_socket}} must be substituted with the workspace socket path")
+	require.Contains(t, log, "--socket '"+sockPath+"'",
+		"{{.TmuxSocket}} must be substituted with the workspace socket path")
 }
 
 func TestOpenPaneGroup_PaneGroupCommandWhitespaceOnly(t *testing.T) {
@@ -943,6 +941,62 @@ name = "layout-window"
 		"warning must mention pane_group_command")
 	require.Contains(t, logBuf.String(), "ignoring",
 		"warning must indicate the layout config is being ignored")
+}
+
+func TestOpenPaneGroup_LayoutProjectIDSubstitution(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	worktree := t.TempDir()
+	writeLayoutConfig(t, filepath.Join(worktree, ".swm"), `
+[[windows]]
+name = "{{.ProjectID}}-window"
+
+  [[windows.panes]]
+  commands = ["echo {{.ProjectID}}"]
+`)
+
+	tmux, socketDir := newTmuxWithConfigHome(t, t.TempDir())
+	sockPath := filepath.Join(socketDir, "feat-projectid.sock")
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: worktree,
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	tmuxLog := string(logBytes)
+	require.Contains(t, tmuxLog, testProject+"-window",
+		"{{.ProjectID}} must be substituted in layout window names")
+	require.Contains(t, tmuxLog, "echo "+testProject,
+		"{{.ProjectID}} must be substituted in layout pane commands")
+}
+
+func TestOpenPaneGroup_PaneGroupCommandTemplateError(t *testing.T) {
+	// Cannot be parallel — uses t.Setenv.
+	socketDir := t.TempDir()
+	t.Setenv("FAKETMUX_LOG", filepath.Join(t.TempDir(), "tmux.log"))
+
+	sockPath := filepath.Join(socketDir, "feat-tmpl-err.sock")
+	require.NoError(t, os.WriteFile(sockPath, nil, 0o600))
+
+	// Use an invalid template: unclosed action.
+	const badTemplateTOML = `pane_group_command = "` + "{{.UnknownKey}}" + `"`
+
+	client := &fakeHostClient{toml: []byte(badTemplateTOML)}
+	tmux := session.NewWithBinAndClient(faketmuxBin, socketDir, client)
+
+	_, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sockPath,
+		ProjectId:    &pluginv1.ProjectID{Host: testHost, Segments: []string{testOrg, testRepo}},
+		WorktreePath: t.TempDir(),
+	})
+	require.Error(t, err, "pane_group_command with unknown template key must return an error")
 }
 
 // fakeHostClient implements pluginv1.HostClient for tests.

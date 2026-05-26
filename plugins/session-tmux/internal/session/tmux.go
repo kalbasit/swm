@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
@@ -210,7 +211,10 @@ func (t *Tmux) OpenPaneGroup(ctx context.Context, req *pluginv1.OpenPaneGroupReq
 	name := sessionName(pid.GetHost() + "/" + strings.Join(pid.GetSegments(), "/"))
 
 	// Determine the initial command for the session.
-	initialCmd := t.paneGroupCommand(ctx, req)
+	initialCmd, err := t.paneGroupCommand(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 
 	if initialCmd != "" {
 		if err := validateCommandBinary(initialCmd); err != nil {
@@ -319,9 +323,11 @@ func (t *Tmux) SwitchTo(ctx context.Context, req *pluginv1.SwitchToRequest) (*pl
 // Falls back to the built-in default layout (editor + shell) when no config file exists.
 func (t *Tmux) applyLayout(ctx context.Context, sock, sessionName string, req *pluginv1.OpenPaneGroupRequest) error {
 	storyName := strings.TrimSuffix(filepath.Base(req.GetWorkspaceId()), ".sock")
+	pid := req.GetProjectId()
 	vars := layout.TemplateVars{
 		WorktreePath: req.GetWorktreePath(),
 		StoryName:    storyName,
+		ProjectID:    pid.GetHost() + "/" + strings.Join(pid.GetSegments(), "/"),
 		TmuxSocket:   req.GetWorkspaceId(),
 	}
 
@@ -391,38 +397,49 @@ func (t *Tmux) layoutConfigExists(worktreePath string) bool {
 	return false
 }
 
-// paneGroupCommand returns the command string for a new pane group session, applying
-// template substitutions if pane_group_command is configured.
-// Returns empty string if no command is configured or if config cannot be fetched.
-func (t *Tmux) paneGroupCommand(ctx context.Context, req *pluginv1.OpenPaneGroupRequest) string {
+// paneGroupCommand returns the rendered pane_group_command string, or ("", nil) when
+// no command is configured. Returns a non-nil error when the configured command's
+// template is invalid or references an unknown variable.
+func (t *Tmux) paneGroupCommand(ctx context.Context, req *pluginv1.OpenPaneGroupRequest) (string, error) {
 	if t.hostClient == nil {
-		return ""
+		return "", nil
 	}
 
 	resp, err := t.hostClient.GetConfig(ctx, &pluginv1.GetConfigRequest{PluginName: "session-tmux"})
 	if err != nil {
-		return ""
+		return "", nil //nolint:nilerr // host RPC failure means no config available; not a user-facing error
 	}
 
 	var cfg tmuxConfig
-	if err := toml.Unmarshal(resp.GetToml(), &cfg); err != nil || cfg.PaneGroupCommand == "" {
-		return ""
+	if err := toml.Unmarshal(resp.GetToml(), &cfg); err != nil {
+		return "", nil //nolint:nilerr // malformed TOML treated as unconfigured; host validates config
 	}
 
-	// Derive story name from the socket path basename.
+	if cfg.PaneGroupCommand == "" {
+		return "", nil
+	}
+
 	storyName := strings.TrimSuffix(filepath.Base(req.GetWorkspaceId()), ".sock")
 
-	// Build project_id string: host/seg1/seg2/...
 	pid := req.GetProjectId()
-	projectID := pid.GetHost() + "/" + strings.Join(pid.GetSegments(), "/")
+	vars := layout.TemplateVars{
+		WorktreePath: req.GetWorktreePath(),
+		StoryName:    storyName,
+		ProjectID:    pid.GetHost() + "/" + strings.Join(pid.GetSegments(), "/"),
+		TmuxSocket:   req.GetWorkspaceId(),
+	}
 
-	cmd := cfg.PaneGroupCommand
-	cmd = strings.ReplaceAll(cmd, "{{worktree_path}}", req.GetWorktreePath())
-	cmd = strings.ReplaceAll(cmd, "{{story_name}}", storyName)
-	cmd = strings.ReplaceAll(cmd, "{{project_id}}", projectID)
-	cmd = strings.ReplaceAll(cmd, "{{tmux_socket}}", req.GetWorkspaceId())
+	tmpl, err := template.New("cmd").Option("missingkey=error").Parse(cfg.PaneGroupCommand)
+	if err != nil {
+		return "", status.Errorf(codes.InvalidArgument, "pane_group_command template parse error: %v", err)
+	}
 
-	return cmd
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, vars); err != nil {
+		return "", status.Errorf(codes.InvalidArgument, "pane_group_command template execute error: %v", err)
+	}
+
+	return buf.String(), nil
 }
 
 // validateCommandBinary checks that the first token of cmd resolves to an

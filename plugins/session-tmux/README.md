@@ -183,9 +183,9 @@ name = "code"
 
 The plugin itself needs no configuration for layout — the `session-tmux.toml` files (above) are sufficient. The following options can be set under `[plugins.config.session-tmux]` when needed:
 
-| Key                  | Type   | Default | Description                                                                                                                                                                                  |
-| -------------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pane_group_command` | string | `""`    | Shell command run when a pane group is first opened. Takes precedence over layout config when set. Supports `{{.WorktreePath}}`, `{{.StoryName}}`, and `{{.TmuxSocket}}` template variables. |
+| Key                  | Type   | Default | Description                                                                                                                                                                                                       |
+| -------------------- | ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pane_group_command` | string | `""`    | Shell command run when a pane group is first opened. Takes precedence over layout config when set. Supports `{{.WorktreePath}}`, `{{.StoryName}}`, `{{.ProjectID}}`, and `{{.TmuxSocket}}` Go template variables. |
 
 ## Usage
 

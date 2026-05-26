@@ -27,6 +27,7 @@ const (
 type TemplateVars struct {
 	WorktreePath string
 	StoryName    string
+	ProjectID    string
 	TmuxSocket   string
 }
 

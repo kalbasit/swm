@@ -55,7 +55,7 @@ The `session-tmux` plugin manages per-story tmux servers for swm. Each workspace
 - **THEN** that socket is excluded from the streamed results
 
 ### Requirement: paneGroupCommand exposes template variables
-`session-tmux` SHALL substitute `{{.WorktreePath}}`, `{{.StoryName}}`, and `{{.TmuxSocket}}` in `pane_group_command` before executing it. `{{.TmuxSocket}}` expands to the absolute path of the story's tmux socket (the same value as `workspace_id` in the request).
+`session-tmux` SHALL render `pane_group_command` through Go `text/template` with `{{.WorktreePath}}`, `{{.StoryName}}`, `{{.ProjectID}}`, and `{{.TmuxSocket}}` before executing it. `{{.TmuxSocket}}` expands to the absolute path of the story's tmux socket (the same value as `workspace_id` in the request).
 
 #### Scenario: Template variables are substituted
 - **WHEN** `config.toml` has `pane_group_command = "my-layout --socket '{{.TmuxSocket}}' --path '{{.WorktreePath}}'"` and `OpenPaneGroup` is called with `workspace_id = /run/user/1000/swm/tmux/feat-x.sock` and `worktree_path = /home/user/code/stories/feat-x/github.com/org/repo`
