@@ -28,35 +28,164 @@ nix profile install nixpkgs#tmux
 apt install tmux
 ```
 
-## Configuration
+## Layout configuration
 
-Configure under `[plugins.config.session-tmux]` in `config.toml`:
+When a pane group (tmux session) is first opened, the plugin looks for a layout
+config file in two locations, preferring the per-repo one:
 
-| Key                  | Type   | Default | Description                                                                                            |
-| -------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------ |
-| `pane_group_command` | string | `""`    | Command to run when a pane group (tmux session) is first opened. If empty, tmux opens a default shell. |
+| Priority | Path                                     | Scope    |
+| -------- | ---------------------------------------- | -------- |
+| 1        | `<worktree>/.swm/session-tmux.toml`      | per-repo |
+| 2        | `$XDG_CONFIG_HOME/swm/session-tmux.toml` | global   |
 
-### Example
-
-```toml
-[plugins]
-session = "tmux"
-
-[plugins.config.session-tmux]
-# Launch nvim in the first window of every new pane group
-pane_group_command = "nvim"
-```
+If neither file is found, a single default shell pane is opened.
 
 ### Template variables
 
-When `pane_group_command` is non-empty, these variables are expanded before the command runs:
+Config values are Go [`text/template`](https://pkg.go.dev/text/template) strings.
+The following variables are available anywhere in the file:
 
 | Variable            | Expands to                                                                               |
 | ------------------- | ---------------------------------------------------------------------------------------- |
-| `{{worktree_path}}` | Absolute path to the project's worktree                                                  |
-| `{{story_name}}`    | Name of the active story                                                                 |
-| `{{project_id}}`    | Project identifier (`<host>/<path>`, e.g. `github.com/kalbasit/swm`)                     |
-| `{{tmux_socket}}`   | Absolute path to the story's tmux socket (`$XDG_RUNTIME_DIR/swm/tmux/<story-name>.sock`) |
+| `{{.WorktreePath}}` | Absolute path to the project's worktree                                                  |
+| `{{.StoryName}}`    | Name of the active story                                                                 |
+| `{{.TmuxSocket}}`   | Absolute path to the story's tmux socket (`$XDG_RUNTIME_DIR/swm/tmux/<story-name>.sock`) |
+
+### Schema reference
+
+```toml
+# Top-level options
+path           = "{{.WorktreePath}}"  # base path for all windows/panes (Go template)
+shell          = "/bin/zsh"           # shell binary; inherits $SHELL when unset
+pane_cmd_delay = 50                   # ms to wait between send-keys calls (default: 0)
+
+[env]
+# Session-level environment variables set before layout is applied.
+EDITOR = "nvim"
+
+[[startup]]
+# Commands sent to the initial pane before any windows/panes are created.
+# Useful for bootstrapping tools (e.g. mise, nix develop).
+command = "mise install"
+# args   = []  # optional argument list; each arg is shell-quoted when non-trivial
+
+[[windows]]
+name           = "editor"    # required; must be non-empty
+path           = "src"       # optional; resolved relative to top-level path
+flex_direction = "column"    # "column" (vertical stacked, default) | "row" (side by side)
+
+  [windows.env]
+  NODE_ENV = "development"
+
+  [[windows.panes]]
+  flex           = 2           # relative size weight (default: 1, minimum: 1)
+  flex_direction = "row"       # overrides the window split direction for children
+  path           = "frontend"  # resolved relative to window path
+  focus          = true        # focus this pane after layout (max one per window)
+  zoom           = false       # zoom this pane (applied after focus; max one per window)
+  commands       = ["nvim ."]  # sent via tmux send-keys
+
+    # Panes are recursive — a pane with child panes becomes a split container.
+    [[windows.panes.panes]]
+    flex     = 1
+    commands = ["npm test -- --watch"]
+
+  [[windows.panes]]
+  flex     = 1
+  commands = ["bash"]
+```
+
+**Constraints:**
+
+- At least one `[[windows]]` is required.
+- `flex` must be ≥ 1.
+- At most one pane per window may have `focus = true`.
+- At most one pane per window may have `zoom = true`.
+
+### Flex layout
+
+Sibling panes are sized proportionally by their `flex` weights:
+
+- Two panes with `flex = 1` each → 50 / 50 split.
+- Panes with `flex = 2` and `flex = 1` → 66 / 33 split.
+
+`flex_direction = "column"` (default) stacks panes top/bottom; `"row"` places them side by side. Each pane container can override the direction independently, enabling arbitrarily nested grid layouts.
+
+### Examples
+
+**Global config — open nvim and a shell for every project:**
+
+```toml
+# ~/.config/swm/session-tmux.toml
+path = "{{.WorktreePath}}"
+
+[[windows]]
+name = "code"
+
+  [[windows.panes]]
+  flex     = 2
+  commands = ["nvim ."]
+  focus    = true
+
+  [[windows.panes]]
+  flex = 1
+
+[[windows]]
+name = "shell"
+```
+
+**Per-repo config — editor with tests and git log beside it:**
+
+```toml
+# <repo>/.swm/session-tmux.toml
+path = "{{.WorktreePath}}"
+
+[[windows]]
+name           = "editor"
+flex_direction = "row"
+
+  [[windows.panes]]
+  flex     = 3
+  commands = ["nvim ."]
+  focus    = true
+
+  [[windows.panes]]
+  flex           = 1
+  flex_direction = "column"
+
+    [[windows.panes.panes]]
+    commands = ["go test ./..."]
+
+    [[windows.panes.panes]]
+    commands = ["git log --oneline"]
+
+[[windows]]
+name = "shell"
+```
+
+**Bootstrap with mise before opening the layout:**
+
+```toml
+# <repo>/.swm/session-tmux.toml
+path = "{{.WorktreePath}}"
+
+[[startup]]
+command = "mise install"
+
+[[windows]]
+name = "code"
+
+  [[windows.panes]]
+  commands = ["nvim ."]
+```
+
+## Plugin configuration (`config.toml`)
+
+The plugin itself needs no configuration for layout — the `session-tmux.toml` files (above) are sufficient. The following options can be set under `[plugins.config.session-tmux]` when needed:
+
+| Key                  | Type   | Default | Description                                                                                                                                                                                  |
+| -------------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pane_group_command` | string | `""`    | Shell command run when a pane group is first opened. Takes precedence over layout config when set. Supports `{{.WorktreePath}}`, `{{.StoryName}}`, and `{{.TmuxSocket}}` template variables. |
 
 ## Usage
 
@@ -81,62 +210,6 @@ You can connect to a story's server directly with:
 ```sh
 tmux -S "$XDG_RUNTIME_DIR/swm/tmux/<story-name>.sock" attach
 ```
-
-## Laio integration
-
-[laio](https://laio.sh/) is a tmux layout manager that reads a YAML config to
-create windows and panes. When used with swm, laio must target swm's per-story socket so its
-sessions land on the correct tmux server.
-
-### Per-project config
-
-Place a `laio.yaml` inside the repository (e.g. `.swm/laio.yaml`) and reference it via
-`{{worktree_path}}`:
-
-```toml
-# config.toml
-[plugins.config.session-tmux]
-pane_group_command = "laio start --file '{{worktree_path}}/.swm/laio.yaml' --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"
-```
-
-`path: .` in the laio.yaml resolves relative to the config file, which lives inside the
-worktree, so no extra path injection is needed.
-
-### Global config
-
-Keep a single `laio.yaml` at a fixed path and inject the worktree path via laio's Tera
-`--var` mechanism:
-
-```yaml
-# ~/.config/swm/laio.yaml
-path: "{{ path }}" # injected by --var below
-windows:
-  - name: editor
-    panes:
-      - shell_command: nvim
-  - name: shell
-    panes:
-      - shell_command: ""
-```
-
-```toml
-# config.toml
-[plugins.config.session-tmux]
-pane_group_command = "laio start --file ~/.config/swm/laio.yaml --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach --var path='{{worktree_path}}'"
-```
-
-See [`examples/laio.yaml`](examples/laio.yaml) for a complete annotated sample.
-
-### Why `--replace-current-session` and `--skip-attach` are required
-
-laio is invoked inside an already-attached tmux session (the one swm just created and switched
-into). Two flags are needed:
-
-- `--replace-current-session` — without this flag, laio creates or switches to a new named
-  session instead of reconfiguring the one swm already attached to. This flag tells laio to
-  apply the layout to the current session in place.
-- `--skip-attach` — laio would otherwise attempt to call `attach-session` or `switch-client`,
-  which fails silently or has no effect from inside an active session.
 
 ## Limitations
 
