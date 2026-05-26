@@ -369,10 +369,9 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	sockPath := filepath.Join(socketDir, "feat-x.sock")
 
 	// Use faketmuxBin (guaranteed to exist) so binary validation passes.
-	// testLaioPaneGroupCommandTOML references laio, which may not be installed.
 	toml := `pane_group_command = "` + faketmuxBin +
-		` start --file '{{worktree_path}}/.swm/laio.yaml'` +
-		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
+		` --path '{{.WorktreePath}}'` +
+		` --socket '{{.TmuxSocket}}'"`
 
 	client := &fakeHostClient{
 		toml: []byte(toml),
@@ -396,8 +395,8 @@ func TestOpenPaneGroup_WithPaneGroupCommand(t *testing.T) {
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
 
-	wantCmd := faketmuxBin + " start --file '/tmp/stories/feat-x/github.com/kalbasit/swm/.swm/laio.yaml'" +
-		" --tmux-socket '" + sockPath + "' --replace-current-session --skip-attach"
+	wantCmd := faketmuxBin + " --path '/tmp/stories/feat-x/github.com/kalbasit/swm'" +
+		" --socket '" + sockPath + "'"
 
 	log := string(logBytes)
 	require.Contains(t, log, wantCmd, "expected substituted pane_group_command in tmux args")
@@ -413,8 +412,7 @@ func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
 
 	// Use faketmuxBin (guaranteed to exist) so binary validation passes.
 	toml := `pane_group_command = "` + faketmuxBin +
-		` start --file '{{worktree_path}}/.swm/laio.yaml'` +
-		` --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"`
+		` --socket '{{.TmuxSocket}}'"`
 
 	client := &fakeHostClient{
 		toml: []byte(toml),
@@ -437,8 +435,8 @@ func TestOpenPaneGroup_WithPaneGroupCommand_SocketSubstitution(t *testing.T) {
 	require.NoError(t, err)
 
 	log := string(logBytes)
-	require.Contains(t, log, "--tmux-socket '"+sockPath+"'",
-		"{{tmux_socket}} must be substituted with the workspace socket path")
+	require.Contains(t, log, "--socket '"+sockPath+"'",
+		"{{.TmuxSocket}} must be substituted with the workspace socket path")
 }
 
 func TestOpenPaneGroup_PaneGroupCommandWhitespaceOnly(t *testing.T) {

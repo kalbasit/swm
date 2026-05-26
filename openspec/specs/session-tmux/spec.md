@@ -55,10 +55,10 @@ The `session-tmux` plugin manages per-story tmux servers for swm. Each workspace
 - **THEN** that socket is excluded from the streamed results
 
 ### Requirement: paneGroupCommand exposes template variables
-`session-tmux` SHALL substitute `{{.WorktreePath}}`, `{{.StoryName}}`, and `{{.TmuxSocket}}` in `pane_group_command` before executing it. `{{.TmuxSocket}}` expands to the absolute path of the story's tmux socket (the same value as `workspace_id` in the request).
+`session-tmux` SHALL substitute `{{worktree_path}}`, `{{story_name}}`, `{{project_id}}`, and `{{tmux_socket}}` in `pane_group_command` before executing it. `{{tmux_socket}}` expands to the absolute path of the story's tmux socket (the same value as `workspace_id` in the request).
 
 #### Scenario: Template variables are substituted
-- **WHEN** `config.toml` has `pane_group_command = "my-layout --socket '{{.TmuxSocket}}' --path '{{.WorktreePath}}'"` and `OpenPaneGroup` is called with `workspace_id = /run/user/1000/swm/tmux/feat-x.sock` and `worktree_path = /home/user/code/stories/feat-x/github.com/org/repo`
+- **WHEN** `config.toml` has `pane_group_command = "my-layout --socket '{{tmux_socket}}' --path '{{worktree_path}}'"` and `OpenPaneGroup` is called with `workspace_id = /run/user/1000/swm/tmux/feat-x.sock` and `worktree_path = /home/user/code/stories/feat-x/github.com/org/repo`
 - **THEN** the command runs as `my-layout --socket '/run/user/1000/swm/tmux/feat-x.sock' --path '/home/user/code/stories/feat-x/github.com/org/repo'`
 
 #### Scenario: Template substitution absent when no pane_group_command configured
@@ -82,8 +82,8 @@ When `pane_group_command` is configured, `session-tmux` SHALL validate that the 
 - **THEN** the tmux session is created with two windows: the first running `$EDITOR` (or `vim`), the second running a shell
 
 #### Scenario: Custom pane_group_command
-- **WHEN** `config.toml` has `pane_group_command = "my-layout --socket '{{.TmuxSocket}}' --path '{{.WorktreePath}}'"` and `OpenPaneGroup` is called
-- **THEN** the session's first window runs `my-layout` with both `{{.TmuxSocket}}` and `{{.WorktreePath}}` expanded to their respective values
+- **WHEN** `config.toml` has `pane_group_command = "my-layout --socket '{{tmux_socket}}' --path '{{worktree_path}}'"` and `OpenPaneGroup` is called
+- **THEN** the session's first window runs `my-layout` with both `{{tmux_socket}}` and `{{worktree_path}}` expanded to their respective values
 
 #### Scenario: Per-repo layout config applied
 - **WHEN** `<worktree_path>/.swm/session-tmux.toml` exists and `pane_group_command` is not set
