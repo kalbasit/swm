@@ -1,4 +1,4 @@
-package layout
+package layout //nolint:testpackage // splitPercent is unexported; white-box test required
 
 import (
 	"testing"
@@ -68,6 +68,7 @@ func TestSplitPercent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			got := splitPercent(tc.currentFlex, tc.remainingFlex)
 			require.Equal(t, tc.want, got)
 		})

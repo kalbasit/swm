@@ -68,6 +68,7 @@ func newTmuxWithConfigHome(t *testing.T, configHome string) (*session.Tmux, stri
 
 func writeLayoutConfig(t *testing.T, dir, content string) {
 	t.Helper()
+
 	p := filepath.Join(dir, "session-tmux.toml")
 	require.NoError(t, os.MkdirAll(dir, 0o700))
 	require.NoError(t, os.WriteFile(p, []byte(content), 0o600))

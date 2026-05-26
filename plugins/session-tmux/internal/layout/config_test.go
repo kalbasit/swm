@@ -34,12 +34,13 @@ path = "{{.WorktreePath}}/src"
   commands = ["echo {{.StoryName}} {{.TmuxSocket}}"]
 `
 
-func writeConfig(t *testing.T, dir, name, content string) string {
+func writeConfig(t *testing.T, dir, content string) {
 	t.Helper()
-	p := filepath.Join(dir, name)
+
+	p := filepath.Join(dir, "session-tmux.toml")
+
 	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o700))
 	require.NoError(t, os.WriteFile(p, []byte(content), 0o600))
-	return p
 }
 
 func TestLoadConfig_NoConfigAtEitherTier(t *testing.T) {
@@ -55,7 +56,7 @@ func TestLoadConfig_PerRepoConfigUsed(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", minimalConfig)
+	writeConfig(t, filepath.Join(wt, ".swm"), minimalConfig)
 
 	cfg, err := layout.LoadConfig(wt, xdg, layout.TemplateVars{})
 	require.NoError(t, err)
@@ -69,7 +70,7 @@ func TestLoadConfig_GlobalConfigUsedWhenNoPerRepo(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(xdg, "swm"), "session-tmux.toml", twoWindowConfig)
+	writeConfig(t, filepath.Join(xdg, "swm"), twoWindowConfig)
 
 	cfg, err := layout.LoadConfig(wt, xdg, layout.TemplateVars{})
 	require.NoError(t, err)
@@ -82,8 +83,8 @@ func TestLoadConfig_PerRepoWinsOverGlobal(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", minimalConfig)   // 1 window
-	writeConfig(t, filepath.Join(xdg, "swm"), "session-tmux.toml", twoWindowConfig) // 2 windows
+	writeConfig(t, filepath.Join(wt, ".swm"), minimalConfig)   // 1 window
+	writeConfig(t, filepath.Join(xdg, "swm"), twoWindowConfig) // 2 windows
 
 	cfg, err := layout.LoadConfig(wt, xdg, layout.TemplateVars{})
 	require.NoError(t, err)
@@ -96,7 +97,7 @@ func TestLoadConfig_TemplateSubstitution(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", templateConfig)
+	writeConfig(t, filepath.Join(wt, ".swm"), templateConfig)
 
 	vars := layout.TemplateVars{
 		WorktreePath: "/home/user/code/stories/feat/github.com/org/repo",
@@ -116,7 +117,7 @@ func TestLoadConfig_ValidationNoWindows(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", `# empty`)
+	writeConfig(t, filepath.Join(wt, ".swm"), `# empty`)
 
 	_, err := layout.LoadConfig(wt, xdg, layout.TemplateVars{})
 	require.Error(t, err)
@@ -128,7 +129,7 @@ func TestLoadConfig_ValidationEmptyWindowName(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", `
+	writeConfig(t, filepath.Join(wt, ".swm"), `
 [[windows]]
 name = ""
 `)
@@ -141,11 +142,9 @@ name = ""
 func TestLoadConfig_ValidationFlexZero(t *testing.T) {
 	t.Parallel()
 
-	flex := 0
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	_ = flex
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", `
+	writeConfig(t, filepath.Join(wt, ".swm"), `
 [[windows]]
 name = "main"
 
@@ -163,7 +162,7 @@ func TestLoadConfig_ValidationTwoFocusPanes(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", `
+	writeConfig(t, filepath.Join(wt, ".swm"), `
 [[windows]]
 name = "main"
 
@@ -185,7 +184,7 @@ func TestLoadConfig_ValidationTwoZoomPanes(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", `
+	writeConfig(t, filepath.Join(wt, ".swm"), `
 [[windows]]
 name = "main"
 
@@ -207,7 +206,7 @@ func TestLoadConfig_ValidationFlexNegative(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", `
+	writeConfig(t, filepath.Join(wt, ".swm"), `
 [[windows]]
 name = "main"
 
@@ -234,10 +233,32 @@ func TestLoadConfig_ValidationInvalidFlexDirection(t *testing.T) {
 
 	wt := t.TempDir()
 	xdg := t.TempDir()
-	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", `
+	writeConfig(t, filepath.Join(wt, ".swm"), `
 [[windows]]
 name = "main"
 flex_direction = "diagonal"
+`)
+
+	_, err := layout.LoadConfig(wt, xdg, layout.TemplateVars{})
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	require.Contains(t, err.Error(), "flex_direction")
+}
+
+func TestLoadConfig_ValidationInvalidPaneFlexDirection(t *testing.T) {
+	t.Parallel()
+
+	wt := t.TempDir()
+	xdg := t.TempDir()
+	writeConfig(t, filepath.Join(wt, ".swm"), `
+[[windows]]
+name = "main"
+
+  [[windows.panes]]
+  flex_direction = "diagonal"
+
+    [[windows.panes.panes]]
+    commands = ["echo nested"]
 `)
 
 	_, err := layout.LoadConfig(wt, xdg, layout.TemplateVars{})

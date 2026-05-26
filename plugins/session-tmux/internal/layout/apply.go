@@ -104,7 +104,10 @@ func Apply(ctx context.Context, run RunFunc, sock, sessionName string, cfg *Conf
 // layoutPanes recursively splits parentPaneID into len(panes) regions according
 // to each pane's flex weight, then applies content to leaf panes.
 // Returns all leaf pane results so the caller can apply focus/zoom.
-func layoutPanes(ctx context.Context, run RunFunc, sock string, panes []Pane, parentPaneID string, dir FlexDirection, parentPath string, paneCmdDelay int) ([]paneResult, error) {
+func layoutPanes(
+	ctx context.Context, run RunFunc, sock string, panes []Pane,
+	parentPaneID string, dir FlexDirection, parentPath string, paneCmdDelay int,
+) ([]paneResult, error) {
 	if len(panes) == 0 {
 		return nil, nil
 	}
@@ -126,8 +129,8 @@ func layoutPanes(ctx context.Context, run RunFunc, sock string, panes []Pane, pa
 		if i < len(panes)-1 {
 			// split-window -p N: current pane keeps (100-N)%, new pane gets N%.
 			pct := splitPercent(eFlex, remainingFlex)
-			nextPath := resolvePath(panes[i+1].Path, parentPath)
-			newID, err := run(ctx, buildSplitArgs(sock, pct, currentID, dir, nextPath)...)
+
+			newID, err := run(ctx, buildSplitArgs(sock, pct, currentID, dir, resolvePath(panes[i+1].Path, parentPath))...)
 			if err != nil {
 				return nil, fmt.Errorf("splitting pane %s: %w", currentID, err)
 			}
@@ -142,7 +145,9 @@ func layoutPanes(ctx context.Context, run RunFunc, sock string, panes []Pane, pa
 		effectivePath := resolvePath(a.pane.Path, parentPath)
 
 		if len(a.pane.Panes) > 0 {
-			children, err := layoutPanes(ctx, run, sock, a.pane.Panes, a.paneID, a.pane.FlexDirection, effectivePath, paneCmdDelay)
+			children, err := layoutPanes(
+				ctx, run, sock, a.pane.Panes, a.paneID, a.pane.FlexDirection, effectivePath, paneCmdDelay,
+			)
 			if err != nil {
 				return nil, err
 			}
@@ -160,7 +165,9 @@ func layoutPanes(ctx context.Context, run RunFunc, sock string, panes []Pane, pa
 	return results, nil
 }
 
-func applyPaneContent(ctx context.Context, run RunFunc, sock string, p Pane, paneID, path string, paneCmdDelay int) error {
+func applyPaneContent(
+	ctx context.Context, run RunFunc, sock string, p Pane, paneID, path string, paneCmdDelay int,
+) error {
 	for k, v := range p.Env {
 		if err := sendKeys(ctx, run, sock, paneID, "export "+k+"="+v, paneCmdDelay); err != nil {
 			return fmt.Errorf("exporting env %s in pane %s: %w", k, paneID, err)

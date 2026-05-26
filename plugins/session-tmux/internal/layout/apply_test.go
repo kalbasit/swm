@@ -2,6 +2,7 @@ package layout_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -12,8 +13,10 @@ import (
 )
 
 const (
-	testSock    = "/run/user/1000/swm/tmux/feat-x.sock"
-	testSession = "github•com/org/repo"
+	testSock         = "/run/user/1000/swm/tmux/feat-x.sock"
+	testSession      = "github•com/org/repo"
+	testWindowMain   = "main"
+	testWindowEditor = "editor"
 )
 
 // recorder is a RunFunc that records calls and returns auto-incrementing pane IDs
@@ -22,35 +25,6 @@ type recorder struct {
 	mu      sync.Mutex
 	calls   []string // each call as "arg1 arg2 ..."
 	paneSeq int
-}
-
-func (r *recorder) run(_ context.Context, args ...string) (string, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.calls = append(r.calls, strings.Join(args, " "))
-
-	joined := strings.Join(args, " ")
-	if strings.Contains(joined, "display-message") || strings.Contains(joined, "split-window") {
-		id := "%" + string(rune('0'+r.paneSeq))
-		r.paneSeq++
-		return id, nil
-	}
-
-	return "", nil
-}
-
-func (r *recorder) hasCall(substr string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for _, c := range r.calls {
-		if strings.Contains(c, substr) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (r *recorder) callCount(substr string) int {
@@ -68,7 +42,37 @@ func (r *recorder) callCount(substr string) int {
 	return n
 }
 
-func flex(n int) *int { return &n }
+func (r *recorder) hasCall(substr string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, c := range r.calls {
+		if strings.Contains(c, substr) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *recorder) run(_ context.Context, args ...string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.calls = append(r.calls, strings.Join(args, " "))
+
+	joined := strings.Join(args, " ")
+	if strings.Contains(joined, "display-message") || strings.Contains(joined, "split-window") {
+		id := fmt.Sprintf("%%%d", r.paneSeq)
+		r.paneSeq++
+
+		return id, nil
+	}
+
+	return "", nil
+}
+
+func flex(n int) *int { return &n } //nolint:modernize // address-of int literal not possible in Go
 
 func TestApply_SingleWindowNoPanes(t *testing.T) {
 	t.Parallel()
@@ -76,14 +80,14 @@ func TestApply_SingleWindowNoPanes(t *testing.T) {
 	rec := &recorder{}
 	cfg := &layout.Config{
 		Windows: []layout.Window{
-			{Name: "editor"},
+			{Name: testWindowEditor},
 		},
 	}
 
 	err := layout.Apply(context.Background(), rec.run, testSock, testSession, cfg)
 	require.NoError(t, err)
 	require.True(t, rec.hasCall("rename-window"), "must rename default window")
-	require.True(t, rec.hasCall("editor"), "window name must appear in rename-window call")
+	require.True(t, rec.hasCall(testWindowEditor), "window name must appear in rename-window call")
 }
 
 func TestApply_TwoWindows(t *testing.T) {
@@ -92,7 +96,7 @@ func TestApply_TwoWindows(t *testing.T) {
 	rec := &recorder{}
 	cfg := &layout.Config{
 		Windows: []layout.Window{
-			{Name: "editor"},
+			{Name: testWindowEditor},
 			{Name: "shell"},
 		},
 	}
@@ -111,7 +115,7 @@ func TestApply_TwoPanesEqualFlex(t *testing.T) {
 	cfg := &layout.Config{
 		Windows: []layout.Window{
 			{
-				Name: "main",
+				Name: testWindowMain,
 				Panes: []layout.Pane{
 					{Commands: []string{"nvim ."}},
 					{Commands: []string{"bash"}},
@@ -135,7 +139,7 @@ func TestApply_ThreePanesEqualFlex(t *testing.T) {
 	cfg := &layout.Config{
 		Windows: []layout.Window{
 			{
-				Name: "main",
+				Name: testWindowMain,
 				Panes: []layout.Pane{
 					{Commands: []string{"cmd0"}},
 					{Commands: []string{"cmd1"}},
@@ -159,10 +163,10 @@ func TestApply_WeightedFlex(t *testing.T) {
 	cfg := &layout.Config{
 		Windows: []layout.Window{
 			{
-				Name: "main",
+				Name: testWindowMain,
 				Panes: []layout.Pane{
-					{Flex: flex(2), Commands: []string{"big"}},
-					{Flex: flex(1), Commands: []string{"small"}},
+					{Flex: flex(2), Commands: []string{"big"}},   //nolint:modernize // address-of int literal not possible
+					{Flex: flex(1), Commands: []string{"small"}}, //nolint:modernize // address-of int literal not possible
 				},
 			},
 		},
@@ -180,7 +184,7 @@ func TestApply_RowDirectionUsesHorizontalFlag(t *testing.T) {
 	cfg := &layout.Config{
 		Windows: []layout.Window{
 			{
-				Name:          "main",
+				Name:          testWindowMain,
 				FlexDirection: layout.FlexDirectionRow,
 				Panes: []layout.Pane{
 					{Commands: []string{"left"}},
@@ -203,9 +207,9 @@ func TestApply_NestedPanes(t *testing.T) {
 	cfg := &layout.Config{
 		Windows: []layout.Window{
 			{
-				Name: "main",
+				Name: testWindowMain,
 				Panes: []layout.Pane{
-					{Commands: []string{"editor"}},
+					{Commands: []string{testWindowEditor}},
 					{
 						Panes: []layout.Pane{
 							{Commands: []string{"tests"}},
@@ -221,7 +225,7 @@ func TestApply_NestedPanes(t *testing.T) {
 	require.NoError(t, err)
 	// 1 top-level split + 1 nested split = 2 total
 	require.Equal(t, 2, rec.callCount("split-window"))
-	require.True(t, rec.hasCall("editor"))
+	require.True(t, rec.hasCall(testWindowEditor))
 	require.True(t, rec.hasCall("tests"))
 	require.True(t, rec.hasCall("git"))
 }
@@ -233,7 +237,7 @@ func TestApply_FocusPaneSelected(t *testing.T) {
 	cfg := &layout.Config{
 		Windows: []layout.Window{
 			{
-				Name: "main",
+				Name: testWindowMain,
 				Panes: []layout.Pane{
 					{Commands: []string{"a"}},
 					{Commands: []string{"b"}, Focus: true},
@@ -254,7 +258,7 @@ func TestApply_ZoomAppliedAfterFocus(t *testing.T) {
 	cfg := &layout.Config{
 		Windows: []layout.Window{
 			{
-				Name: "main",
+				Name: testWindowMain,
 				Panes: []layout.Pane{
 					{Commands: []string{"a"}},
 					{Commands: []string{"b"}, Focus: true, Zoom: true},
@@ -268,15 +272,19 @@ func TestApply_ZoomAppliedAfterFocus(t *testing.T) {
 
 	// Verify select-pane comes before resize-pane -Z in call order.
 	selectIdx, zoomIdx := -1, -1
+
 	rec.mu.Lock()
+
 	for i, c := range rec.calls {
 		if strings.Contains(c, "select-pane") {
 			selectIdx = i
 		}
+
 		if strings.Contains(c, "resize-pane") && strings.Contains(c, "-Z") {
 			zoomIdx = i
 		}
 	}
+
 	rec.mu.Unlock()
 
 	require.Greater(t, selectIdx, -1, "select-pane must be called")
@@ -293,7 +301,7 @@ func TestApply_NoFocusOrZoomOnSwitchTo(t *testing.T) {
 	cfg := &layout.Config{
 		Windows: []layout.Window{
 			{
-				Name:  "main",
+				Name:  testWindowMain,
 				Panes: []layout.Pane{{Commands: []string{"a"}}},
 			},
 		},
@@ -313,7 +321,7 @@ func TestApply_StartupCommandsSentBeforeLayout(t *testing.T) {
 		Startup: []layout.Command{{Command: "mise install"}},
 		Windows: []layout.Window{
 			{
-				Name:  "main",
+				Name:  testWindowMain,
 				Panes: []layout.Pane{{Commands: []string{"nvim ."}}},
 			},
 		},
@@ -324,15 +332,19 @@ func TestApply_StartupCommandsSentBeforeLayout(t *testing.T) {
 
 	// "mise install" must appear before "nvim ." in the recorded calls.
 	startupIdx, layoutIdx := -1, -1
+
 	rec.mu.Lock()
+
 	for i, c := range rec.calls {
 		if strings.Contains(c, "mise install") {
 			startupIdx = i
 		}
+
 		if strings.Contains(c, "nvim .") {
 			layoutIdx = i
 		}
 	}
+
 	rec.mu.Unlock()
 
 	require.Greater(t, startupIdx, -1, "startup command must be sent")
@@ -347,7 +359,7 @@ func TestApply_SplitWindowUsesExplicitPanePath(t *testing.T) {
 	cfg := &layout.Config{
 		Windows: []layout.Window{
 			{
-				Name: "main",
+				Name: testWindowMain,
 				Panes: []layout.Pane{
 					{Commands: []string{"left"}},
 					{Path: "/explicit/path", Commands: []string{"right"}},
@@ -369,7 +381,7 @@ func TestApply_StartupCmdArgsQuoted(t *testing.T) {
 		Startup: []layout.Command{
 			{Command: "echo", Args: []string{"hello world", "simple"}},
 		},
-		Windows: []layout.Window{{Name: "main"}},
+		Windows: []layout.Window{{Name: testWindowMain}},
 	}
 
 	err := layout.Apply(context.Background(), rec.run, testSock, testSession, cfg)
@@ -385,7 +397,7 @@ func TestApply_SessionEnvSetBeforePanes(t *testing.T) {
 	cfg := &layout.Config{
 		Env: map[string]string{"EDITOR": "nvim"},
 		Windows: []layout.Window{
-			{Name: "main", Panes: []layout.Pane{{Commands: []string{"a"}}}},
+			{Name: testWindowMain, Panes: []layout.Pane{{Commands: []string{"a"}}}},
 		},
 	}
 
@@ -393,15 +405,19 @@ func TestApply_SessionEnvSetBeforePanes(t *testing.T) {
 	require.NoError(t, err)
 
 	envIdx, splitIdx := -1, -1
+
 	rec.mu.Lock()
+
 	for i, c := range rec.calls {
 		if strings.Contains(c, "setenv") && strings.Contains(c, "EDITOR") {
 			envIdx = i
 		}
+
 		if strings.Contains(c, "split-window") {
 			splitIdx = i
 		}
 	}
+
 	rec.mu.Unlock()
 
 	require.Greater(t, envIdx, -1, "setenv must be called")

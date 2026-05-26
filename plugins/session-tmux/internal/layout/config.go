@@ -17,8 +17,10 @@ import (
 type FlexDirection string
 
 const (
-	FlexDirectionColumn FlexDirection = "column" // vertical splits (default)
-	FlexDirectionRow    FlexDirection = "row"    // horizontal splits
+	// FlexDirectionColumn splits panes vertically (top/bottom stacked). This is the default.
+	FlexDirectionColumn FlexDirection = "column"
+	// FlexDirectionRow splits panes horizontally (left/right side by side).
+	FlexDirectionRow FlexDirection = "row"
 )
 
 // TemplateVars holds variables injected into config values before TOML parsing.
@@ -100,14 +102,14 @@ func LoadConfig(worktreePath, xdgConfigHome string, vars TemplateVars) (*Config,
 		}
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil // nil Config means "no config file found" — not an error condition
 }
 
 func loadFile(path string, vars TemplateVars) (*Config, error) {
 	raw, err := os.ReadFile(path) //nolint:gosec // path is composed from trusted config directories
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, nil //nolint:nilnil // nil Config means "file not found" — not an error condition
 		}
 
 		return nil, fmt.Errorf("reading layout config %s: %w", path, err)
@@ -169,7 +171,13 @@ func validateFlexDirection(dir FlexDirection, ctx string) error {
 }
 
 func validatePanes(panes []Pane, ctx string, focusCount, zoomCount *int) error {
-	for _, p := range panes {
+	for i, p := range panes {
+		paneCtx := fmt.Sprintf("%s.panes[%d]", ctx, i)
+
+		if err := validateFlexDirection(p.FlexDirection, paneCtx); err != nil {
+			return err
+		}
+
 		if p.Flex != nil && *p.Flex < 1 {
 			return status.Errorf(codes.InvalidArgument, "layout: %s has a pane with flex=%d (must be ≥ 1)", ctx, *p.Flex)
 		}
@@ -188,7 +196,7 @@ func validatePanes(panes []Pane, ctx string, focusCount, zoomCount *int) error {
 			}
 		}
 
-		if err := validatePanes(p.Panes, ctx, focusCount, zoomCount); err != nil {
+		if err := validatePanes(p.Panes, paneCtx, focusCount, zoomCount); err != nil {
 			return err
 		}
 	}

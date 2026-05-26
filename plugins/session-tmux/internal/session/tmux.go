@@ -18,8 +18,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
-	"github.com/kalbasit/swm/plugins/session-tmux/internal/layout"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
+
+	"github.com/kalbasit/swm/plugins/session-tmux/internal/layout"
 )
 
 // buildVersion is set via -ldflags at build time.
@@ -314,6 +315,28 @@ func (t *Tmux) SwitchTo(ctx context.Context, req *pluginv1.SwitchToRequest) (*pl
 	return resp, nil
 }
 
+// applyLayout resolves and applies the session-tmux layout for a newly created pane group.
+// Falls back to the built-in default layout (editor + shell) when no config file exists.
+func (t *Tmux) applyLayout(ctx context.Context, sock, sessionName string, req *pluginv1.OpenPaneGroupRequest) error {
+	storyName := strings.TrimSuffix(filepath.Base(req.GetWorkspaceId()), ".sock")
+	vars := layout.TemplateVars{
+		WorktreePath: req.GetWorktreePath(),
+		StoryName:    storyName,
+		TmuxSocket:   req.GetWorkspaceId(),
+	}
+
+	cfg, err := layout.LoadConfig(req.GetWorktreePath(), t.configHome, vars)
+	if err != nil {
+		return err
+	}
+
+	if cfg == nil {
+		cfg = defaultLayout()
+	}
+
+	return layout.Apply(ctx, t.run, sock, sessionName, cfg)
+}
+
 // killOriginPane kills the specified pane in the origin workspace after a switch.
 // It is a no-op when either argument is empty.
 // "No such pane" errors from tmux are swallowed — the pane may have already closed.
@@ -349,6 +372,23 @@ func isKillPaneNotFound(err error) bool {
 	return strings.Contains(msg, "no such pane") ||
 		strings.Contains(msg, "can't find pane") ||
 		strings.Contains(msg, "no sessions")
+}
+
+// layoutConfigExists reports whether a layout config file exists at either tier
+// (per-repo .swm/session-tmux.toml or global $XDG_CONFIG_HOME/swm/session-tmux.toml).
+func (t *Tmux) layoutConfigExists(worktreePath string) bool {
+	candidates := []string{
+		filepath.Join(worktreePath, ".swm", "session-tmux.toml"),
+		filepath.Join(t.configHome, "swm", "session-tmux.toml"),
+	}
+
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 // paneGroupCommand returns the command string for a new pane group session, applying
@@ -402,45 +442,6 @@ func validateCommandBinary(cmd string) error {
 	}
 
 	return nil
-}
-
-// layoutConfigExists reports whether a layout config file exists at either tier
-// (per-repo .swm/session-tmux.toml or global $XDG_CONFIG_HOME/swm/session-tmux.toml).
-func (t *Tmux) layoutConfigExists(worktreePath string) bool {
-	candidates := []string{
-		filepath.Join(worktreePath, ".swm", "session-tmux.toml"),
-		filepath.Join(t.configHome, "swm", "session-tmux.toml"),
-	}
-
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
-			return true
-		}
-	}
-
-	return false
-}
-
-// applyLayout resolves and applies the session-tmux layout for a newly created pane group.
-// Falls back to the built-in default layout (editor + shell) when no config file exists.
-func (t *Tmux) applyLayout(ctx context.Context, sock, sessionName string, req *pluginv1.OpenPaneGroupRequest) error {
-	storyName := strings.TrimSuffix(filepath.Base(req.GetWorkspaceId()), ".sock")
-	vars := layout.TemplateVars{
-		WorktreePath: req.GetWorktreePath(),
-		StoryName:    storyName,
-		TmuxSocket:   req.GetWorkspaceId(),
-	}
-
-	cfg, err := layout.LoadConfig(req.GetWorktreePath(), t.configHome, vars)
-	if err != nil {
-		return err
-	}
-
-	if cfg == nil {
-		cfg = defaultLayout()
-	}
-
-	return layout.Apply(ctx, t.run, sock, sessionName, cfg)
 }
 
 // defaultLayout returns the built-in two-window layout (editor + shell).
