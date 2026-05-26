@@ -93,6 +93,10 @@ forges  = ["github"]
 
 See [`cmd/swm/README.md`](cmd/swm/README.md) for the full configuration reference.
 
+To customise the tmux window/pane layout when a workspace is opened, create
+`$XDG_CONFIG_HOME/swm/session-tmux.toml` (or a per-repo `.swm/session-tmux.toml`).
+See the [session-tmux layout documentation](plugins/session-tmux/README.md#layout-configuration) for the full schema and examples.
+
 ### Your first story
 
 Once installed and configured, here is a complete first-use walkthrough.

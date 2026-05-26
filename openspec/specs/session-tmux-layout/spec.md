@@ -1,7 +1,7 @@
 # session-tmux-layout Specification
 
 ## Purpose
-Specifies the built-in tmux window/pane layout system for `session-tmux`, replacing the external Laio dependency. Covers two-tier config resolution (per-repo `.swm/session-tmux.toml` > global `$XDG_CONFIG_HOME/swm/session-tmux.toml` > built-in default), the TOML schema, `text/template` variable substitution, the recursive flex-split algorithm, and per-pane command/focus/zoom application.
+Specifies the built-in tmux window/pane layout system for `session-tmux`. Covers two-tier config resolution (per-repo `.swm/session-tmux.toml` > global `$XDG_CONFIG_HOME/swm/session-tmux.toml` > built-in default), the TOML schema, `text/template` variable substitution, the recursive flex-split algorithm, and per-pane command/focus/zoom application.
 ## Requirements
 ### Requirement: Layout config resolution
 `session-tmux` SHALL resolve a layout config for `OpenPaneGroup` using the following priority order (first match wins):
@@ -95,22 +95,22 @@ Constraints:
 ### Requirement: Template variable substitution in layout config
 Before parsing, the raw TOML bytes SHALL be rendered through `text/template` with the following variables auto-injected:
 
-| Variable       | Value                                      |
-|----------------|--------------------------------------------|
-| `worktree_path`| The `worktree_path` from `OpenPaneGroupRequest` |
-| `story_name`   | The story name from `OpenPaneGroupRequest`  |
-| `tmux_socket`  | The workspace socket path (`workspace_id`)  |
+| Variable           | Value                                           |
+|--------------------|-------------------------------------------------|
+| `{{.WorktreePath}}`| The `worktree_path` from `OpenPaneGroupRequest` |
+| `{{.StoryName}}`   | The story name from `OpenPaneGroupRequest`      |
+| `{{.TmuxSocket}}`  | The workspace socket path (`workspace_id`)      |
 
-#### Scenario: worktree_path substituted in window path
-- **WHEN** a layout config contains `path = "{{.worktree_path}}/src"` and `worktree_path` is `/home/user/code/stories/feat/github.com/org/repo`
+#### Scenario: WorktreePath substituted in window path
+- **WHEN** a layout config contains `path = "{{.WorktreePath}}/src"` and `worktree_path` is `/home/user/code/stories/feat/github.com/org/repo`
 - **THEN** the resolved window path is `/home/user/code/stories/feat/github.com/org/repo/src`
 
-#### Scenario: story_name substituted in a command
-- **WHEN** a layout config contains `commands = ["echo {{.story_name}}"]` and `story_name` is `feat-x`
+#### Scenario: StoryName substituted in a command
+- **WHEN** a layout config contains `commands = ["echo {{.StoryName}}"]` and `story_name` is `feat-x`
 - **THEN** `send-keys` is called with `echo feat-x`
 
-#### Scenario: tmux_socket substituted
-- **WHEN** a layout config contains `commands = ["tmux -S {{.tmux_socket}} list-sessions"]` and `workspace_id` is `/run/user/1000/swm/tmux/feat-x.sock`
+#### Scenario: TmuxSocket substituted
+- **WHEN** a layout config contains `commands = ["tmux -S {{.TmuxSocket}} list-sessions"]` and `workspace_id` is `/run/user/1000/swm/tmux/feat-x.sock`
 - **THEN** `send-keys` is called with `tmux -S /run/user/1000/swm/tmux/feat-x.sock list-sessions`
 
 ---
