@@ -201,7 +201,7 @@ echo $SWM_STORY
 
 Tmux sockets are placed at:
 
-```
+```text
 $XDG_RUNTIME_DIR/swm/tmux/<story-name>.sock
 ```
 
