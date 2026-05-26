@@ -1,7 +1,7 @@
 # session-tmux-layout Specification
 
 ## Purpose
-TBD - created by archiving change replace-laio-with-internal-support. Update Purpose after archive.
+Specifies the built-in tmux window/pane layout system for `session-tmux`, replacing the external Laio dependency. Covers two-tier config resolution (per-repo `.swm/session-tmux.toml` > global `$XDG_CONFIG_HOME/swm/session-tmux.toml` > built-in default), the TOML schema, `text/template` variable substitution, the recursive flex-split algorithm, and per-pane command/focus/zoom application.
 ## Requirements
 ### Requirement: Layout config resolution
 `session-tmux` SHALL resolve a layout config for `OpenPaneGroup` using the following priority order (first match wins):
@@ -38,7 +38,7 @@ Only the first matching source is used. Configs are never merged across tiers.
 ### Requirement: Layout config TOML schema
 The layout config file SHALL be valid TOML conforming to this schema:
 
-```
+```toml
 # Top-level (session-scoped) fields — all optional
 path         = string          # base path; defaults to worktree_path
 shell        = string          # shell binary for panes without an explicit command
@@ -152,7 +152,7 @@ Rounding error accumulates to the last pane.
 
 #### Scenario: Three equal panes split into thirds
 - **WHEN** a window has three panes each with `flex = 1`
-- **THEN** `split-window -p 67` is called first (leaving ~33% for the first pane), then `split-window -p 50` on the remainder
+- **THEN** `split-window -p 66` is called first (leaving ~34% for the first pane via floor division), then `split-window -p 50` on the remainder
 
 #### Scenario: Weighted flex produces proportional splits
 - **WHEN** a window has two panes with `flex = 2` and `flex = 1`

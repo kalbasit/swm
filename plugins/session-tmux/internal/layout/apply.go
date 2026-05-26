@@ -126,7 +126,8 @@ func layoutPanes(ctx context.Context, run RunFunc, sock string, panes []Pane, pa
 		if i < len(panes)-1 {
 			// split-window -p N: current pane keeps (100-N)%, new pane gets N%.
 			pct := splitPercent(eFlex, remainingFlex)
-			newID, err := run(ctx, buildSplitArgs(sock, pct, currentID, dir)...)
+			nextPath := resolvePath(panes[i+1].Path, parentPath)
+			newID, err := run(ctx, buildSplitArgs(sock, pct, currentID, dir, nextPath)...)
 			if err != nil {
 				return nil, fmt.Errorf("splitting pane %s: %w", currentID, err)
 			}
@@ -183,7 +184,11 @@ func applyPaneContent(ctx context.Context, run RunFunc, sock string, p Pane, pan
 
 func sendKeys(ctx context.Context, run RunFunc, sock, paneID, cmd string, delayMs int) error {
 	if delayMs > 0 {
-		time.Sleep(time.Duration(delayMs) * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(delayMs) * time.Millisecond):
+		}
 	}
 
 	if _, err := run(ctx, "-S", sock, "send-keys", "-t", paneID, cmd, "Enter"); err != nil {
@@ -202,10 +207,14 @@ func getPaneID(ctx context.Context, run RunFunc, sock, target string) (string, e
 	return strings.TrimSpace(id), nil
 }
 
-func buildSplitArgs(sock string, pct int, targetPaneID string, dir FlexDirection) []string {
+func buildSplitArgs(sock string, pct int, targetPaneID string, dir FlexDirection, path string) []string {
 	args := []string{"-S", sock, "split-window", "-P", "-F", "#{pane_id}", "-p", strconv.Itoa(pct)}
 	if dir == FlexDirectionRow {
 		args = append(args, "-h")
+	}
+
+	if path != "" {
+		args = append(args, "-c", path)
 	}
 
 	return append(args, "-t", targetPaneID)
@@ -234,5 +243,24 @@ func cmdString(c Command) string {
 		return c.Command
 	}
 
-	return c.Command + " " + strings.Join(c.Args, " ")
+	quoted := make([]string, len(c.Args))
+	for i, arg := range c.Args {
+		quoted[i] = shellQuote(arg)
+	}
+
+	return c.Command + " " + strings.Join(quoted, " ")
+}
+
+// shellQuote wraps arg in single quotes if it contains shell metacharacters.
+// Single quotes inside the arg are escaped using the ”\” idiom.
+func shellQuote(arg string) string {
+	if arg == "" {
+		return "''"
+	}
+
+	if !strings.ContainsAny(arg, " \t\n&*;<>|'\"()$[]?~`{}!\\") {
+		return arg
+	}
+
+	return "'" + strings.ReplaceAll(arg, "'", `'\''`) + "'"
 }

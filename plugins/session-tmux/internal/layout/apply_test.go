@@ -340,6 +340,44 @@ func TestApply_StartupCommandsSentBeforeLayout(t *testing.T) {
 	require.Less(t, startupIdx, layoutIdx, "startup must precede layout commands")
 }
 
+func TestApply_SplitWindowUsesExplicitPanePath(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{}
+	cfg := &layout.Config{
+		Windows: []layout.Window{
+			{
+				Name: "main",
+				Panes: []layout.Pane{
+					{Commands: []string{"left"}},
+					{Path: "/explicit/path", Commands: []string{"right"}},
+				},
+			},
+		},
+	}
+
+	err := layout.Apply(context.Background(), rec.run, testSock, testSession, cfg)
+	require.NoError(t, err)
+	require.True(t, rec.hasCall("-c /explicit/path"), "split-window must pass -c for pane with explicit path")
+}
+
+func TestApply_StartupCmdArgsQuoted(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{}
+	cfg := &layout.Config{
+		Startup: []layout.Command{
+			{Command: "echo", Args: []string{"hello world", "simple"}},
+		},
+		Windows: []layout.Window{{Name: "main"}},
+	}
+
+	err := layout.Apply(context.Background(), rec.run, testSock, testSession, cfg)
+	require.NoError(t, err)
+	require.True(t, rec.hasCall("'hello world'"), "arg with space must be single-quoted")
+	require.True(t, rec.hasCall("simple"), "arg without special chars must be unquoted")
+}
+
 func TestApply_SessionEnvSetBeforePanes(t *testing.T) {
 	t.Parallel()
 

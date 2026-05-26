@@ -219,3 +219,29 @@ name = "main"
 	require.Error(t, err)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
+
+func TestLoadConfig_EmptyXdgConfigHome(t *testing.T) {
+	t.Parallel()
+
+	wt := t.TempDir() // no per-repo config either
+	cfg, err := layout.LoadConfig(wt, "", layout.TemplateVars{})
+	require.NoError(t, err)
+	require.Nil(t, cfg, "empty xdgConfigHome with no per-repo config must return nil")
+}
+
+func TestLoadConfig_ValidationInvalidFlexDirection(t *testing.T) {
+	t.Parallel()
+
+	wt := t.TempDir()
+	xdg := t.TempDir()
+	writeConfig(t, filepath.Join(wt, ".swm"), "session-tmux.toml", `
+[[windows]]
+name = "main"
+flex_direction = "diagonal"
+`)
+
+	_, err := layout.LoadConfig(wt, xdg, layout.TemplateVars{})
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	require.Contains(t, err.Error(), "flex_direction")
+}

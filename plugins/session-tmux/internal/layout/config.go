@@ -84,7 +84,9 @@ type Config struct {
 func LoadConfig(worktreePath, xdgConfigHome string, vars TemplateVars) (*Config, error) {
 	candidates := []string{
 		filepath.Join(worktreePath, ".swm", "session-tmux.toml"),
-		filepath.Join(xdgConfigHome, "swm", "session-tmux.toml"),
+	}
+	if xdgConfigHome != "" {
+		candidates = append(candidates, filepath.Join(xdgConfigHome, "swm", "session-tmux.toml"))
 	}
 
 	for _, p := range candidates {
@@ -143,6 +145,10 @@ func validateConfig(cfg *Config) error {
 			return status.Errorf(codes.InvalidArgument, "layout: window[%d] must have a non-empty name", i)
 		}
 
+		if err := validateFlexDirection(w.FlexDirection, fmt.Sprintf("window[%d](%q)", i, w.Name)); err != nil {
+			return err
+		}
+
 		var focusCount, zoomCount int
 		if err := validatePanes(w.Panes, fmt.Sprintf("window[%d](%q)", i, w.Name), &focusCount, &zoomCount); err != nil {
 			return err
@@ -150,6 +156,16 @@ func validateConfig(cfg *Config) error {
 	}
 
 	return nil
+}
+
+func validateFlexDirection(dir FlexDirection, ctx string) error {
+	switch dir {
+	case "", FlexDirectionColumn, FlexDirectionRow:
+		return nil
+	default:
+		return status.Errorf(codes.InvalidArgument,
+			"layout: %s has an invalid flex_direction %q (must be \"row\" or \"column\")", ctx, dir)
+	}
 }
 
 func validatePanes(panes []Pane, ctx string, focusCount, zoomCount *int) error {

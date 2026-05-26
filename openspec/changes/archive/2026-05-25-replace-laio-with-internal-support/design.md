@@ -2,7 +2,7 @@
 
 `session-tmux` currently delegates window/pane layout to Laio via `pane_group_command`:
 
-```
+```toml
 pane_group_command = "laio start --file '{{worktree_path}}/.swm/laio.yaml' --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"
 ```
 
@@ -50,7 +50,7 @@ The `OpenPaneGroup` RPC already receives everything needed — `workspace_id` (t
 
 **Chosen**: Mirror the hook resolution model. `OpenPaneGroup` probes in this order and uses the first match:
 
-```
+```text
 1. pane_group_command in config.toml           (backward compat — wins if set)
 2. <worktree_path>/.swm/session-tmux.toml      (per-repo — overrides global)
 3. $XDG_CONFIG_HOME/swm/session-tmux.toml      (global default)
@@ -70,7 +70,7 @@ The global config uses the same TOML schema as the per-repo config. Template var
 
 Panes form a recursive tree (`Pane.Panes []Pane`). At each node:
 
-```
+```text
 totalFlex = Σ flex(child)
 For i = 0; i < len(children)-1; i++:
     remainingFlex = Σ flex(children[i+1:])
