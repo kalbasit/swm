@@ -54,16 +54,16 @@ The `session-tmux` plugin manages per-story tmux servers for swm. Each workspace
 - **WHEN** a socket file exists but the tmux server is no longer running
 - **THEN** that socket is excluded from the streamed results
 
-### Requirement: paneGroupCommand exposes tmux_socket template variable
-`session-tmux` SHALL substitute `{{tmux_socket}}` in `pane_group_command` with the absolute path of the story's tmux socket (the same value as `workspace_id` in the request).
+### Requirement: paneGroupCommand exposes template variables
+`session-tmux` SHALL substitute `{{.WorktreePath}}`, `{{.StoryName}}`, and `{{.TmuxSocket}}` in `pane_group_command` before executing it. `{{.TmuxSocket}}` expands to the absolute path of the story's tmux socket (the same value as `workspace_id` in the request).
 
-#### Scenario: tmux_socket is substituted
-- **WHEN** `config.toml` has `pane_group_command = "laio start --file '{{worktree_path}}/.swm/laio.yaml' --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"` and `OpenPaneGroup` is called with `workspace_id = /run/user/1000/swm/tmux/feat-x.sock`
-- **THEN** the session's first window runs `laio start --file '<worktree_path>/.swm/laio.yaml' --tmux-socket '/run/user/1000/swm/tmux/feat-x.sock' --replace-current-session --skip-attach` with both `{{worktree_path}}` and `{{tmux_socket}}` expanded
+#### Scenario: Template variables are substituted
+- **WHEN** `config.toml` has `pane_group_command = "my-layout --socket '{{.TmuxSocket}}' --path '{{.WorktreePath}}'"` and `OpenPaneGroup` is called with `workspace_id = /run/user/1000/swm/tmux/feat-x.sock` and `worktree_path = /home/user/code/stories/feat-x/github.com/org/repo`
+- **THEN** the command runs as `my-layout --socket '/run/user/1000/swm/tmux/feat-x.sock' --path '/home/user/code/stories/feat-x/github.com/org/repo'`
 
-#### Scenario: tmux_socket absent when no pane_group_command configured
+#### Scenario: Template substitution absent when no pane_group_command configured
 - **WHEN** no `pane_group_command` is set in `config.toml`
-- **THEN** the default layout is used and `{{tmux_socket}}` substitution does not occur
+- **THEN** the default layout engine is used and no template substitution occurs
 
 ### Requirement: OpenPaneGroup in existing workspace
 `session-tmux` SHALL implement `Session.OpenPaneGroup({story_name, project_id, worktree_path})` by creating a new tmux session for the project within the story's socket (if it doesn't exist). The initial working directory SHALL be `worktree_path`.
@@ -82,8 +82,8 @@ When `pane_group_command` is configured, `session-tmux` SHALL validate that the 
 - **THEN** the tmux session is created with two windows: the first running `$EDITOR` (or `vim`), the second running a shell
 
 #### Scenario: Custom pane_group_command
-- **WHEN** `config.toml` has `pane_group_command = "laio start --file '{{worktree_path}}/.swm/laio.yaml' --tmux-socket '{{tmux_socket}}' --replace-current-session --skip-attach"` and `OpenPaneGroup` is called
-- **THEN** the session's first window runs `laio start --file '<worktree_path>/.swm/laio.yaml' --tmux-socket '<tmux_socket>' --replace-current-session --skip-attach` with `{{worktree_path}}` and `{{tmux_socket}}` both expanded
+- **WHEN** `config.toml` has `pane_group_command = "my-layout --socket '{{.TmuxSocket}}' --path '{{.WorktreePath}}'"` and `OpenPaneGroup` is called
+- **THEN** the session's first window runs `my-layout` with both `{{.TmuxSocket}}` and `{{.WorktreePath}}` expanded to their respective values
 
 #### Scenario: Per-repo layout config applied
 - **WHEN** `<worktree_path>/.swm/session-tmux.toml` exists and `pane_group_command` is not set

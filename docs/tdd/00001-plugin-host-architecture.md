@@ -211,8 +211,8 @@ forges = ["github"]    # forges are a list — a story may touch repos from mult
 [plugins.config.session-tmux]
 default_window_layout = "vim-and-shell"
 attach_on_create = true
-# Optional: override the default $EDITOR-and-shell pane setup
-# pane_group_command = "laio start --config {{worktree_path}}/.swm/laio.yaml"
+# Optional: override layout with a custom command (legacy; prefer session-tmux.toml)
+# pane_group_command = "my-layout --socket '{{.TmuxSocket}}' --path '{{.WorktreePath}}'"
 
 [plugins.config.forge-github]
 token_path = "~/.github_token"
@@ -332,14 +332,7 @@ Host streams candidates in (`{key, display, preview?}`), plugin returns the sele
 Earlier drafts had an `Editor` capability. We removed it: launching an editor in a pane is just a shell command, and modelling it as a capability added surface area without enough value. Instead:
 
 - **Default behavior:** the session plugin opens a pane group running `$EDITOR` (or `vim` as fallback) in the first window/pane and a shell in the second. This matches v1's behaviour exactly.
-- **Custom layouts:** the session plugin accepts a `pane_group_command` config setting. If set, that command runs instead of the default `$EDITOR + shell` setup, with template variables expanded (`{{worktree_path}}`, `{{project_id}}`, `{{story_name}}`):
-
-  ```toml
-  [plugins.config.session-tmux]
-  pane_group_command = "laio start --config {{worktree_path}}/.swm/laio.yaml"
-  ```
-
-  Users who want complex layouts reach for purpose-built tools like [laio](https://github.com/ck3mp3r/laio-cli), smug, or tmuxinator. If laio integration ever justifies a first-class plugin, it ships as `swm-plugin-session-laio` — but the capability surface doesn't need to change for that.
+- **Custom layouts:** users place a `session-tmux.toml` file at `<worktree>/.swm/session-tmux.toml` (per-repo) or `$XDG_CONFIG_HOME/swm/session-tmux.toml` (global). The file is a TOML layout config with windows, panes, flex weights, and commands. Template variables (`{{.WorktreePath}}`, `{{.StoryName}}`, `{{.TmuxSocket}}`) are expanded before parsing. A legacy `pane_group_command` escape hatch is also available for users who need to shell out to an external layout tool.
 
 ### 6.4 Host services (plugin → host callbacks)
 
@@ -545,7 +538,7 @@ Suggested phasing — each phase produces a usable artefact.
 
 - `picker-fzf` plugin
 - Wire picker into `workspace open` flow
-- Session plugin's `pane_group_command` config setting (so laio/smug users can plug in)
+- Session plugin's built-in layout engine (`session-tmux.toml`) and `pane_group_command` escape hatch
 
 ### Phase 3 — Forges and hooks (week 5)
 

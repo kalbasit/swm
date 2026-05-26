@@ -49,46 +49,27 @@ Each directory under `plugins/` SHALL contain a `README.md` covering that plugin
 - **WHEN** the repository is inspected
 - **THEN** `plugins/forge-github/README.md`, `plugins/picker-fzf/README.md`, `plugins/session-tmux/README.md`, and `plugins/vcs-git/README.md` SHALL each exist
 
-### Requirement: session-tmux README documents template variables
+### Requirement: session-tmux README documents layout configuration
 
-The `plugins/session-tmux/README.md` SHALL include a template-variable reference table listing
-all variables available for substitution in `pane_group_command`.
+The `plugins/session-tmux/README.md` SHALL include a "Layout configuration" section that
+documents the built-in TOML-based layout engine.
+
+#### Scenario: Two-tier config lookup is explained
+- **WHEN** a user reads `plugins/session-tmux/README.md`
+- **THEN** it SHALL describe the priority order: per-repo `.swm/session-tmux.toml` wins over
+  global `$XDG_CONFIG_HOME/swm/session-tmux.toml`, falling back to a default shell pane when
+  neither exists
 
 #### Scenario: Template-variable table is present and complete
 - **WHEN** a user reads `plugins/session-tmux/README.md`
-- **THEN** it SHALL contain a table listing `{{worktree_path}}`, `{{story_name}}`,
-  `{{project_id}}`, and `{{tmux_socket}}` with a description of each
+- **THEN** it SHALL contain a table listing `{{.WorktreePath}}`, `{{.StoryName}}`, and
+  `{{.TmuxSocket}}` with a description of each
 
-### Requirement: session-tmux README documents laio integration
+#### Scenario: TOML schema reference is present
+- **WHEN** a user reads `plugins/session-tmux/README.md`
+- **THEN** it SHALL contain a commented TOML block showing all top-level fields, `[[windows]]`,
+  `[[windows.panes]]`, and nested `[[windows.panes.panes]]` entries with inline descriptions
 
-The `plugins/session-tmux/README.md` SHALL include a "Laio integration" section that shows
-how to wire [laio](https://laio.sh/) into `pane_group_command`.
-
-#### Scenario: Per-project laio config example is present
-- **WHEN** a user reads the laio integration section
-- **THEN** it SHALL contain a `config.toml` snippet using
-  `pane_group_command = "laio start --file '{{worktree_path}}/.swm/laio.yaml' --tmux-socket '{{tmux_socket}}' --skip-attach"`
-
-#### Scenario: Global laio config example is present
-- **WHEN** a user reads the laio integration section
-- **THEN** it SHALL contain a `config.toml` snippet using a fixed `--file` path with
-  `--var path='{{worktree_path}}'` and a corresponding `laio.yaml` fragment showing
-  `path: "{{ path }}"`
-
-#### Scenario: --skip-attach requirement is explained
-- **WHEN** a user reads the laio integration section
-- **THEN** it SHALL explain that `--skip-attach` is required because laio runs inside an
-  already-attached session
-
-### Requirement: session-tmux plugin ships a sample laio.yaml
-
-`plugins/session-tmux/examples/laio.yaml` SHALL exist and contain a working multi-window
-laio configuration that is compatible with swm's socket model.
-
-#### Scenario: Sample laio.yaml file exists
-- **WHEN** the repository is inspected
-- **THEN** `plugins/session-tmux/examples/laio.yaml` SHALL exist
-
-#### Scenario: Sample laio.yaml uses the path variable
-- **WHEN** a user reads `plugins/session-tmux/examples/laio.yaml`
-- **THEN** it SHALL use `path: "{{ path }}"` to accept the worktree path via `--var path=<value>`
+#### Scenario: At least one complete example is present
+- **WHEN** a user reads `plugins/session-tmux/README.md`
+- **THEN** it SHALL contain at least one full `session-tmux.toml` example
