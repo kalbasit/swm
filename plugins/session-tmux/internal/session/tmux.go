@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
@@ -409,20 +410,27 @@ func (t *Tmux) paneGroupCommand(ctx context.Context, req *pluginv1.OpenPaneGroup
 		return ""
 	}
 
-	// Derive story name from the socket path basename.
 	storyName := strings.TrimSuffix(filepath.Base(req.GetWorkspaceId()), ".sock")
 
-	// Build project_id string: host/seg1/seg2/...
 	pid := req.GetProjectId()
-	projectID := pid.GetHost() + "/" + strings.Join(pid.GetSegments(), "/")
+	vars := layout.TemplateVars{
+		WorktreePath: req.GetWorktreePath(),
+		StoryName:    storyName,
+		ProjectID:    pid.GetHost() + "/" + strings.Join(pid.GetSegments(), "/"),
+		TmuxSocket:   req.GetWorkspaceId(),
+	}
 
-	cmd := cfg.PaneGroupCommand
-	cmd = strings.ReplaceAll(cmd, "{{worktree_path}}", req.GetWorktreePath())
-	cmd = strings.ReplaceAll(cmd, "{{story_name}}", storyName)
-	cmd = strings.ReplaceAll(cmd, "{{project_id}}", projectID)
-	cmd = strings.ReplaceAll(cmd, "{{tmux_socket}}", req.GetWorkspaceId())
+	tmpl, err := template.New("cmd").Parse(cfg.PaneGroupCommand)
+	if err != nil {
+		return ""
+	}
 
-	return cmd
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, vars); err != nil {
+		return ""
+	}
+
+	return buf.String()
 }
 
 // validateCommandBinary checks that the first token of cmd resolves to an
