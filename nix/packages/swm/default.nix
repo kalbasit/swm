@@ -12,7 +12,7 @@
             in
             if tag != "" then tag else rev;
 
-          vendorHash = "sha256-3QOG6+AnzkgJAqrKwYKdtbNiDssIsdA57vmLzM2XcZc=";
+          vendorHash = "sha256-y9Ze3jQTnNmQ72Dv/og5APGEgmXzxqn+tFVwonter8s=";
         in
         pkgs.buildGoModule {
           inherit version vendorHash;
