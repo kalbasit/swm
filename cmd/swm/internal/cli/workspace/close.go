@@ -49,7 +49,7 @@ func NewCloseCmd(store coreStory.Store, mgr pluginManager) *cobra.Command {
 
 			sess, ok := raw.(pluginv1.SessionClient)
 			if !ok {
-				return errUnexpectedSessionPlugin
+				return fmt.Errorf("%w: expected pluginv1.SessionClient, got %T", errUnexpectedSessionPlugin, raw)
 			}
 
 			stream, err := sess.ListWorkspaces(ctx, &pluginv1.Empty{})
@@ -71,7 +71,7 @@ func NewCloseCmd(store coreStory.Store, mgr pluginManager) *cobra.Command {
 					if _, err := sess.CloseWorkspace(ctx, &pluginv1.CloseWorkspaceRequest{
 						WorkspaceId: ws.GetWorkspaceId(),
 					}); err != nil {
-						return fmt.Errorf("closing workspace: %w", err)
+						return fmt.Errorf("closing workspace %q for story %q: %w", ws.GetWorkspaceId(), name, err)
 					}
 
 					cmd.Printf("closed workspace for story %q\n", name)
@@ -95,9 +95,11 @@ func NewCloseCmd(store coreStory.Store, mgr pluginManager) *cobra.Command {
 			return nil, cobra.ShellCompDirectiveError
 		}
 
-		names := make([]string, len(stories))
-		for i, s := range stories {
-			names[i] = s.Name
+		names := make([]string, 0, len(stories))
+		for _, s := range stories {
+			if s != nil {
+				names = append(names, s.Name)
+			}
 		}
 
 		return names, cobra.ShellCompDirectiveNoFileComp

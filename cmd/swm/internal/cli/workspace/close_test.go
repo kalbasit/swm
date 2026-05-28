@@ -17,7 +17,11 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/cli/workspace"
 )
 
-const testCloseWorkspaceID = "sock-feat-x"
+const (
+	testCloseWorkspaceID = "sock-feat-x"
+	testCompletionStoryA = "feat-a"
+	testCompletionStoryB = "feat-b"
+)
 
 // stubCloseSession is a SessionClient for close command tests with configurable
 // ListWorkspaces and CloseWorkspace behavior.
@@ -226,8 +230,8 @@ func TestCloseCmd_ShellCompletion_ListsStories(t *testing.T) {
 
 	store := &stubStore{
 		listStories: []*coreStory.Story{
-			{Name: "feat-a"},
-			{Name: "feat-b"},
+			{Name: testCompletionStoryA},
+			{Name: testCompletionStoryB},
 		},
 	}
 	mgr := &stubMgr{}
@@ -236,7 +240,7 @@ func TestCloseCmd_ShellCompletion_ListsStories(t *testing.T) {
 
 	completions, directive := cmd.ValidArgsFunction(cmd, []string{}, "")
 	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
-	require.ElementsMatch(t, []string{"feat-a", "feat-b"}, completions)
+	require.ElementsMatch(t, []string{testCompletionStoryA, testCompletionStoryB}, completions)
 }
 
 func TestCloseCmd_ShellCompletion_NoCompletionAfterFirstArg(t *testing.T) {
@@ -249,4 +253,65 @@ func TestCloseCmd_ShellCompletion_NoCompletionAfterFirstArg(t *testing.T) {
 
 	_, directive := cmd.ValidArgsFunction(cmd, []string{"already-provided"}, "")
 	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+}
+
+// badTypeMgr returns a wrong type for the session plugin to exercise the type
+// assertion failure path in NewCloseCmd.
+type badTypeMgr struct{}
+
+func (b *badTypeMgr) Close() error                                 { return nil }
+func (b *badTypeMgr) Get(_ context.Context, _ string) (any, error) { return struct{}{}, nil }
+func (b *badTypeMgr) Warm(_ context.Context, _ ...string) error    { return nil }
+
+func TestCloseCmd_WrongSessionPluginType_ErrorIncludesType(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+	cmd := workspace.NewCloseCmd(store, &badTypeMgr{})
+	cmd.SetArgs([]string{testStoryName})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "struct {}")
+}
+
+func TestCloseCmd_CloseWorkspaceError_ErrorIncludesContext(t *testing.T) {
+	t.Parallel()
+
+	sess := &stubCloseSession{
+		workspaces: []*pluginv1.Workspace{
+			{WorkspaceId: testCloseWorkspaceID, StoryName: testStoryName},
+		},
+		closeErr: errFakeClose,
+	}
+	mgr := &stubMgr{sess: sess}
+	store := &stubStore{}
+
+	cmd := workspace.NewCloseCmd(store, mgr)
+	cmd.SetArgs([]string{testStoryName})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.ErrorIs(t, err, errFakeClose)
+	require.Contains(t, err.Error(), testCloseWorkspaceID)
+	require.Contains(t, err.Error(), testStoryName)
+}
+
+func TestCloseCmd_ShellCompletion_NilStoriesSkipped(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{
+		listStories: []*coreStory.Story{
+			{Name: testCompletionStoryA},
+			nil,
+			{Name: testCompletionStoryB},
+		},
+	}
+	mgr := &stubMgr{}
+
+	cmd := workspace.NewCloseCmd(store, mgr)
+
+	completions, directive := cmd.ValidArgsFunction(cmd, []string{}, "")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	require.ElementsMatch(t, []string{testCompletionStoryA, testCompletionStoryB}, completions)
 }
