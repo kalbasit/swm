@@ -120,20 +120,44 @@ func (s *stubManager) Warm(_ context.Context, caps ...string) error {
 type stubVCSClient struct {
 	removeWorktreeCalled bool
 	parseRemoteURLFn     func(*pluginv1.ParseRemoteURLRequest) (*pluginv1.ProjectID, error)
-	cloneFn              func(*pluginv1.CloneRequest) (*pluginv1.CloneResponse, error)
+	cloneFn              func(*pluginv1.CloneRequest) (grpc.ServerStreamingClient[pluginv1.CloneProgressEvent], error)
 }
 
 func (s *stubVCSClient) Clone(
 	_ context.Context,
 	req *pluginv1.CloneRequest,
 	_ ...grpc.CallOption,
-) (*pluginv1.CloneResponse, error) {
+) (grpc.ServerStreamingClient[pluginv1.CloneProgressEvent], error) {
 	if s.cloneFn != nil {
 		return s.cloneFn(req)
 	}
 
-	return &pluginv1.CloneResponse{}, nil
+	return &noopCloneStream{}, nil
 }
+
+// noopCloneStream is a ServerStreamingClient that returns a single terminal
+// project_id event then EOF. Used in tests that don't care about clone output.
+type noopCloneStream struct{ done bool }
+
+func (n *noopCloneStream) CloseSend() error             { return nil }
+func (n *noopCloneStream) Context() context.Context     { return context.Background() }
+func (n *noopCloneStream) Header() (metadata.MD, error) { return metadata.MD{}, nil }
+
+func (n *noopCloneStream) Recv() (*pluginv1.CloneProgressEvent, error) {
+	if n.done {
+		return nil, io.EOF
+	}
+
+	n.done = true
+
+	return &pluginv1.CloneProgressEvent{
+		Event: &pluginv1.CloneProgressEvent_ProjectId{ProjectId: &pluginv1.ProjectID{}},
+	}, nil
+}
+
+func (n *noopCloneStream) RecvMsg(any) error    { return nil }
+func (n *noopCloneStream) SendMsg(any) error    { return nil }
+func (n *noopCloneStream) Trailer() metadata.MD { return nil }
 
 func (s *stubVCSClient) CreateWorktree(
 	context.Context,

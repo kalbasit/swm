@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,12 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/hookexec"
 )
 
-const testSSHURL = "git@github.com:kalbasit/swm.git"
+const (
+	testSSHURL      = "git@github.com:kalbasit/swm.git"
+	testGitHubHost  = "github.com"
+	testKalbasitOrg = "kalbasit"
+	testSWMRepo     = "swm"
+)
 
 var (
 	errNetworkError = errors.New("network error")
@@ -41,7 +47,7 @@ func TestCloneCmd_Success(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 	require.True(t, vcs.cloneCalled)
 
-	expected := filepath.Join(codeRoot, "repositories", "github.com", "kalbasit", "swm")
+	expected := filepath.Join(codeRoot, "repositories", testGitHubHost, testKalbasitOrg, testSWMRepo)
 	require.Equal(t, expected, vcs.cloneDst)
 }
 
@@ -50,7 +56,7 @@ func TestCloneCmd_AlreadyCloned(t *testing.T) {
 
 	codeRoot := t.TempDir()
 	// Pre-create the canonical path with a .git directory.
-	canonical := filepath.Join(codeRoot, "repositories", "github.com", "kalbasit", "swm")
+	canonical := filepath.Join(codeRoot, "repositories", testGitHubHost, testKalbasitOrg, testSWMRepo)
 	require.NoError(t, os.MkdirAll(filepath.Join(canonical, ".git"), 0o750))
 
 	resolver := layout.NewResolver(codeRoot, "_default")
@@ -107,6 +113,31 @@ func TestCloneCmd_CloneError(t *testing.T) {
 	require.Error(t, cmd.Execute())
 }
 
+func TestCloneCmd_ProgressWrittenToStderr(t *testing.T) {
+	t.Parallel()
+
+	codeRoot := t.TempDir()
+	resolver := layout.NewResolver(codeRoot, "_default")
+	vcs := &stubVCS{
+		cloneEvents: []*pluginv1.CloneProgressEvent{
+			{Event: &pluginv1.CloneProgressEvent_ProgressLine{ProgressLine: "Cloning into 'swm'..."}},
+			{Event: &pluginv1.CloneProgressEvent_ProjectId{
+				ProjectId: &pluginv1.ProjectID{Host: testGitHubHost, Segments: []string{testKalbasitOrg, testSWMRepo}},
+			}},
+		},
+	}
+	mgr := &stubMgr{vcs: vcs}
+
+	var errBuf strings.Builder
+
+	cmd := cli.NewCloneCmd(mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testSSHURL})
+	cmd.SetErr(&errBuf)
+
+	require.NoError(t, cmd.Execute())
+	require.Contains(t, errBuf.String(), "Cloning into 'swm'...")
+}
+
 // stubMgr implements cli.PluginManager.
 type stubMgr struct {
 	vcs  pluginv1.VCSClient
@@ -145,13 +176,14 @@ type stubVCS struct {
 	cloneCalled bool
 	cloneDst    string
 	cloneErr    error
+	cloneEvents []*pluginv1.CloneProgressEvent
 }
 
 func (s *stubVCS) Clone(
 	_ context.Context,
 	req *pluginv1.CloneRequest,
 	_ ...grpc.CallOption,
-) (*pluginv1.CloneResponse, error) {
+) (grpc.ServerStreamingClient[pluginv1.CloneProgressEvent], error) {
 	s.cloneCalled = true
 	s.cloneDst = req.GetDestinationPath()
 
@@ -159,8 +191,42 @@ func (s *stubVCS) Clone(
 		return nil, s.cloneErr
 	}
 
-	return &pluginv1.CloneResponse{}, nil
+	events := s.cloneEvents
+	if events == nil {
+		events = []*pluginv1.CloneProgressEvent{
+			{Event: &pluginv1.CloneProgressEvent_ProjectId{
+				ProjectId: &pluginv1.ProjectID{Host: testGitHubHost, Segments: []string{testKalbasitOrg, testSWMRepo}},
+			}},
+		}
+	}
+
+	return &stubCloneStream{events: events}, nil
 }
+
+// stubCloneStream replays a fixed event sequence then returns io.EOF.
+type stubCloneStream struct {
+	events []*pluginv1.CloneProgressEvent
+	pos    int
+}
+
+func (s *stubCloneStream) CloseSend() error             { return nil }
+func (s *stubCloneStream) Context() context.Context     { return context.Background() }
+func (s *stubCloneStream) Header() (metadata.MD, error) { return metadata.MD{}, nil }
+
+func (s *stubCloneStream) Recv() (*pluginv1.CloneProgressEvent, error) {
+	if s.pos >= len(s.events) {
+		return nil, io.EOF
+	}
+
+	evt := s.events[s.pos]
+	s.pos++
+
+	return evt, nil
+}
+
+func (s *stubCloneStream) RecvMsg(any) error    { return nil }
+func (s *stubCloneStream) SendMsg(any) error    { return nil }
+func (s *stubCloneStream) Trailer() metadata.MD { return nil }
 
 func (s *stubVCS) CreateWorktree(
 	context.Context,
@@ -199,7 +265,7 @@ func (s *stubVCS) ParseRemoteURL(
 	_ *pluginv1.ParseRemoteURLRequest,
 	_ ...grpc.CallOption,
 ) (*pluginv1.ProjectID, error) {
-	return &pluginv1.ProjectID{Host: "github.com", Segments: []string{"kalbasit", "swm"}}, nil
+	return &pluginv1.ProjectID{Host: testGitHubHost, Segments: []string{testKalbasitOrg, testSWMRepo}}, nil
 }
 
 func (s *stubVCS) RemoveWorktree(

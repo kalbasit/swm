@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,11 +70,27 @@ func NewCloneCmd(mgr PluginManager, resolver *layout.Resolver, hooks hookexec.Ru
 				return fmt.Errorf("pre-clone hook: %w", err)
 			}
 
-			if _, err := vcs.Clone(ctx, &pluginv1.CloneRequest{
+			stream, err := vcs.Clone(ctx, &pluginv1.CloneRequest{
 				Url:             url,
 				DestinationPath: canonical,
-			}); err != nil {
+			})
+			if err != nil {
 				return fmt.Errorf("cloning %q: %w", url, err)
+			}
+
+			for {
+				evt, recvErr := stream.Recv()
+				if errors.Is(recvErr, io.EOF) {
+					break
+				}
+
+				if recvErr != nil {
+					return fmt.Errorf("cloning %q: %w", url, recvErr)
+				}
+
+				if line := evt.GetProgressLine(); line != "" {
+					fmt.Fprintln(cmd.ErrOrStderr(), line) //nolint:errcheck // writing progress to stderr is best-effort
+				}
 			}
 
 			if err := hooks.Run(ctx, hookexec.RunConfig{

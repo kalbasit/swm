@@ -20,9 +20,13 @@ message CloneRequest {
   string destination_path = 2;
 }
 
-// CloneResponse returns the resolved project identity after cloning.
-message CloneResponse {
-  ProjectID project_id = 1;
+// CloneProgressEvent is streamed by Clone: progress lines during the clone,
+// then a terminal project_id event on success.
+message CloneProgressEvent {
+  oneof event {
+    string progress_line = 1;
+    ProjectID project_id = 2;
+  }
 }
 
 // ParseRemoteURLRequest asks the plugin to parse a URL into a ProjectID.
@@ -67,7 +71,7 @@ message Branch {
 // VCS is implemented by version-control plugins (e.g. vcs-git).
 service VCS {
   rpc Info(Empty) returns (VCSInfo);
-  rpc Clone(CloneRequest) returns (CloneResponse);
+  rpc Clone(CloneRequest) returns (stream CloneProgressEvent);
   rpc ParseRemoteURL(ParseRemoteURLRequest) returns (ProjectID);
   rpc CreateWorktree(CreateWorktreeRequest) returns (Empty);
   rpc RemoveWorktree(RemoveWorktreeRequest) returns (Empty);

@@ -1523,7 +1523,9 @@ type stubVCS struct {
 	createCalled bool
 }
 
-func (v *stubVCS) Clone(context.Context, *pluginv1.CloneRequest, ...grpc.CallOption) (*pluginv1.CloneResponse, error) {
+func (v *stubVCS) Clone(
+	context.Context, *pluginv1.CloneRequest, ...grpc.CallOption,
+) (grpc.ServerStreamingClient[pluginv1.CloneProgressEvent], error) {
 	panic("stub")
 }
 
