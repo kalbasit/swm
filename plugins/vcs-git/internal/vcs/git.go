@@ -67,11 +67,12 @@ func (g *Git) Clone(req *pluginv1.CloneRequest, stream pluginv1.VCS_CloneServer)
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		stderrBuf.WriteString(line)
 
-		if line == "" {
+		if strings.TrimRight(line, "\r\n") == "" {
 			continue
 		}
+
+		stderrBuf.WriteString(line)
 
 		if sendErr := stream.Send(&pluginv1.CloneProgressEvent{
 			Event: &pluginv1.CloneProgressEvent_ProgressLine{ProgressLine: line},
@@ -102,7 +103,7 @@ func splitCR(data []byte, atEOF bool) (advance int, token []byte, err error) {
 
 	for i, b := range data {
 		if b == '\r' || b == '\n' {
-			return i + 1, data[:i], nil
+			return i + 1, data[:i+1], nil
 		}
 	}
 

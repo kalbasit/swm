@@ -89,7 +89,7 @@ func NewCloneCmd(mgr PluginManager, resolver *layout.Resolver, hooks hookexec.Ru
 				}
 
 				if line := evt.GetProgressLine(); line != "" {
-					fmt.Fprintln(cmd.ErrOrStderr(), line) //nolint:errcheck // writing progress to stderr is best-effort
+					fmt.Fprint(cmd.ErrOrStderr(), line) //nolint:errcheck // writing progress to stderr is best-effort
 				}
 			}
 
