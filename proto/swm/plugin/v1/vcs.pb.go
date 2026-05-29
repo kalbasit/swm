@@ -129,28 +129,33 @@ func (x *CloneRequest) GetDestinationPath() string {
 	return ""
 }
 
-// CloneResponse returns the resolved project identity after cloning.
-type CloneResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     *ProjectID             `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+// CloneProgressEvent is streamed by Clone: progress lines during the clone,
+// then a terminal project_id event on success.
+type CloneProgressEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Event:
+	//
+	//	*CloneProgressEvent_ProgressLine
+	//	*CloneProgressEvent_ProjectId
+	Event         isCloneProgressEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CloneResponse) Reset() {
-	*x = CloneResponse{}
+func (x *CloneProgressEvent) Reset() {
+	*x = CloneProgressEvent{}
 	mi := &file_swm_plugin_v1_vcs_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CloneResponse) String() string {
+func (x *CloneProgressEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CloneResponse) ProtoMessage() {}
+func (*CloneProgressEvent) ProtoMessage() {}
 
-func (x *CloneResponse) ProtoReflect() protoreflect.Message {
+func (x *CloneProgressEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_swm_plugin_v1_vcs_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -162,17 +167,51 @@ func (x *CloneResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CloneResponse.ProtoReflect.Descriptor instead.
-func (*CloneResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CloneProgressEvent.ProtoReflect.Descriptor instead.
+func (*CloneProgressEvent) Descriptor() ([]byte, []int) {
 	return file_swm_plugin_v1_vcs_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *CloneResponse) GetProjectId() *ProjectID {
+func (x *CloneProgressEvent) GetEvent() isCloneProgressEvent_Event {
 	if x != nil {
-		return x.ProjectId
+		return x.Event
 	}
 	return nil
 }
+
+func (x *CloneProgressEvent) GetProgressLine() string {
+	if x != nil {
+		if x, ok := x.Event.(*CloneProgressEvent_ProgressLine); ok {
+			return x.ProgressLine
+		}
+	}
+	return ""
+}
+
+func (x *CloneProgressEvent) GetProjectId() *ProjectID {
+	if x != nil {
+		if x, ok := x.Event.(*CloneProgressEvent_ProjectId); ok {
+			return x.ProjectId
+		}
+	}
+	return nil
+}
+
+type isCloneProgressEvent_Event interface {
+	isCloneProgressEvent_Event()
+}
+
+type CloneProgressEvent_ProgressLine struct {
+	ProgressLine string `protobuf:"bytes,1,opt,name=progress_line,json=progressLine,proto3,oneof"`
+}
+
+type CloneProgressEvent_ProjectId struct {
+	ProjectId *ProjectID `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3,oneof"`
+}
+
+func (*CloneProgressEvent_ProgressLine) isCloneProgressEvent_Event() {}
+
+func (*CloneProgressEvent_ProjectId) isCloneProgressEvent_Event() {}
 
 // ParseRemoteURLRequest asks the plugin to parse a URL into a ProjectID.
 type ParseRemoteURLRequest struct {
@@ -527,10 +566,12 @@ const file_swm_plugin_v1_vcs_proto_rawDesc = "" +
 	"\x0fproject_markers\x18\x02 \x03(\tR\x0eprojectMarkers\"K\n" +
 	"\fCloneRequest\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12)\n" +
-	"\x10destination_path\x18\x02 \x01(\tR\x0fdestinationPath\"H\n" +
-	"\rCloneResponse\x127\n" +
+	"\x10destination_path\x18\x02 \x01(\tR\x0fdestinationPath\"\x7f\n" +
+	"\x12CloneProgressEvent\x12%\n" +
+	"\rprogress_line\x18\x01 \x01(\tH\x00R\fprogressLine\x129\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\v2\x18.swm.plugin.v1.ProjectIDR\tprojectId\")\n" +
+	"project_id\x18\x02 \x01(\v2\x18.swm.plugin.v1.ProjectIDH\x00R\tprojectIdB\a\n" +
+	"\x05event\")\n" +
 	"\x15ParseRemoteURLRequest\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\"\xd2\x01\n" +
 	"\x15CreateWorktreeRequest\x127\n" +
@@ -558,10 +599,10 @@ const file_swm_plugin_v1_vcs_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
 	"\tis_remote\x18\x02 \x01(\bR\bisRemote\x12\x1d\n" +
 	"\n" +
-	"is_current\x18\x03 \x01(\bR\tisCurrent2\x8f\x04\n" +
+	"is_current\x18\x03 \x01(\bR\tisCurrent2\x96\x04\n" +
 	"\x03VCS\x124\n" +
-	"\x04Info\x12\x14.swm.plugin.v1.Empty\x1a\x16.swm.plugin.v1.VCSInfo\x12B\n" +
-	"\x05Clone\x12\x1b.swm.plugin.v1.CloneRequest\x1a\x1c.swm.plugin.v1.CloneResponse\x12P\n" +
+	"\x04Info\x12\x14.swm.plugin.v1.Empty\x1a\x16.swm.plugin.v1.VCSInfo\x12I\n" +
+	"\x05Clone\x12\x1b.swm.plugin.v1.CloneRequest\x1a!.swm.plugin.v1.CloneProgressEvent0\x01\x12P\n" +
 	"\x0eParseRemoteURL\x12$.swm.plugin.v1.ParseRemoteURLRequest\x1a\x18.swm.plugin.v1.ProjectID\x12L\n" +
 	"\x0eCreateWorktree\x12$.swm.plugin.v1.CreateWorktreeRequest\x1a\x14.swm.plugin.v1.Empty\x12L\n" +
 	"\x0eRemoveWorktree\x12$.swm.plugin.v1.RemoveWorktreeRequest\x1a\x14.swm.plugin.v1.Empty\x12S\n" +
@@ -584,7 +625,7 @@ var file_swm_plugin_v1_vcs_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_swm_plugin_v1_vcs_proto_goTypes = []any{
 	(*VCSInfo)(nil),               // 0: swm.plugin.v1.VCSInfo
 	(*CloneRequest)(nil),          // 1: swm.plugin.v1.CloneRequest
-	(*CloneResponse)(nil),         // 2: swm.plugin.v1.CloneResponse
+	(*CloneProgressEvent)(nil),    // 2: swm.plugin.v1.CloneProgressEvent
 	(*ParseRemoteURLRequest)(nil), // 3: swm.plugin.v1.ParseRemoteURLRequest
 	(*CreateWorktreeRequest)(nil), // 4: swm.plugin.v1.CreateWorktreeRequest
 	(*RemoveWorktreeRequest)(nil), // 5: swm.plugin.v1.RemoveWorktreeRequest
@@ -597,7 +638,7 @@ var file_swm_plugin_v1_vcs_proto_goTypes = []any{
 }
 var file_swm_plugin_v1_vcs_proto_depIdxs = []int32{
 	9,  // 0: swm.plugin.v1.VCSInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
-	10, // 1: swm.plugin.v1.CloneResponse.project_id:type_name -> swm.plugin.v1.ProjectID
+	10, // 1: swm.plugin.v1.CloneProgressEvent.project_id:type_name -> swm.plugin.v1.ProjectID
 	10, // 2: swm.plugin.v1.CreateWorktreeRequest.project_id:type_name -> swm.plugin.v1.ProjectID
 	10, // 3: swm.plugin.v1.RemoveWorktreeRequest.project_id:type_name -> swm.plugin.v1.ProjectID
 	10, // 4: swm.plugin.v1.ListBranchesRequest.project_id:type_name -> swm.plugin.v1.ProjectID
@@ -609,7 +650,7 @@ var file_swm_plugin_v1_vcs_proto_depIdxs = []int32{
 	6,  // 10: swm.plugin.v1.VCS.DetectProjectAtPath:input_type -> swm.plugin.v1.DetectAtPathRequest
 	7,  // 11: swm.plugin.v1.VCS.ListBranches:input_type -> swm.plugin.v1.ListBranchesRequest
 	0,  // 12: swm.plugin.v1.VCS.Info:output_type -> swm.plugin.v1.VCSInfo
-	2,  // 13: swm.plugin.v1.VCS.Clone:output_type -> swm.plugin.v1.CloneResponse
+	2,  // 13: swm.plugin.v1.VCS.Clone:output_type -> swm.plugin.v1.CloneProgressEvent
 	10, // 14: swm.plugin.v1.VCS.ParseRemoteURL:output_type -> swm.plugin.v1.ProjectID
 	11, // 15: swm.plugin.v1.VCS.CreateWorktree:output_type -> swm.plugin.v1.Empty
 	11, // 16: swm.plugin.v1.VCS.RemoveWorktree:output_type -> swm.plugin.v1.Empty
@@ -628,6 +669,10 @@ func file_swm_plugin_v1_vcs_proto_init() {
 		return
 	}
 	file_swm_plugin_v1_common_proto_init()
+	file_swm_plugin_v1_vcs_proto_msgTypes[2].OneofWrappers = []any{
+		(*CloneProgressEvent_ProgressLine)(nil),
+		(*CloneProgressEvent_ProjectId)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -35,7 +35,7 @@ const (
 // VCS is implemented by version-control plugins (e.g. vcs-git).
 type VCSClient interface {
 	Info(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*VCSInfo, error)
-	Clone(ctx context.Context, in *CloneRequest, opts ...grpc.CallOption) (*CloneResponse, error)
+	Clone(ctx context.Context, in *CloneRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CloneProgressEvent], error)
 	ParseRemoteURL(ctx context.Context, in *ParseRemoteURLRequest, opts ...grpc.CallOption) (*ProjectID, error)
 	CreateWorktree(ctx context.Context, in *CreateWorktreeRequest, opts ...grpc.CallOption) (*Empty, error)
 	RemoveWorktree(ctx context.Context, in *RemoveWorktreeRequest, opts ...grpc.CallOption) (*Empty, error)
@@ -61,15 +61,24 @@ func (c *vCSClient) Info(ctx context.Context, in *Empty, opts ...grpc.CallOption
 	return out, nil
 }
 
-func (c *vCSClient) Clone(ctx context.Context, in *CloneRequest, opts ...grpc.CallOption) (*CloneResponse, error) {
+func (c *vCSClient) Clone(ctx context.Context, in *CloneRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CloneProgressEvent], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CloneResponse)
-	err := c.cc.Invoke(ctx, VCS_Clone_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &VCS_ServiceDesc.Streams[0], VCS_Clone_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[CloneRequest, CloneProgressEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type VCS_CloneClient = grpc.ServerStreamingClient[CloneProgressEvent]
 
 func (c *vCSClient) ParseRemoteURL(ctx context.Context, in *ParseRemoteURLRequest, opts ...grpc.CallOption) (*ProjectID, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -113,7 +122,7 @@ func (c *vCSClient) DetectProjectAtPath(ctx context.Context, in *DetectAtPathReq
 
 func (c *vCSClient) ListBranches(ctx context.Context, in *ListBranchesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Branch], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &VCS_ServiceDesc.Streams[0], VCS_ListBranches_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &VCS_ServiceDesc.Streams[1], VCS_ListBranches_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +146,7 @@ type VCS_ListBranchesClient = grpc.ServerStreamingClient[Branch]
 // VCS is implemented by version-control plugins (e.g. vcs-git).
 type VCSServer interface {
 	Info(context.Context, *Empty) (*VCSInfo, error)
-	Clone(context.Context, *CloneRequest) (*CloneResponse, error)
+	Clone(*CloneRequest, grpc.ServerStreamingServer[CloneProgressEvent]) error
 	ParseRemoteURL(context.Context, *ParseRemoteURLRequest) (*ProjectID, error)
 	CreateWorktree(context.Context, *CreateWorktreeRequest) (*Empty, error)
 	RemoveWorktree(context.Context, *RemoveWorktreeRequest) (*Empty, error)
@@ -155,8 +164,8 @@ type UnimplementedVCSServer struct{}
 func (UnimplementedVCSServer) Info(context.Context, *Empty) (*VCSInfo, error) {
 	return nil, status.Error(codes.Unimplemented, "method Info not implemented")
 }
-func (UnimplementedVCSServer) Clone(context.Context, *CloneRequest) (*CloneResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Clone not implemented")
+func (UnimplementedVCSServer) Clone(*CloneRequest, grpc.ServerStreamingServer[CloneProgressEvent]) error {
+	return status.Error(codes.Unimplemented, "method Clone not implemented")
 }
 func (UnimplementedVCSServer) ParseRemoteURL(context.Context, *ParseRemoteURLRequest) (*ProjectID, error) {
 	return nil, status.Error(codes.Unimplemented, "method ParseRemoteURL not implemented")
@@ -211,23 +220,16 @@ func _VCS_Info_Handler(srv interface{}, ctx context.Context, dec func(interface{
 	return interceptor(ctx, in, info, handler)
 }
 
-func _VCS_Clone_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CloneRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _VCS_Clone_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(CloneRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(VCSServer).Clone(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: VCS_Clone_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(VCSServer).Clone(ctx, req.(*CloneRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(VCSServer).Clone(m, &grpc.GenericServerStream[CloneRequest, CloneProgressEvent]{ServerStream: stream})
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type VCS_CloneServer = grpc.ServerStreamingServer[CloneProgressEvent]
 
 func _VCS_ParseRemoteURL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ParseRemoteURLRequest)
@@ -324,10 +326,6 @@ var VCS_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _VCS_Info_Handler,
 		},
 		{
-			MethodName: "Clone",
-			Handler:    _VCS_Clone_Handler,
-		},
-		{
 			MethodName: "ParseRemoteURL",
 			Handler:    _VCS_ParseRemoteURL_Handler,
 		},
@@ -345,6 +343,11 @@ var VCS_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Clone",
+			Handler:       _VCS_Clone_Handler,
+			ServerStreams: true,
+		},
 		{
 			StreamName:    "ListBranches",
 			Handler:       _VCS_ListBranches_Handler,

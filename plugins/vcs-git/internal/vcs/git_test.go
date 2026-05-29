@@ -7,11 +7,45 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/metadata"
 
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
 	"github.com/kalbasit/swm/plugins/vcs-git/internal/vcs"
 )
+
+// cloneStream captures CloneProgressEvent messages sent during a streaming Clone call.
+type cloneStream struct {
+	events []*pluginv1.CloneProgressEvent
+	ctx    context.Context //nolint:containedctx // needed to implement grpc.ServerStream
+}
+
+func newCloneStream() *cloneStream {
+	return &cloneStream{ctx: context.Background()}
+}
+
+func (s *cloneStream) Context() context.Context { return s.ctx }
+func (s *cloneStream) RecvMsg(any) error        { return nil }
+
+func (s *cloneStream) Send(evt *pluginv1.CloneProgressEvent) error {
+	s.events = append(s.events, evt)
+
+	return nil
+}
+
+func (s *cloneStream) SendHeader(metadata.MD) error { return nil }
+func (s *cloneStream) SendMsg(any) error            { return nil }
+func (s *cloneStream) SetHeader(metadata.MD) error  { return nil }
+func (s *cloneStream) SetTrailer(metadata.MD)       {}
+
+// lastEvent returns the last event captured, or nil if none.
+func (s *cloneStream) lastEvent() *pluginv1.CloneProgressEvent {
+	if len(s.events) == 0 {
+		return nil
+	}
+
+	return s.events[len(s.events)-1]
+}
 
 const gitBin = "git"
 
@@ -91,19 +125,23 @@ func TestParseRemoteURL_Invalid(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestClone(t *testing.T) {
+func TestClone_Success(t *testing.T) {
 	t.Parallel()
 
 	src := initRepo(t)
 	dst := filepath.Join(t.TempDir(), "clone")
 
 	g := newGit(t)
-	_, err := g.Clone(context.Background(), &pluginv1.CloneRequest{
-		Url:             src,
-		DestinationPath: dst,
-	})
+	stream := newCloneStream()
+	err := g.Clone(&pluginv1.CloneRequest{Url: src, DestinationPath: dst}, stream)
 	require.NoError(t, err)
 	require.DirExists(t, filepath.Join(dst, ".git"))
+
+	// The terminal event must be a project_id.
+	last := stream.lastEvent()
+	require.NotNil(t, last, "expected at least one event")
+	require.NotNil(t, last.GetProjectId(), "last event must carry project_id")
+	require.Equal(t, "localhost", last.GetProjectId().GetHost())
 }
 
 func TestClone_AlreadyExists(t *testing.T) {
@@ -113,11 +151,28 @@ func TestClone_AlreadyExists(t *testing.T) {
 	g := newGit(t)
 
 	// Clone into src itself — src already has .git, so AlreadyExists is returned.
-	_, err := g.Clone(context.Background(), &pluginv1.CloneRequest{
-		Url:             src,
-		DestinationPath: src,
-	})
+	stream := newCloneStream()
+	err := g.Clone(&pluginv1.CloneRequest{Url: src, DestinationPath: src}, stream)
 	require.Error(t, err)
+	require.Empty(t, stream.events, "AlreadyExists must send no events")
+}
+
+func TestClone_GitFailure(t *testing.T) {
+	t.Parallel()
+
+	dst := filepath.Join(t.TempDir(), "clone")
+	g := newGit(t)
+
+	stream := newCloneStream()
+	err := g.Clone(&pluginv1.CloneRequest{
+		Url:             "/nonexistent/repo/that/does/not/exist",
+		DestinationPath: dst,
+	}, stream)
+	require.Error(t, err)
+	// On failure, no terminal project_id event must be sent (progress lines are ok).
+	if last := stream.lastEvent(); last != nil {
+		require.Nil(t, last.GetProjectId(), "git failure must not emit a terminal project_id event")
+	}
 }
 
 func TestCreateAndRemoveWorktree(t *testing.T) {

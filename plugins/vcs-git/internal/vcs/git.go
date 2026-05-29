@@ -2,6 +2,7 @@
 package vcs
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -39,21 +40,86 @@ func New() (*Git, error) {
 	return &Git{gitBin: bin}, nil
 }
 
-// Clone clones a repository to the given destination path.
-func (g *Git) Clone(ctx context.Context, req *pluginv1.CloneRequest) (*pluginv1.CloneResponse, error) {
+// Clone clones a repository to the given destination path, streaming progress
+// events from git's stderr followed by a terminal project_id event on success.
+func (g *Git) Clone(req *pluginv1.CloneRequest, stream pluginv1.VCS_CloneServer) error {
 	if _, err := os.Stat(filepath.Join(req.GetDestinationPath(), ".git")); err == nil {
-		return nil, status.Errorf(codes.AlreadyExists, "repository already exists at %s", req.GetDestinationPath())
+		return status.Errorf(codes.AlreadyExists, "repository already exists at %s", req.GetDestinationPath())
 	}
 
-	if _, err := g.run(ctx, "clone", req.GetUrl(), req.GetDestinationPath()); err != nil {
-		return nil, err
+	//nolint:gosec // gitBin from exec.LookPath; args are controlled
+	cmd := exec.CommandContext(stream.Context(), g.gitBin, "clone", "--progress", req.GetUrl(), req.GetDestinationPath())
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return status.Errorf(codes.Internal, "git clone: stderr pipe: %v", err)
 	}
 
-	// Best-effort: parse the URL into a ProjectID. Local paths (used in tests)
-	// won't parse; return a valid response with nil ProjectId in that case.
-	id, _ := parseURL(req.GetUrl()) //nolint:errcheck // best-effort URL parse; nil ProjectId is valid
+	if err := cmd.Start(); err != nil {
+		return status.Errorf(codes.Internal, "git clone: start: %v", err)
+	}
 
-	return &pluginv1.CloneResponse{ProjectId: id}, nil
+	// Stream each \r- or \n-delimited progress segment from git's stderr.
+	var stderrBuf strings.Builder
+
+	scanner := bufio.NewScanner(stderr)
+	scanner.Split(splitCR)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.TrimRight(line, "\r\n") == "" {
+			continue
+		}
+
+		stderrBuf.WriteString(line)
+
+		if sendErr := stream.Send(&pluginv1.CloneProgressEvent{
+			Event: &pluginv1.CloneProgressEvent_ProgressLine{ProgressLine: line},
+		}); sendErr != nil {
+			_ = cmd.Process.Kill() //nolint:errcheck // kill git so the stderr pipe drains and Wait doesn't block
+			_ = cmd.Wait()         //nolint:errcheck // drain process resources before returning
+
+			return sendErr
+		}
+	}
+
+	if scanErr := scanner.Err(); scanErr != nil {
+		_ = cmd.Process.Kill() //nolint:errcheck // kill git so Wait doesn't block after scanner failure
+		_ = cmd.Wait()         //nolint:errcheck // drain process resources
+
+		return status.Errorf(codes.Internal, "git clone: reading progress: %v", scanErr)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return status.Errorf(codes.Internal, "git clone %s: %s", req.GetUrl(), stderrBuf.String())
+	}
+
+	id, _ := parseURL(req.GetUrl()) //nolint:errcheck // best-effort; nil ProjectId is valid for unrecognized URLs
+
+	return stream.Send(&pluginv1.CloneProgressEvent{
+		Event: &pluginv1.CloneProgressEvent_ProjectId{ProjectId: id},
+	})
+}
+
+// splitCR is a bufio.SplitFunc that splits on \r or \n so git's \r-based
+// in-place progress updates are each emitted as separate tokens.
+func splitCR(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+
+	for i, b := range data {
+		if b == '\r' || b == '\n' {
+			return i + 1, data[:i+1], nil
+		}
+	}
+
+	if atEOF {
+		return len(data), data, nil
+	}
+
+	return 0, nil, nil
 }
 
 // CreateWorktree creates a git worktree for a story.
@@ -180,6 +246,13 @@ func parseURL(raw string) (*pluginv1.ProjectID, error) {
 		segments := strings.Split(m[2], "/")
 
 		return &pluginv1.ProjectID{Host: host, Segments: segments}, nil
+	}
+
+	// Absolute local path (no scheme) — treat as localhost.
+	if after, ok := strings.CutPrefix(raw, "/"); ok {
+		path := strings.TrimSuffix(after, ".git")
+
+		return &pluginv1.ProjectID{Host: "localhost", Segments: strings.Split(path, "/")}, nil
 	}
 
 	// All other formats (HTTPS, file://, git+ssh, etc.)
