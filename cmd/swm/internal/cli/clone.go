@@ -88,6 +88,13 @@ func NewCloneCmd(mgr PluginManager, resolver *layout.Resolver, hooks hookexec.Ru
 					return fmt.Errorf("cloning %q: %w", url, recvErr)
 				}
 
+				if pid := evt.GetProjectId(); pid != nil {
+					id = pid
+					projectPath = strings.Join(id.GetSegments(), "/")
+
+					continue
+				}
+
 				if line := evt.GetProgressLine(); line != "" {
 					fmt.Fprint(cmd.ErrOrStderr(), line) //nolint:errcheck // writing progress to stderr is best-effort
 				}

@@ -77,10 +77,18 @@ func (g *Git) Clone(req *pluginv1.CloneRequest, stream pluginv1.VCS_CloneServer)
 		if sendErr := stream.Send(&pluginv1.CloneProgressEvent{
 			Event: &pluginv1.CloneProgressEvent_ProgressLine{ProgressLine: line},
 		}); sendErr != nil {
-			_ = cmd.Wait() //nolint:errcheck // stream failed; drain process before returning
+			_ = cmd.Process.Kill() //nolint:errcheck // kill git so the stderr pipe drains and Wait doesn't block
+			_ = cmd.Wait()         //nolint:errcheck // drain process resources before returning
 
 			return sendErr
 		}
+	}
+
+	if scanErr := scanner.Err(); scanErr != nil {
+		_ = cmd.Process.Kill() //nolint:errcheck // kill git so Wait doesn't block after scanner failure
+		_ = cmd.Wait()         //nolint:errcheck // drain process resources
+
+		return status.Errorf(codes.Internal, "git clone: reading progress: %v", scanErr)
 	}
 
 	if err := cmd.Wait(); err != nil {
