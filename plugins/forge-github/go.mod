@@ -8,7 +8,7 @@ replace (
 )
 
 require (
-	github.com/google/go-github/v67 v67.0.0
+	github.com/google/go-github/v88 v88.0.0
 	github.com/google/go-github/v88 v88.0.0
 	github.com/kalbasit/swm/proto v0.0.0
 	github.com/kalbasit/swm/sdk/go v0.0.0
