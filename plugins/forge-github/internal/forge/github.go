@@ -7,14 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/google/go-github/v67/github"
+	"github.com/google/go-github/v88/github"
 	"github.com/pelletier/go-toml/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -223,7 +222,7 @@ func (g *GitHub) newGitHubClient(ctx context.Context) (*github.Client, error) {
 		return nil, err
 	}
 
-	client := github.NewClient(nil).WithAuthToken(token)
+	opts := []github.ClientOptionsFunc{github.WithAuthToken(token)}
 
 	// g.baseURL takes precedence (unit tests); fall back to env var (integration tests).
 	baseURL := g.baseURL
@@ -232,12 +231,14 @@ func (g *GitHub) newGitHubClient(ctx context.Context) (*github.Client, error) {
 	}
 
 	if baseURL != "" {
-		parsed, err := url.Parse(baseURL)
-		if err != nil {
-			return nil, fmt.Errorf("parsing GitHub base URL: %w", err)
-		}
+		// WithURLs sets the base URL verbatim (no /api/v3/ enterprise munging),
+		// matching the behavior tests and integration runs rely on.
+		opts = append(opts, github.WithURLs(&baseURL, nil))
+	}
 
-		client.BaseURL = parsed
+	client, err := github.NewClient(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("creating GitHub client: %w", err)
 	}
 
 	return client, nil
