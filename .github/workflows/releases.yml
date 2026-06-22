@@ -9,7 +9,7 @@ jobs:
   flake-check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
       - uses: cachix/cachix-action@v17
         with:
@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Release with Notes
         uses: softprops/action-gh-release@v3
         with:
