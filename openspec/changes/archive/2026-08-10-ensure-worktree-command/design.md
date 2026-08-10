@@ -130,9 +130,18 @@ private `~/.claude/rules/…` by hand.
 - **cwd inside a different story's worktree** → `DetectProjectAtPath` still
   returns the correct `pid`, and the command attaches to the *resolved* story
   (arg/`$SWM_STORY`), which is the intended blind-call behavior.
-- **Worktree path exists but is not a valid worktree** → treated as state 3 and
-  reconciled in the store; `CreateWorktree` is not retried. Validating "is a real
-  worktree" is left as an implementation detail (see Open Questions).
+- **Worktree path exists but is not a valid worktree** → state 3 is entered only
+  when a `.git` entry is present at `WorktreePath`, so a stale plain file or an
+  unrelated directory does *not* trigger reconciliation (it falls through to the
+  create path, where `CreateWorktree` will fail loudly if the path is occupied).
+  The narrow residual case — a directory carrying an unrelated `.git` — is an
+  accepted limitation; full VCS-aware validation (e.g. `DetectProjectAtPath` on
+  the worktree) is left as an implementation detail (see Open Questions).
+- **Concurrent `CreateWorktree` race** → two attaches can both pass the existence
+  check and run the pre-create hook; the loser's `CreateWorktree` fails. Mitigation:
+  on a `CreateWorktree` error, if a worktree is now present at `WorktreePath`, the
+  command reconciles the store instead of surfacing the error (idempotent), and
+  only a genuine failure with no worktree propagates.
 
 ## Migration Plan
 

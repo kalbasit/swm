@@ -22,9 +22,10 @@ get attached to the same story via `swm workspace open --kill-pane` from within 
   1. `cd` into the repo's canonical clone at `~/code/repositories/{hostname}/{name}`.
   2. Run `swm story attach "$SWM_STORY"`.
 
-  `swm story attach` is idempotent and safe to call blindly: if the worktree already exists it
-  does nothing, otherwise it creates the worktree, runs the `pre`/`post-worktree-create` hooks,
-  and records the project in the story JSON. It does **not** touch your tmux session — no new
+  `swm story attach` is idempotent and safe to call blindly: if the project is already attached
+  to the story it does nothing; if a worktree already exists on disk but the story doesn't record
+  it, it just adds the project to the story JSON; otherwise it creates the worktree, runs the
+  `pre`/`post-worktree-create` hooks, and records the project in the story JSON. It does **not** touch your tmux session — no new
   pane or window is opened — so it is safe to run from an automated agent. Prefer it over a raw
   `git worktree add`: the manual command skips swm's hooks and leaves the story JSON's
   `projects` list out of sync. Only reach for `swm workspace open --kill-pane` when you actually

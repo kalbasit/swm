@@ -132,6 +132,7 @@ type stubVCSClient struct {
 
 	createWorktreeCalled bool
 	createWorktreeReq    *pluginv1.CreateWorktreeRequest
+	createWorktreeFn     func() error
 
 	detectCalled bool
 	detectPath   string
@@ -182,6 +183,12 @@ func (s *stubVCSClient) CreateWorktree(
 ) (*pluginv1.Empty, error) {
 	s.createWorktreeCalled = true
 	s.createWorktreeReq = req
+
+	if s.createWorktreeFn != nil {
+		if err := s.createWorktreeFn(); err != nil {
+			return nil, err
+		}
+	}
 
 	return &pluginv1.Empty{}, nil
 }

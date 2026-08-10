@@ -17,12 +17,15 @@ attached to a story.
     neither resolves (mirrors `swm workspace open` / `swm story remove`).
   - **Project resolution**: derived from the current working directory's
     canonical repository.
-  - **Already attached** (worktree present / project in the story's `projects`):
-    exit `0` as a no-op.
-  - **Not attached**: run `pre-worktree-create` hooks, call `vcs.CreateWorktree`,
-    attach the project in the story store, then run `post-worktree-create` hooks
-    — the same sequence as `swm workspace open` steps 6a–6d in the
-    `workflow-commands` spec.
+  - **Already attached** (project listed in the story's `projects`): exit `0` as
+    a no-op — no store write, no hooks.
+  - **Worktree exists but unrecorded** (a worktree is on disk but the project is
+    absent from `projects`): reconcile by attaching the project in the store
+    only — no worktree creation, no hooks.
+  - **Not attached, no worktree**: run `pre-worktree-create` hooks, call
+    `vcs.CreateWorktree`, attach the project in the story store, then run
+    `post-worktree-create` hooks — the same sequence as `swm workspace open`
+    steps 6a–6d in the `workflow-commands` spec.
   - Performs **no** session/tmux work; the human's current session is never
     touched.
   - For the `default_story`, no worktree is created (the canonical

@@ -138,7 +138,8 @@ via the layout resolver.
 
 1. If the project is already attached to the story (present in the story's
    `projects` list), the command SHALL make no changes and exit 0. No hooks run
-   and no VCS call is made.
+   and no `vcs.CreateWorktree` call is made (the project is still resolved via
+   `vcs.DetectProjectAtPath` first).
 2. If the project is not attached and no worktree exists at `WorktreePath`, the
    command SHALL, in order:
    a. Run `pre-worktree-create` hooks with full project context (`ProjectHost`,
@@ -150,13 +151,23 @@ via the layout resolver.
    c. Attach the project to the story in the store.
    d. Run `post-worktree-create` hooks with the same project context; failures
       are logged but do not affect the exit code.
-3. If the project is not attached but a worktree already exists at `WorktreePath`
-   (bookkeeping drift), the command SHALL reconcile by attaching the project to
-   the store only: `vcs.CreateWorktree` SHALL NOT be called and the
-   `pre`/`post-worktree-create` hooks SHALL NOT run. The command exits 0.
+3. If the project is not attached, the resolved story is NOT the
+   `default_story`, and a worktree already exists at `WorktreePath` (bookkeeping
+   drift), the command SHALL reconcile by attaching the project to the store
+   only: `vcs.CreateWorktree` SHALL NOT be called and the
+   `pre`/`post-worktree-create` hooks SHALL NOT run. The command exits 0. (The
+   `default_story` is excluded because its worktree path is the always-present
+   canonical checkout; an unattached default story therefore follows step 2.)
+
+An existing worktree is detected by the presence of a `.git` entry at
+`WorktreePath`, so a stale file or unrelated directory does not trigger
+reconciliation.
 
 If `store.Update` reports the project is already attached (a concurrent attach
-won the race), the command SHALL treat that as success and exit 0.
+won the race), the command SHALL treat that as success and exit 0. Likewise, if
+`vcs.CreateWorktree` fails but a worktree is present at `WorktreePath`
+afterwards (a concurrent attach created it first), the command SHALL reconcile
+the bookkeeping and exit 0 rather than surfacing the error.
 
 #### Scenario: Attaches an unattached project and creates its worktree
 - **WHEN** `swm story attach feat-x` is run from inside a repository whose project is not attached to `feat-x`, `feat-x` exists, and no worktree exists for it

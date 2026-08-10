@@ -341,6 +341,49 @@ func TestAttachCmd_ConcurrentAttach_TreatedAsSuccess(t *testing.T) {
 	require.NoError(t, cmd.Execute(), "a lost attach race must be treated as success")
 }
 
+func TestAttachCmd_CreateWorktreeRace_ReconcilesOnConflict(t *testing.T) {
+	t.Setenv("SWM_STORY", "")
+
+	codeRoot := t.TempDir()
+	worktree := filepath.Join(codeRoot, "stories", testStoryName, testGitHubHost, testKalbasitOrg, testSWMRepo)
+
+	store := &stubStore{getStory: swmProjectStory(testStoryName)}
+	resolver := layout.NewResolver(codeRoot, defaultStoryName)
+	vcs := &stubVCSClient{
+		// Simulate a concurrent attach that wins the race: it creates the
+		// worktree on disk, then our CreateWorktree call fails.
+		createWorktreeFn: func() error {
+			require.NoError(t, os.MkdirAll(worktree, 0o750))
+			require.NoError(t, os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: x\n"), 0o600))
+
+			return errNotFound
+		},
+	}
+	mgr := &stubManager{vcs: vcs}
+
+	cmd := newAttachCmd(t, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.NoError(t, cmd.Execute(), "a lost CreateWorktree race must reconcile, not fail")
+	require.True(t, vcs.createWorktreeCalled)
+	require.True(t, store.updateCalled, "project must be attached after reconciling the race")
+}
+
+func TestAttachCmd_CreateWorktreeError_NoWorktree_Fails(t *testing.T) {
+	t.Setenv("SWM_STORY", "")
+
+	store := &stubStore{getStory: swmProjectStory(testStoryName)}
+	resolver := layout.NewResolver(t.TempDir(), defaultStoryName)
+	vcs := &stubVCSClient{createWorktreeFn: func() error { return errNotFound }}
+	mgr := &stubManager{vcs: vcs}
+
+	cmd := newAttachCmd(t, store, mgr, resolver, hookexec.Noop)
+	cmd.SetArgs([]string{testStoryName})
+
+	require.Error(t, cmd.Execute(), "a genuine CreateWorktree failure (no worktree) must surface")
+	require.False(t, store.updateCalled, "project must not be attached when creation truly failed")
+}
+
 func TestAttachCmd_NoSessionLoaded(t *testing.T) {
 	t.Setenv("SWM_STORY", "")
 

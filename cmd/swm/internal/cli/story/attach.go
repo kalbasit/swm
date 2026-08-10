@@ -159,6 +159,13 @@ func attachProject(
 			RepoPath:     repoPath,
 			WorktreePath: worktreePath,
 		}); err != nil {
+			// A concurrent attach may have created the worktree between our
+			// existence check above and this call. If a worktree is now present,
+			// reconcile the bookkeeping instead of failing.
+			if worktreeExists(worktreePath) {
+				return attachToStore(ctx, store, st, pid)
+			}
+
 			return fmt.Errorf("creating worktree: %w", err)
 		}
 	}
