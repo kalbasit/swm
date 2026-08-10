@@ -43,6 +43,9 @@ type stubStore struct {
 	deleted           bool
 	listStories       []*coreStory.Story
 	listErr           error
+	updateCalled      bool
+	updatedStory      *coreStory.Story
+	updateErr         error
 }
 
 func (s *stubStore) Create(_ context.Context, name, branch string) (*coreStory.Story, error) {
@@ -80,7 +83,12 @@ func (s *stubStore) List(_ context.Context) ([]*coreStory.Story, error) {
 	return s.listStories, s.listErr
 }
 
-func (s *stubStore) Update(_ context.Context, _ *coreStory.Story) error { return nil }
+func (s *stubStore) Update(_ context.Context, story *coreStory.Story) error {
+	s.updateCalled = true
+	s.updatedStory = story
+
+	return s.updateErr
+}
 
 var _ coreStory.Store = (*stubStore)(nil)
 
@@ -121,6 +129,14 @@ type stubVCSClient struct {
 	removeWorktreeCalled bool
 	parseRemoteURLFn     func(*pluginv1.ParseRemoteURLRequest) (*pluginv1.ProjectID, error)
 	cloneFn              func(*pluginv1.CloneRequest) (grpc.ServerStreamingClient[pluginv1.CloneProgressEvent], error)
+
+	createWorktreeCalled bool
+	createWorktreeReq    *pluginv1.CreateWorktreeRequest
+
+	detectCalled bool
+	detectPath   string
+	detectPID    *pluginv1.ProjectID
+	detectErr    error
 }
 
 func (s *stubVCSClient) Clone(
@@ -160,19 +176,33 @@ func (n *noopCloneStream) SendMsg(any) error    { return nil }
 func (n *noopCloneStream) Trailer() metadata.MD { return nil }
 
 func (s *stubVCSClient) CreateWorktree(
-	context.Context,
-	*pluginv1.CreateWorktreeRequest,
-	...grpc.CallOption,
+	_ context.Context,
+	req *pluginv1.CreateWorktreeRequest,
+	_ ...grpc.CallOption,
 ) (*pluginv1.Empty, error) {
-	panic("stub")
+	s.createWorktreeCalled = true
+	s.createWorktreeReq = req
+
+	return &pluginv1.Empty{}, nil
 }
 
 func (s *stubVCSClient) DetectProjectAtPath(
-	context.Context,
-	*pluginv1.DetectAtPathRequest,
-	...grpc.CallOption,
+	_ context.Context,
+	req *pluginv1.DetectAtPathRequest,
+	_ ...grpc.CallOption,
 ) (*pluginv1.ProjectID, error) {
-	panic("stub")
+	s.detectCalled = true
+	s.detectPath = req.GetPath()
+
+	if s.detectErr != nil {
+		return nil, s.detectErr
+	}
+
+	if s.detectPID != nil {
+		return s.detectPID, nil
+	}
+
+	return &pluginv1.ProjectID{Host: testGitHubHost, Segments: []string{testKalbasitOrg, testSWMRepo}}, nil
 }
 
 func (s *stubVCSClient) Info(

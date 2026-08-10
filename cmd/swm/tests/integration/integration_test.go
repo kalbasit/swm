@@ -33,6 +33,7 @@ const (
 	testDefaultStory  = "_default"
 	cmdCreate         = "create"
 	cmdRemove         = "remove"
+	cmdAttach         = "attach"
 	cmdGroupStory     = "story"
 	cmdGroupWorkspace = "workspace"
 	cmdOpen           = "open"
@@ -134,6 +135,55 @@ func TestCloneAndStoryCreate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, testStoryName, st.Name)
 	require.Equal(t, "feat/"+testStoryName, st.BranchName)
+}
+
+//nolint:paralleltest // t.Chdir is incompatible with t.Parallel
+func TestStoryAttach_CreatesWorktreeAndRecordsProject(t *testing.T) {
+	// No t.Parallel(): uses t.Chdir.
+	cfg, resolver, store, mgr := setupEnv(t)
+
+	srcRepo := initLocalRepo(t)
+	fileURL := "file://" + srcRepo
+
+	// Clone the repo to its canonical path.
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
+	root.SetArgs([]string{cmdClone, fileURL})
+	require.NoError(t, root.Execute())
+
+	// Create the story (lazy — no worktrees yet).
+	rootCreate := cli.NewRootCmd("", cfg, mgr, store, resolver)
+	rootCreate.SetArgs([]string{cmdGroupStory, cmdCreate, testStoryName})
+	require.NoError(t, rootCreate.Execute())
+
+	pid := fileURLtoProjectID(fileURL)
+	canonical := resolver.CanonicalPath(pid)
+	worktree := resolver.WorktreePath(testStoryName, pid)
+
+	// Run `swm story attach` from inside the canonical clone.
+	t.Chdir(canonical)
+
+	rootAttach := cli.NewRootCmd("", cfg, mgr, store, resolver)
+	rootAttach.SetArgs([]string{cmdGroupStory, cmdAttach, testStoryName})
+	require.NoError(t, rootAttach.Execute())
+
+	// The worktree is created and the project is recorded in the story JSON.
+	require.DirExists(t, worktree)
+	require.FileExists(t, filepath.Join(worktree, ".git"))
+
+	st, err := store.Get(t.Context(), testStoryName)
+	require.NoError(t, err)
+	require.Len(t, st.Projects, 1)
+	require.Equal(t, pid.GetHost(), st.Projects[0].Host)
+	require.Equal(t, pid.GetSegments(), st.Projects[0].Segments)
+
+	// A second invocation is a clean no-op — no duplicate, no error.
+	rootAgain := cli.NewRootCmd("", cfg, mgr, store, resolver)
+	rootAgain.SetArgs([]string{cmdGroupStory, cmdAttach, testStoryName})
+	require.NoError(t, rootAgain.Execute())
+
+	st2, err := store.Get(t.Context(), testStoryName)
+	require.NoError(t, err)
+	require.Len(t, st2.Projects, 1, "second attach must not duplicate the project")
 }
 
 func TestStoryRemove(t *testing.T) {
