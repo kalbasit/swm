@@ -19,11 +19,20 @@ Additional repos get attached to the same story via `swm workspace open
 
 **Detect the story**: check `$SWM_STORY` in the environment.
 
-**When `$SWM_STORY` is set**, treat the session as scoped to that story and never break out of it:
+> **Default story exception.** swm's default story (`_default`, or whatever `swm config get
+default_story` reports) has no separate worktree — its checkout IS the canonical clone under
+> `$CODE_ROOT/repositories/...`. If `$SWM_STORY` equals the default story, treat it like the
+> unset case below: operate in the canonical clone and do not run `swm story attach`. Everything
+> below about story-worktree paths and per-story `branch_name` applies only to non-default
+> stories.
+
+**When `$SWM_STORY` is set** (to a non-default story), treat the session as scoped to that story and never break out of it:
 
 - Any repo you touch for this task — even ones not yet part of the story — MUST be operated on
   at `$CODE_ROOT/stories/$SWM_STORY/{hostname}/{name}`, never at
-  `$CODE_ROOT/repositories/{hostname}/{name}`.
+  `$CODE_ROOT/repositories/{hostname}/{name}`. The one exception is the attach step below: you
+  may `cd` into the canonical clone **solely** to run `swm story attach`; make all task edits in
+  the story worktree, never in the canonical clone.
 - If that story worktree doesn't exist yet, create it with swm so the worktree, its hooks, and
   swm's bookkeeping all stay in sync:
   1. `cd` into the repo's canonical clone at `$CODE_ROOT/repositories/{hostname}/{name}`.
