@@ -21,10 +21,11 @@ Additional repos get attached to the same story via `swm workspace open
 
 > **Default story exception.** swm's default story (`_default`, or whatever `swm config get
 default_story` reports) has no separate worktree — its checkout IS the canonical clone under
-> `$CODE_ROOT/repositories/...`. If `$SWM_STORY` equals the default story, treat it like the
-> unset case below: operate in the canonical clone and do not run `swm story attach`. Everything
-> below about story-worktree paths and per-story `branch_name` applies only to non-default
-> stories.
+> `$CODE_ROOT/repositories/...`. If `$SWM_STORY` equals the default story, work in the canonical
+> clone (there is no `stories/...` path), but **still** run `swm story attach "$SWM_STORY"` from
+> there — it records the project in the story and runs the hooks; it only skips creating a
+> separate worktree. The story-worktree paths and per-story `branch_name` rules below apply only
+> to non-default stories.
 
 **When `$SWM_STORY` is set** (to a non-default story), treat the session as scoped to that story and never break out of it:
 
