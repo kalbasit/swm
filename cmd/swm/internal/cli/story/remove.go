@@ -104,23 +104,7 @@ func NewRemoveCmd(
 
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "skip confirmation prompt")
 
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
-		if len(args) > 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		stories, err := store.List(cmd.Context())
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		names := make([]string, len(stories))
-		for i, s := range stories {
-			names[i] = s.Name
-		}
-
-		return names, cobra.ShellCompDirectiveNoFileComp
-	}
+	cmd.ValidArgsFunction = storyNameCompletion(store)
 
 	return cmd
 }

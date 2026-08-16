@@ -185,6 +185,14 @@ Hooks are plain executables placed in tiered directories. All applicable tiers r
 
 See the [Hook System reference](cmd/swm/README.md#hook-system) in the host CLI README for the full event list, working directories, environment variables, and stdin JSON contract.
 
+## Contrib
+
+Optional, copyable assets that aren't part of the core tool live under [`contrib/`](contrib/):
+
+| Asset                                                                                            | Description                                                                                              |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| [`contrib/claude-rules/swm-story-confinement.md`](contrib/claude-rules/swm-story-confinement.md) | Rule that confines an AI agent to a single story, using `swm story attach` to create worktrees on demand |
+
 ## Module READMEs
 
 | Module                                                   | Description                                 |
