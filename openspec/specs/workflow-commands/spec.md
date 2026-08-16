@@ -292,8 +292,10 @@ Each `PickItem` sent to the picker plugin SHALL have:
   - The host detects terminal width via `/dev/tty` → `$COLUMNS` env var → 120 columns default.
   - Truncation priority (right-to-left): projects list → branch name → story name.
 
-Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recent first), with
-`_default` pinned last.
+Stories SHALL be sent to the picker with `_default` pinned **first** so it sits under the
+picker cursor (the bundled fzf picker runs with its default layout and places the cursor on
+the first item received). The remaining feature stories follow, sorted by `CreatedAt`
+descending (most recent first), ties broken lexicographically by name ascending.
 
 **With picker configured and story resolved (from arg, env, or picker selection):**
 1. Run `pre-workspace-open` hooks; abort if any fail.
@@ -327,9 +329,9 @@ Stories SHALL be sent to the picker sorted by `CreatedAt` descending (most recen
 - **WHEN** `swm workspace open` is run with no positional argument, `$SWM_STORY` is unset, picker is configured, and a TTY is available
 - **THEN** the command streams all stories to `picker.Pick` and waits for the user to select one before proceeding to project selection
 
-#### Scenario: Story picker entries include _default as last entry
+#### Scenario: Story picker entries include _default as first entry
 - **WHEN** the story picker is shown and both `_default` and feature stories exist
-- **THEN** `_default` appears as the last entry with display text starting with `_default (main repo)`, and all feature stories appear before it sorted by `CreatedAt` descending
+- **THEN** `_default` appears as the first entry (under the picker cursor) with display text starting with `_default (main repo)`, and all feature stories appear after it sorted by `CreatedAt` descending
 
 #### Scenario: Story picker entry omits branch when equal to story name
 - **WHEN** a story named `feat/my-feature` has `branch_name = "feat/my-feature"`

@@ -34,21 +34,23 @@ func TestSortStoriesForPicker_DescendingByCreatedAt(t *testing.T) {
 	require.Equal(t, []string{testSortStoryNew, "mid", testSortStoryOld}, names(got))
 }
 
-func TestSortStoriesForPicker_DefaultPinnedLast(t *testing.T) {
+func TestSortStoriesForPicker_DefaultPinnedFirst(t *testing.T) {
 	t.Parallel()
 
-	// _default has a very recent CreatedAt — it must still appear last.
+	// _default has an older CreatedAt than the feature stories — it must still
+	// appear first so it sits under the picker cursor.
 	stories := []*coreStory.Story{
-		{Name: testDefaultStory, CreatedAt: sortBase},
 		{Name: testSortStoryOld, CreatedAt: sortBase.Add(-7 * 24 * time.Hour)},
+		{Name: testDefaultStory, CreatedAt: sortBase.Add(-30 * 24 * time.Hour)},
 		{Name: testSortStoryNew, CreatedAt: sortBase.Add(-1 * time.Hour)},
 	}
 
 	got := workspace.SortStoriesForPicker(stories)
 
-	require.Equal(t, testSortStoryNew, got[0].Name)
-	require.Equal(t, testSortStoryOld, got[1].Name)
-	require.Equal(t, testDefaultStory, got[2].Name)
+	// _default first (under the cursor), then feature stories newest-first.
+	require.Equal(t, testDefaultStory, got[0].Name)
+	require.Equal(t, testSortStoryNew, got[1].Name)
+	require.Equal(t, testSortStoryOld, got[2].Name)
 }
 
 func TestSortStoriesForPicker_TiesOrderedLexicographically(t *testing.T) {
