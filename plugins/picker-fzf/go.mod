@@ -10,7 +10,7 @@ replace (
 require (
 	github.com/kalbasit/swm/proto v0.0.0
 	github.com/kalbasit/swm/sdk/go v0.0.0-20260817011815-e91651f6ba06
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	google.golang.org/grpc v1.83.0
 )
 
