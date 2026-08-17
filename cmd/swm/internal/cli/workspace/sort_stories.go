@@ -9,8 +9,9 @@ import (
 const defaultStoryName = "_default"
 
 // SortStoriesForPicker returns a new slice of stories sorted for display in the
-// story picker: feature stories by CreatedAt descending (ties broken by name
-// ascending), with the _default story always pinned as the last entry.
+// story picker: the _default story is always pinned as the first entry (so it sits
+// under the picker cursor), followed by feature stories by CreatedAt descending
+// (ties broken by name ascending).
 func SortStoriesForPicker(stories []*coreStory.Story) []*coreStory.Story {
 	out := make([]*coreStory.Story, len(stories))
 	copy(out, stories)
@@ -19,12 +20,12 @@ func SortStoriesForPicker(stories []*coreStory.Story) []*coreStory.Story {
 		aDefault := a.Name == defaultStoryName
 		bDefault := b.Name == defaultStoryName
 
-		// _default is always last.
+		// _default is always first.
 		switch {
 		case aDefault && !bDefault:
-			return 1
-		case !aDefault && bDefault:
 			return -1
+		case !aDefault && bDefault:
+			return 1
 		}
 
 		// Both _default (shouldn't happen) or both non-default: newer first.
