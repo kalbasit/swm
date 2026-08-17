@@ -18,7 +18,9 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Run DevSkim scanner
         uses: microsoft/DevSkim-Action@v1
       - name: Upload DevSkim scan results to GitHub Security tab
