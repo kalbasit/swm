@@ -279,7 +279,7 @@ func shellQuote(arg string) string {
 // exact name.
 //
 // tmux resolves an unescaped -t target by exact name, then name prefix, then
-// fnmatch(3), then substring. Pane group session names are derived from project
+// fnmatch(3). Pane group session names are derived from project
 // IDs, so one project's name can be a strict prefix of another's; the "=" prefix
 // restricts tmux to exact matching so a target cannot select the wrong session.
 //

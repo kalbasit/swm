@@ -4,7 +4,7 @@ When two repos on the same host share a name prefix — e.g. `git.entreprise.com
 `git.entreprise.com/name-two` — selecting `name` in the project picker opens `name-two`
 instead. The picker and the host-side key resolution are both exact; the defect is that the
 `session-tmux` plugin passes session and window names to `tmux -t` unescaped. tmux resolves a
-`-t` target by trying an exact match, then a **prefix match**, then fnmatch, then substring.
+`-t` target by trying an exact match, then a **prefix match**, then fnmatch.
 With a `name-two` session already running, `has-session -t <...>/name` prefix-matches it and
 succeeds, so swm never creates the `name` session, and the subsequent `switch-client` /
 `attach-session` resolves to `name-two` for the same reason.
@@ -16,7 +16,7 @@ in the wrong worktree.
 ## What Changes
 
 - Escape every tmux `-t` target in the `session-tmux` plugin with tmux's exact-match prefix
-  `=`, so a target name is matched literally and never prefix/fnmatch/substring-matched:
+  `=`, so a target name is matched literally and never prefix- or fnmatch-matched:
   - `session/tmux.go`: `has-session`, `switch-client`, `attach-session`.
   - `layout/apply.go`: `setenv`, `rename-window`, `new-window`, and the `display-message`
     used to resolve `#{pane_id}`.

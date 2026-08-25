@@ -15,7 +15,7 @@
 
 ## 3. Green — exact-match targeting in session/tmux.go
 
-- [x] 3.1 Add a small helper (e.g. `exactTarget(name string) string` returning `"=" + name`) in `plugins/session-tmux/internal/session/tmux.go` with a comment explaining tmux's exact→prefix→fnmatch→substring resolution and why the escape is required.
+- [x] 3.1 Add a small helper (e.g. `exactTarget(name string) string` returning `"=" + name`) in `plugins/session-tmux/internal/session/tmux.go` with a comment explaining tmux's exact→prefix→fnmatch resolution and why the escape is required.
 - [x] 3.2 Apply it to `has-session -t` in `OpenPaneGroup` (~line 226). Leave `new-session -s <name>` unchanged — `-s` names the session being created, it is not a target.
 - [x] 3.3 Apply it to `switch-client -t` (~line 304) and to the `attach-session -t` entry in `ExecArgv` (~line 311) in `SwitchTo`.
 - [x] 3.4 Leave `kill-pane -t <paneID>` (~line 358) unescaped — pane IDs are tmux-assigned and unambiguous. Add a brief comment noting this is deliberate.

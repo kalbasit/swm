@@ -5,8 +5,8 @@
 a target name is never resolved to a different session or window whose name merely starts
 with, matches a glob against, or contains the requested name.
 
-tmux resolves an unescaped `-t` target by trying, in order: exact name, prefix match, fnmatch,
-then substring. Because pane-group names are derived from project IDs, a project whose name is
+tmux resolves an unescaped `-t` target by trying, in order: exact name, prefix match, then
+fnmatch. Because pane-group names are derived from project IDs, a project whose name is
 a prefix of another project's name on the same host (for example `git.example.com/name` and
 `git.example.com/name-two`) is therefore ambiguous unless the target is escaped. Every command
 in which `session-tmux` passes a *name* as a target SHALL request exact matching; this covers

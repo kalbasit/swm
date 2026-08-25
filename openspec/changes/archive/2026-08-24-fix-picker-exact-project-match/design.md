@@ -7,8 +7,11 @@ COMMANDS, specifies that a `target-session` is resolved by trying, in order:
 
 1. exact session name,
 2. session name **prefix**,
-3. `fnmatch(3)` pattern,
-4. substring.
+3. `fnmatch(3)` pattern.
+
+Verified empirically against tmux 3.6a: with a session `abc-name-xyz`, the targets `abc`
+(prefix), `abc*` and `*name*` (fnmatch) all resolve to it, while the bare substring `name`
+does **not**. Substring matching is not part of `target-session` resolution.
 
 and that "if the session name is prefixed with an `=`, only an exact match is accepted".
 The same `=` escape applies to `target-window` and `target-pane` when those are given by name.

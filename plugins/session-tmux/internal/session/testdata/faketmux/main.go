@@ -90,10 +90,16 @@ func main() {
 //
 // It deliberately mirrors the target-session resolution rules from tmux(1):
 // a target prefixed with "=" matches only an exact name, otherwise tmux tries
-// an exact match, then a name prefix, then an fnmatch(3) pattern. Modelling
-// that order is the whole point of this fake — without it a test cannot express
-// "a session with a similar name exists", which is exactly the state that makes
-// an unescaped target resolve to the wrong session.
+// an exact match, then a name prefix, then an fnmatch(3) pattern.
+//
+// There is deliberately no substring pass: tmux does not substring-match a
+// target-session. Verified against tmux 3.6a — for a session "abc-name-xyz",
+// the targets "abc" (prefix), "abc*" and "*name*" (fnmatch) all resolve to it,
+// but the bare substring "name" does not.
+//
+// Modelling that order is the whole point of this fake — without it a test
+// cannot express "a session with a similar name exists", which is exactly the
+// state that makes an unescaped target resolve to the wrong session.
 func resolveTarget(target string, sessions []string) bool {
 	if target == "" {
 		return len(sessions) > 0

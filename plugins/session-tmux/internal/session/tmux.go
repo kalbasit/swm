@@ -508,7 +508,7 @@ func sessionName(key string) string {
 // exact name.
 //
 // tmux resolves an unescaped -t target by trying, in order: the exact name, a
-// name prefix, an fnmatch(3) pattern, then a substring. Pane group names are
+// name prefix, then an fnmatch(3) pattern. Pane group names are
 // derived from project IDs, so a project whose name is a prefix of another
 // project's name on the same host (say "host/name" and "host/name-two") would
 // otherwise resolve to whichever session happens to match first. Prefixing the
