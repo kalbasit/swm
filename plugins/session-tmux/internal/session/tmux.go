@@ -125,7 +125,7 @@ func (t *Tmux) CurrentContext(ctx context.Context, _ *pluginv1.Empty) (*pluginv1
 	}
 
 	// $TMUX is "<socket-path>,<pid>,<session-id>"
-	sock := strings.SplitN(tmuxEnv, ",", 2)[0]
+	sock, _, _ := strings.Cut(tmuxEnv, ",")
 	storyName := strings.TrimSuffix(filepath.Base(sock), ".sock")
 
 	paneGroup, err := t.run(ctx, "display-message", "-p", "#S")
@@ -158,7 +158,7 @@ func (t *Tmux) IsInsideWorkspace(_ context.Context, _ *pluginv1.Empty) (*pluginv
 	}
 
 	// $TMUX is "<socket-path>,<pid>,<session-id>"
-	sock := strings.SplitN(tmuxEnv, ",", 2)[0]
+	sock, _, _ := strings.Cut(tmuxEnv, ",")
 	inside := strings.HasPrefix(sock, t.socketDir)
 
 	return &pluginv1.BoolValue{Value: inside}, nil

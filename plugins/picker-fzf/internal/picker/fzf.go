@@ -105,7 +105,7 @@ func (f *Fzf) Pick(stream grpc.BidiStreamingServer[pluginv1.PickItem, pluginv1.P
 	}
 
 	// Output is "<key>\t<display>"; extract the key (first field).
-	key := strings.SplitN(selected, "\t", 2)[0]
+	key, _, _ := strings.Cut(selected, "\t")
 
 	return stream.Send(&pluginv1.PickResult{Key: key})
 }
