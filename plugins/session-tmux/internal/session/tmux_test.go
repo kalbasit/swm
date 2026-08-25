@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -28,6 +29,7 @@ const (
 	testWorktree      = "/tmp/wt"
 	testPaneGroup     = testRepo
 	testPaneGroupFull = "github•com/kalbasit/swm"
+	attachSessionCmd  = "attach-session"
 )
 
 var faketmuxBin string
@@ -229,7 +231,7 @@ func TestSwitchTo_OutsideTmux_ReturnsExecArgv(t *testing.T) {
 		PaneGroupId: testPaneGroup,
 	})
 	require.NoError(t, err)
-	require.Equal(t, []string{faketmuxBin, "-S", sock, "attach-session", "-t", testPaneGroup}, resp.GetExecArgv())
+	require.Equal(t, []string{faketmuxBin, "-S", sock, attachSessionCmd, "-t", "=" + testPaneGroup}, resp.GetExecArgv())
 
 	// faketmux must NOT have been invoked — log file absent or empty.
 	logBytes, readErr := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
@@ -692,7 +694,9 @@ func TestSwitchTo_OutsideTmux_KillsOriginPane(t *testing.T) {
 		CloseOriginPaneId:      "%5",
 	})
 	require.NoError(t, err)
-	require.Equal(t, []string{faketmuxBin, "-S", targetSock, "attach-session", "-t", testPaneGroup}, resp.GetExecArgv())
+
+	wantArgv := []string{faketmuxBin, "-S", targetSock, attachSessionCmd, "-t", "=" + testPaneGroup}
+	require.Equal(t, wantArgv, resp.GetExecArgv())
 
 	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
 	require.NoError(t, err)
@@ -1065,4 +1069,157 @@ func (s *collectWorkspaceStream) Send(ws *pluginv1.Workspace) error {
 	s.items = append(s.items, ws)
 
 	return nil
+}
+
+// Shared-prefix project names. tmux resolves an unescaped -t target by exact
+// name, then name prefix, then fnmatch — so "prefixName" is ambiguous with
+// "prefixNameTwo" unless the target is escaped for exact matching.
+const (
+	prefixHost        = "git.example.com"
+	prefixName        = "git•example•com/name"
+	prefixNameTwo     = "git•example•com/name-two"
+	prefixWorktree    = "/tmp/wt-name"
+	prefixWorktreeTwo = "/tmp/wt-name-two"
+)
+
+// countNewSessions returns how many `new-session` invocations in the faketmux
+// log created a session with exactly the given name.
+func countNewSessions(t *testing.T, logFile, name string) int {
+	t.Helper()
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	var n int
+
+	for line := range strings.SplitSeq(string(logBytes), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || !slices.Contains(fields, "new-session") {
+			continue
+		}
+
+		for i, f := range fields {
+			if f == "-s" && i+1 < len(fields) && fields[i+1] == name {
+				n++
+			}
+		}
+	}
+
+	return n
+}
+
+func openPrefixPaneGroup(t *testing.T, tmux *session.Tmux, sock, segment, worktree string) *pluginv1.PaneGroup {
+	t.Helper()
+
+	pg, err := tmux.OpenPaneGroup(context.Background(), &pluginv1.OpenPaneGroupRequest{
+		WorkspaceId:  sock,
+		ProjectId:    &pluginv1.ProjectID{Host: prefixHost, Segments: []string{segment}},
+		WorktreePath: worktree,
+	})
+	require.NoError(t, err)
+
+	return pg
+}
+
+// A project whose name is a strict prefix of an already-open project's name
+// must get its own pane group rather than resolving to the longer one.
+func TestOpenPaneGroup_SharedPrefixName_LongerOpenedFirst(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sock := filepath.Join(socketDir, "feat-x.sock")
+
+	pgTwo := openPrefixPaneGroup(t, tmux, sock, "name-two", prefixWorktreeTwo)
+	pgOne := openPrefixPaneGroup(t, tmux, sock, "name", prefixWorktree)
+
+	require.Equal(t, prefixNameTwo, pgTwo.GetPaneGroupId())
+	require.Equal(t, prefixName, pgOne.GetPaneGroupId())
+	require.NotEqual(t, pgTwo.GetPaneGroupId(), pgOne.GetPaneGroupId())
+
+	require.Equal(t, 1, countNewSessions(t, logFile, prefixNameTwo),
+		"the longer-named pane group must be created exactly once")
+	require.Equal(t, 1, countNewSessions(t, logFile, prefixName),
+		"opening a project whose name is a prefix of an existing session must create its own session")
+}
+
+// The same must hold regardless of which of the two was created first.
+func TestOpenPaneGroup_SharedPrefixName_ShorterOpenedFirst(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sock := filepath.Join(socketDir, "feat-x.sock")
+
+	pgOne := openPrefixPaneGroup(t, tmux, sock, "name", prefixWorktree)
+	pgTwo := openPrefixPaneGroup(t, tmux, sock, "name-two", prefixWorktreeTwo)
+
+	require.NotEqual(t, pgOne.GetPaneGroupId(), pgTwo.GetPaneGroupId())
+
+	require.Equal(t, 1, countNewSessions(t, logFile, prefixName),
+		"the shorter-named pane group must be created exactly once")
+	require.Equal(t, 1, countNewSessions(t, logFile, prefixNameTwo),
+		"opening a project whose name extends an existing session must create its own session")
+}
+
+// Re-opening an already-open pane group must still reuse it.
+func TestOpenPaneGroup_SharedPrefixName_ExistingReused(t *testing.T) {
+	// Cannot be parallel — uses FAKETMUX_LOG env var.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sock := filepath.Join(socketDir, "feat-x.sock")
+
+	openPrefixPaneGroup(t, tmux, sock, "name-two", prefixWorktreeTwo)
+	openPrefixPaneGroup(t, tmux, sock, "name", prefixWorktree)
+	openPrefixPaneGroup(t, tmux, sock, "name", prefixWorktree)
+
+	require.Equal(t, 1, countNewSessions(t, logFile, prefixName),
+		"re-opening an existing pane group must not create a second session")
+}
+
+// SwitchTo must address the requested pane group exactly, so that switching to
+// "name" cannot land on "name-two".
+func TestSwitchTo_SharedPrefixName_TargetsExactly(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	t.Setenv("TMUX", "")
+
+	tmux, socketDir := newTmux(t)
+	sock := filepath.Join(socketDir, "feat-x.sock")
+	require.NoError(t, os.WriteFile(sock, nil, 0o600))
+
+	resp, err := tmux.SwitchTo(context.Background(), &pluginv1.SwitchToRequest{
+		WorkspaceId: sock,
+		PaneGroupId: prefixName,
+	})
+	require.NoError(t, err)
+	require.Equal(t,
+		[]string{faketmuxBin, "-S", sock, attachSessionCmd, "-t", "=" + prefixName},
+		resp.GetExecArgv(),
+		"attach target must be escaped with = so tmux cannot prefix-match a longer session name")
+}
+
+func TestSwitchTo_SharedPrefixName_SwitchClientTargetsExactly(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sock := filepath.Join(socketDir, "feat-x.sock")
+	t.Setenv("TMUX", sock+",12345,0")
+	require.NoError(t, os.WriteFile(sock, nil, 0o600))
+
+	_, err := tmux.SwitchTo(context.Background(), &pluginv1.SwitchToRequest{
+		WorkspaceId: sock,
+		PaneGroupId: prefixName,
+	})
+	require.NoError(t, err)
+
+	logBytes, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+	require.Contains(t, string(logBytes), "switch-client -t ="+prefixName,
+		"switch-client target must be escaped with = for exact matching")
 }

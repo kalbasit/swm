@@ -25,14 +25,14 @@ func Apply(ctx context.Context, run RunFunc, sock, sessionName string, cfg *Conf
 
 	// Apply session-level env vars before creating any panes.
 	for k, v := range cfg.Env {
-		if _, err := run(ctx, "-S", sock, "setenv", "-t", sessionName, k, v); err != nil {
+		if _, err := run(ctx, "-S", sock, "setenv", "-t", exactTarget(sessionName), k, v); err != nil {
 			return fmt.Errorf("setting session env %s: %w", k, err)
 		}
 	}
 
 	// Apply startup commands to the initial pane before any layout steps.
 	if len(cfg.Startup) > 0 {
-		initialPaneID, err := getPaneID(ctx, run, sock, sessionName+":0")
+		initialPaneID, err := getPaneID(ctx, run, sock, exactTarget(sessionName)+":0")
 		if err != nil {
 			return err
 		}
@@ -49,12 +49,12 @@ func Apply(ctx context.Context, run RunFunc, sock, sessionName string, cfg *Conf
 
 		if i == 0 {
 			// Rename the existing default window.
-			if _, err := run(ctx, "-S", sock, "rename-window", "-t", sessionName+":0", w.Name); err != nil {
+			if _, err := run(ctx, "-S", sock, "rename-window", "-t", exactTarget(sessionName)+":0", w.Name); err != nil {
 				return fmt.Errorf("renaming first window to %q: %w", w.Name, err)
 			}
 		} else {
 			// Create subsequent windows.
-			args := []string{"-S", sock, "new-window", "-t", sessionName, "-n", w.Name}
+			args := []string{"-S", sock, "new-window", "-t", exactTarget(sessionName), "-n", w.Name}
 			if winPath != "" {
 				args = append(args, "-c", winPath)
 			}
@@ -68,7 +68,7 @@ func Apply(ctx context.Context, run RunFunc, sock, sessionName string, cfg *Conf
 			continue
 		}
 
-		winTarget := fmt.Sprintf("%s:%d", sessionName, i)
+		winTarget := fmt.Sprintf("%s:%d", exactTarget(sessionName), i)
 
 		initialPaneID, err := getPaneID(ctx, run, sock, winTarget)
 		if err != nil {
@@ -198,6 +198,7 @@ func sendKeys(ctx context.Context, run RunFunc, sock, paneID, cmd string, delayM
 		}
 	}
 
+	// paneID is a tmux-assigned pane ID (%N) — already unambiguous, never escaped.
 	if _, err := run(ctx, "-S", sock, "send-keys", "-t", paneID, cmd, "Enter"); err != nil {
 		return fmt.Errorf("send-keys %q to pane %s: %w", cmd, paneID, err)
 	}
@@ -205,6 +206,8 @@ func sendKeys(ctx context.Context, run RunFunc, sock, paneID, cmd string, delayM
 	return nil
 }
 
+// getPaneID resolves target to a tmux pane ID. Callers passing a target that
+// contains a session *name* must escape it with exactTarget first.
 func getPaneID(ctx context.Context, run RunFunc, sock, target string) (string, error) {
 	id, err := run(ctx, "-S", sock, "display-message", "-t", target, "-p", "#{pane_id}")
 	if err != nil {
@@ -270,4 +273,18 @@ func shellQuote(arg string) string {
 	}
 
 	return "'" + strings.ReplaceAll(arg, "'", `'\''`) + "'"
+}
+
+// exactTarget escapes a tmux target given by *name* so it matches only that
+// exact name.
+//
+// tmux resolves an unescaped -t target by exact name, then name prefix, then
+// fnmatch(3). Pane group session names are derived from project
+// IDs, so one project's name can be a strict prefix of another's; the "=" prefix
+// restricts tmux to exact matching so a target cannot select the wrong session.
+//
+// Only for name targets. Pane IDs (%N) are already unambiguous and "=%1" is not
+// valid target syntax — those are passed through untouched.
+func exactTarget(name string) string {
+	return "=" + name
 }
