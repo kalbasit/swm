@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"google.golang.org/grpc/codes"
@@ -22,8 +23,10 @@ import (
 // buildVersion is set via -ldflags at build time.
 var buildVersion = "dev" //nolint:gochecknoglobals // set via ldflags at link time
 
-// sshURLRe matches SSH-style git URLs: git@github.com:owner/repo.git.
-var sshURLRe = regexp.MustCompile(`^git@([^:]+):(.+?)(?:\.git)?$`)
+// scpURLRe matches scp-style git URLs with any or no SSH user:
+// [user@]host:owner/repo.git. The user is matched but discarded — it is an
+// access detail, not part of a project's identity.
+var scpURLRe = regexp.MustCompile(`^(?:[^/@]+@)?([^/:]+):(.+)$`)
 
 // Git implements pluginv1.VCSServer by shelling out to the system git.
 type Git struct {
@@ -240,19 +243,18 @@ func (g *Git) run(ctx context.Context, args ...string) (string, error) {
 }
 
 func parseURL(raw string) (*pluginv1.ProjectID, error) {
-	// SSH format: git@github.com:owner/repo.git
-	if m := sshURLRe.FindStringSubmatch(raw); m != nil {
-		host := m[1]
-		segments := strings.Split(m[2], "/")
-
-		return &pluginv1.ProjectID{Host: host, Segments: segments}, nil
-	}
-
 	// Absolute local path (no scheme) — treat as localhost.
 	if after, ok := strings.CutPrefix(raw, "/"); ok {
-		path := strings.TrimSuffix(after, ".git")
+		return newProjectID("localhost", after, raw)
+	}
 
-		return &pluginv1.ProjectID{Host: "localhost", Segments: strings.Split(path, "/")}, nil
+	// scp-style SSH: [user@]host:owner/repo.git. Git treats any URL without a
+	// "://" scheme separator as scp-style, so rule out schemed URLs first —
+	// otherwise https:// and ssh:// would match here on their scheme colon.
+	if !strings.Contains(raw, "://") {
+		if m := scpURLRe.FindStringSubmatch(raw); m != nil {
+			return newProjectID(m[1], m[2], raw)
+		}
 	}
 
 	// All other formats (HTTPS, file://, git+ssh, etc.)
@@ -263,28 +265,32 @@ func parseURL(raw string) (*pluginv1.ProjectID, error) {
 
 	// file:// — local repository; host is "localhost".
 	if u.Scheme == "file" {
-		path := strings.TrimPrefix(u.Path, "/")
-		path = strings.TrimSuffix(path, ".git")
-
-		if path == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "file URL %q has no path", raw)
-		}
-
-		return &pluginv1.ProjectID{Host: "localhost", Segments: strings.Split(path, "/")}, nil
+		return newProjectID("localhost", strings.TrimPrefix(u.Path, "/"), raw)
 	}
 
-	if u.Host == "" {
+	// Hostname drops the port: a transport detail must never become a path
+	// component, since the host composes on-disk paths from the host verbatim.
+	host := u.Hostname()
+	if host == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "cannot parse remote URL %q", raw)
 	}
 
-	path := strings.TrimPrefix(u.Path, "/")
-	path = strings.TrimSuffix(path, ".git")
+	return newProjectID(host, strings.TrimPrefix(u.Path, "/"), raw)
+}
 
+// newProjectID builds a ProjectID from a host and a slash-separated path,
+// stripping the ".git" suffix. It rejects a path yielding an empty segment: the
+// host turns each segment into a directory name, so an empty one is never valid.
+func newProjectID(host, path, raw string) (*pluginv1.ProjectID, error) {
+	path = strings.TrimSuffix(path, ".git")
 	if path == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "URL %q has no path", raw)
 	}
 
 	segments := strings.Split(path, "/")
+	if slices.Contains(segments, "") {
+		return nil, status.Errorf(codes.InvalidArgument, "URL %q has an empty path segment", raw)
+	}
 
-	return &pluginv1.ProjectID{Host: u.Host, Segments: segments}, nil
+	return &pluginv1.ProjectID{Host: host, Segments: segments}, nil
 }
