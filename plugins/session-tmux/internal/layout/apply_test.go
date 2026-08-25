@@ -17,6 +17,7 @@ const (
 	testSession      = "github•com/org/repo"
 	testWindowMain   = "main"
 	testWindowEditor = "editor"
+	testEditorCmd    = "vim"
 )
 
 // recorder is a RunFunc that records calls and returns auto-incrementing pane IDs
@@ -40,6 +41,22 @@ func (r *recorder) callCount(substr string) int {
 	}
 
 	return n
+}
+
+// callsWithName returns the recorded calls that mention the session name.
+func (r *recorder) callsWith(substr string) []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var out []string
+
+	for _, c := range r.calls {
+		if strings.Contains(c, substr) {
+			out = append(out, c)
+		}
+	}
+
+	return out
 }
 
 func (r *recorder) hasCall(substr string) bool {
@@ -424,5 +441,62 @@ func TestApply_SessionEnvSetBeforePanes(t *testing.T) {
 	// If there's a split, env must come before it.
 	if splitIdx >= 0 {
 		require.Less(t, envIdx, splitIdx, "setenv must precede split-window")
+	}
+}
+
+// Every layout command that targets the session by name must escape it with "="
+// so tmux cannot prefix-match a different session whose name merely extends it.
+func TestApply_SessionTargetsAreExactMatch(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{}
+	cfg := &layout.Config{
+		Env:     map[string]string{"EDITOR": testEditorCmd},
+		Startup: []layout.Command{{Command: "echo", Args: []string{"hi"}}},
+		Windows: []layout.Window{
+			{Name: testWindowEditor, Panes: []layout.Pane{{Commands: []string{testEditorCmd}}, {Commands: []string{"sh"}}}},
+			{Name: "shell"},
+		},
+	}
+
+	err := layout.Apply(context.Background(), rec.run, testSock, testSession, cfg)
+	require.NoError(t, err)
+
+	for _, cmd := range []string{"setenv", "rename-window", "new-window", "display-message"} {
+		calls := rec.callsWith(cmd)
+		require.NotEmpty(t, calls, "expected at least one %s call to assert on", cmd)
+
+		for _, c := range calls {
+			require.Contains(t, c, "-t ="+testSession,
+				"%s must target the session with an exact-match (=) target, got: %s", cmd, c)
+			require.NotContains(t, c, "-t "+testSession,
+				"%s must not pass an unescaped session name, got: %s", cmd, c)
+		}
+	}
+}
+
+// Pane IDs are tmux-assigned and unambiguous; escaping them would be invalid
+// target syntax.
+func TestApply_PaneIDTargetsAreNotEscaped(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{}
+	cfg := &layout.Config{
+		Windows: []layout.Window{
+			{Name: testWindowEditor, Panes: []layout.Pane{{Commands: []string{testEditorCmd}}, {Commands: []string{"sh"}}}},
+		},
+	}
+
+	err := layout.Apply(context.Background(), rec.run, testSock, testSession, cfg)
+	require.NoError(t, err)
+
+	for _, cmd := range []string{"send-keys", "split-window"} {
+		calls := rec.callsWith(cmd)
+		require.NotEmpty(t, calls, "expected at least one %s call to assert on", cmd)
+
+		for _, c := range calls {
+			require.NotContains(t, c, "-t =%",
+				"%s must pass pane IDs unescaped, got: %s", cmd, c)
+		}
 	}
 }

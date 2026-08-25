@@ -223,7 +223,7 @@ func (t *Tmux) OpenPaneGroup(ctx context.Context, req *pluginv1.OpenPaneGroupReq
 	}
 
 	// Create session if it doesn't exist yet.
-	if _, err := t.run(ctx, "-S", sock, "has-session", "-t", name); err != nil {
+	if _, err := t.run(ctx, "-S", sock, "has-session", "-t", exactTarget(name)); err != nil {
 		args := []string{"-S", sock, "new-session", "-d", "-s", name, "-c", req.GetWorktreePath()}
 		if initialCmd != "" {
 			args = append(args, initialCmd)
@@ -301,14 +301,14 @@ func (t *Tmux) SwitchTo(ctx context.Context, req *pluginv1.SwitchToRequest) (*pl
 	var resp *pluginv1.SwitchToResponse
 
 	if os.Getenv("TMUX") != "" {
-		if _, err := t.run(ctx, "-S", sock, "switch-client", "-t", target); err != nil {
+		if _, err := t.run(ctx, "-S", sock, "switch-client", "-t", exactTarget(target)); err != nil {
 			return nil, err
 		}
 
 		resp = &pluginv1.SwitchToResponse{}
 	} else {
 		resp = &pluginv1.SwitchToResponse{
-			ExecArgv: []string{t.tmuxBin, "-S", sock, "attach-session", "-t", target},
+			ExecArgv: []string{t.tmuxBin, "-S", sock, "attach-session", "-t", exactTarget(target)},
 		}
 	}
 
@@ -355,6 +355,8 @@ func (t *Tmux) killOriginPane(ctx context.Context, originSock, paneID string) er
 		return status.Errorf(codes.NotFound, "origin workspace not found: %s", originSock)
 	}
 
+	// paneID is a tmux-assigned pane ID (%N), not a name — it is already
+	// unambiguous and must not be escaped with exactTarget.
 	if _, err := t.run(ctx, "-S", originSock, "kill-pane", "-t", paneID); err != nil {
 		if isKillPaneNotFound(err) {
 			return nil
@@ -500,4 +502,21 @@ func (t *Tmux) socketPath(storyName string) string {
 // Dots and colons are replaced with tmux-safe Unicode equivalents; slashes are preserved.
 func sessionName(key string) string {
 	return sessionNameReplacer.Replace(key)
+}
+
+// exactTarget escapes a tmux target given by *name* so that it matches only that
+// exact name.
+//
+// tmux resolves an unescaped -t target by trying, in order: the exact name, a
+// name prefix, an fnmatch(3) pattern, then a substring. Pane group names are
+// derived from project IDs, so a project whose name is a prefix of another
+// project's name on the same host (say "host/name" and "host/name-two") would
+// otherwise resolve to whichever session happens to match first. Prefixing the
+// target with "=" restricts tmux to exact matching.
+//
+// This is only for targets given by name. Targets that are tmux-assigned IDs
+// (pane IDs of the form %N) are already unambiguous, and "=%1" is not valid
+// target syntax — never pass those through here.
+func exactTarget(name string) string {
+	return "=" + name
 }

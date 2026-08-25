@@ -3,8 +3,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -38,10 +40,12 @@ func main() {
 	case "new-session":
 		if socket != "" {
 			os.WriteFile(socket, nil, 0o600) //nolint:errcheck // fake socket creation
+			recordSession(socket, flagValue(args, "-s"))
 		}
 	case "kill-server":
 		if socket != "" {
-			os.Remove(socket) //nolint:errcheck // fake socket removal
+			os.Remove(socket)               //nolint:errcheck // fake socket removal
+			os.Remove(sessionsFile(socket)) //nolint:errcheck // fake session list removal
 		}
 	case "list-sessions":
 		if socket != "" {
@@ -50,12 +54,21 @@ func main() {
 			}
 		}
 	case "has-session":
-		// Default: session not found so the caller creates it.
-		// Set FAKETMUX_HAS_SESSION=0 to simulate an existing session.
-		if os.Getenv("FAKETMUX_HAS_SESSION") == "0" {
+		// FAKETMUX_HAS_SESSION is an explicit override for tests that do not
+		// care which sessions exist: "0" forces found, anything else non-empty
+		// forces not-found. When unset, answer from the recorded session list
+		// using tmux's own target resolution.
+		switch os.Getenv("FAKETMUX_HAS_SESSION") {
+		case "0":
 			os.Exit(0)
+		case "":
+			if resolveTarget(flagValue(args, "-t"), readSessions(socket)) {
+				os.Exit(0)
+			}
+			os.Exit(1)
+		default:
+			os.Exit(1)
 		}
-		os.Exit(1)
 	case "kill-pane":
 		if os.Getenv("FAKETMUX_KILL_PANE_FAIL") == "1" {
 			fmt.Fprintln(os.Stderr, "no such pane")
@@ -71,6 +84,109 @@ func main() {
 		// Return a fake pane ID so layout.Apply can reference the new pane.
 		fmt.Println("%1")
 	}
+}
+
+// resolveTarget reports whether target selects one of sessions.
+//
+// It deliberately mirrors the target-session resolution rules from tmux(1):
+// a target prefixed with "=" matches only an exact name, otherwise tmux tries
+// an exact match, then a name prefix, then an fnmatch(3) pattern. Modelling
+// that order is the whole point of this fake — without it a test cannot express
+// "a session with a similar name exists", which is exactly the state that makes
+// an unescaped target resolve to the wrong session.
+func resolveTarget(target string, sessions []string) bool {
+	if target == "" {
+		return len(sessions) > 0
+	}
+
+	// Strip a window/pane suffix; only the session component is resolved here.
+	if i := strings.IndexAny(target, ":"); i >= 0 {
+		target = target[:i]
+	}
+
+	if exact, ok := strings.CutPrefix(target, "="); ok {
+		for _, s := range sessions {
+			if s == exact {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	for _, s := range sessions {
+		if s == target {
+			return true
+		}
+	}
+
+	for _, s := range sessions {
+		if strings.HasPrefix(s, target) {
+			return true
+		}
+	}
+
+	for _, s := range sessions {
+		if ok, err := path.Match(target, s); err == nil && ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+// sessionsFile is the path where the fake records the names of sessions
+// created on a given socket.
+func sessionsFile(socket string) string { return socket + ".sessions" }
+
+// recordSession appends name to the socket's session list.
+func recordSession(socket, name string) {
+	if socket == "" || name == "" {
+		return
+	}
+
+	f, err := os.OpenFile(sessionsFile(socket), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer f.Close() //nolint:errcheck // best-effort record
+
+	fmt.Fprintln(f, name)
+}
+
+// readSessions returns the names of sessions recorded for socket.
+func readSessions(socket string) []string {
+	if socket == "" {
+		return nil
+	}
+
+	f, err := os.Open(sessionsFile(socket))
+	if err != nil {
+		return nil
+	}
+	defer f.Close() //nolint:errcheck // read-only
+
+	var names []string
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		if n := strings.TrimSpace(sc.Text()); n != "" {
+			names = append(names, n)
+		}
+	}
+
+	return names
+}
+
+// flagValue returns the argument following flag, or "" when absent.
+func flagValue(args []string, flag string) string {
+	for i := range args {
+		if args[i] == flag && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+
+	return ""
 }
 
 func parseArgs(args []string) (socket, cmd string) {
