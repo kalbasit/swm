@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
@@ -79,50 +81,105 @@ func initRepo(t *testing.T) string {
 	return dir
 }
 
-func TestParseRemoteURL_SSH(t *testing.T) {
+func TestParseRemoteURL(t *testing.T) {
 	t.Parallel()
 
-	g := newGit(t)
-	id, err := g.ParseRemoteURL(context.Background(), &pluginv1.ParseRemoteURLRequest{
-		Url: "git@github.com:kalbasit/swm.git",
-	})
-	require.NoError(t, err)
-	require.Equal(t, "github.com", id.GetHost())
-	require.Equal(t, []string{"kalbasit", "swm"}, id.GetSegments())
-}
+	testCases := []struct {
+		name         string
+		url          string
+		wantHost     string
+		wantSegments []string
+	}{
+		{
+			name:         "ssh",
+			url:          "git@github.com:kalbasit/swm.git",
+			wantHost:     "github.com",
+			wantSegments: []string{"kalbasit", "swm"},
+		},
+		{
+			name:         "scp with non-git ssh user",
+			url:          "org-1470@git.entreprise.com:Team/Project.git",
+			wantHost:     "git.entreprise.com",
+			wantSegments: []string{"Team", "Project"},
+		},
+		{
+			name:         "scp with no ssh user",
+			url:          "git.entreprise.com:Team/Project.git",
+			wantHost:     "git.entreprise.com",
+			wantSegments: []string{"Team", "Project"},
+		},
+		{
+			name:         "https",
+			url:          "https://gitlab.com/foo/bar/baz.git",
+			wantHost:     "gitlab.com",
+			wantSegments: []string{"foo", "bar", "baz"},
+		},
+		{
+			name:         "ssh scheme",
+			url:          "ssh://git@example.com/owner/repo.git",
+			wantHost:     "example.com",
+			wantSegments: []string{"owner", "repo"},
+		},
+		{
+			name:         "ssh scheme with explicit port",
+			url:          "ssh://git@example.com:2222/owner/repo.git",
+			wantHost:     "example.com",
+			wantSegments: []string{"owner", "repo"},
+		},
+		{
+			name:         "file url",
+			url:          "file:///tmp/foo/bar",
+			wantHost:     "localhost",
+			wantSegments: []string{"tmp", "foo", "bar"},
+		},
+		{
+			name:         "absolute local path",
+			url:          "/srv/repos/acme/widget.git",
+			wantHost:     "localhost",
+			wantSegments: []string{"srv", "repos", "acme", "widget"},
+		},
+	}
 
-func TestParseRemoteURL_HTTPS(t *testing.T) {
-	t.Parallel()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	g := newGit(t)
-	id, err := g.ParseRemoteURL(context.Background(), &pluginv1.ParseRemoteURLRequest{
-		Url: "https://gitlab.com/foo/bar/baz.git",
-	})
-	require.NoError(t, err)
-	require.Equal(t, "gitlab.com", id.GetHost())
-	require.Equal(t, []string{"foo", "bar", "baz"}, id.GetSegments())
-}
-
-func TestParseRemoteURL_FileURL(t *testing.T) {
-	t.Parallel()
-
-	g := newGit(t)
-	id, err := g.ParseRemoteURL(context.Background(), &pluginv1.ParseRemoteURLRequest{
-		Url: "file:///tmp/foo/bar",
-	})
-	require.NoError(t, err)
-	require.Equal(t, "localhost", id.GetHost())
-	require.Equal(t, []string{"tmp", "foo", "bar"}, id.GetSegments())
+			g := newGit(t)
+			id, err := g.ParseRemoteURL(context.Background(), &pluginv1.ParseRemoteURLRequest{
+				Url: tc.url,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.wantHost, id.GetHost())
+			require.NotContains(t, id.GetHost(), ":", "host must never carry a port")
+			require.Equal(t, tc.wantSegments, id.GetSegments())
+		})
+	}
 }
 
 func TestParseRemoteURL_Invalid(t *testing.T) {
 	t.Parallel()
 
-	g := newGit(t)
-	_, err := g.ParseRemoteURL(context.Background(), &pluginv1.ParseRemoteURLRequest{
-		Url: "not-a-url",
-	})
-	require.Error(t, err)
+	testCases := []struct {
+		name string
+		url  string
+	}{
+		{name: "not a url", url: "not-a-url"},
+		{name: "doubled slash yields empty segment", url: "https://gitlab.com/foo//baz.git"},
+		{name: "trailing slash yields empty segment", url: "https://gitlab.com/foo/bar/"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := newGit(t)
+			_, err := g.ParseRemoteURL(context.Background(), &pluginv1.ParseRemoteURLRequest{
+				Url: tc.url,
+			})
+			require.Error(t, err)
+			require.Equal(t, codes.InvalidArgument, status.Code(err))
+		})
+	}
 }
 
 func TestClone_Success(t *testing.T) {
