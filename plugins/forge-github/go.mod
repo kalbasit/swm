@@ -11,9 +11,11 @@ require (
 	github.com/kalbasit/swm/proto v0.0.0
 	github.com/kalbasit/swm/sdk/go v0.0.0
 	github.com/pelletier/go-toml/v2 v2.4.3
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.83.1
 )
+
+require go.yaml.in/yaml/v3 v3.0.5 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
