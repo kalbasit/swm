@@ -8,6 +8,7 @@ replace (
 )
 
 require (
+	github.com/google/go-github/v88 v88.0.0
 	github.com/kalbasit/swm/proto v0.0.0
 	github.com/kalbasit/swm/sdk/go v0.0.0
 	github.com/pelletier/go-toml/v2 v2.4.3
@@ -20,7 +21,7 @@ require go.yaml.in/yaml/v3 v3.0.5 // indirect
 require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/go-github/v88 v88.0.0
+	github.com/google/go-github/v90 v90.0.0
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-plugin v1.8.0 // indirect
