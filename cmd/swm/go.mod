@@ -4,7 +4,7 @@ go 1.26.7
 
 require (
 	github.com/adrg/xdg v0.5.3
-	github.com/gofrs/flock v0.13.0
+	github.com/gofrs/flock v0.13.1
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.8.0
 	github.com/kalbasit/swm/proto v0.0.0
