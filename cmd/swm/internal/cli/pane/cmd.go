@@ -53,17 +53,6 @@ func NewPaneCmd(mgr PluginManager) *cobra.Command {
 	return cmd
 }
 
-// warmSession pre-starts the session plugin so the first RPC does not pay for
-// process startup. Warm defers its errors to Get, which reports them with
-// context.
-func warmSession(mgr PluginManager) func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, _ []string) error {
-		mgr.Warm(cmd.Context(), capSession) //nolint:errcheck,gosec // Warm always returns nil; errors deferred to Get
-
-		return nil
-	}
-}
-
 // sessionClient resolves the session capability to its gRPC client.
 func sessionClient(ctx context.Context, mgr PluginManager) (pluginv1.SessionClient, error) {
 	raw, err := mgr.Get(ctx, capSession)

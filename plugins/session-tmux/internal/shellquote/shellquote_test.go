@@ -29,6 +29,11 @@ func TestArg(t *testing.T) {
 		{name: "semicolon is quoted", arg: "a;rm -rf /", want: "'a;rm -rf /'"},
 		{name: "dollar is quoted", arg: "$HOME", want: "'$HOME'"},
 		{name: "backtick is quoted", arg: "`id`", want: "'`id`'"},
+		// A leading `#` opens a comment, so an unquoted one makes the shell
+		// discard this word and every argument after it -- a silent truncation
+		// rather than an error. Reachable from OpenPane argv.
+		{name: "leading hash is quoted", arg: "#123", want: "'#123'"},
+		{name: "hash mid-word is quoted too", arg: "issue#123", want: "'issue#123'"},
 		{name: "glob is quoted", arg: "*.go", want: "'*.go'"},
 		{name: "double quote is quoted", arg: `say "hi"`, want: `'say "hi"'`},
 		{name: "single quote is escaped", arg: "it's", want: `'it'\''s'`},

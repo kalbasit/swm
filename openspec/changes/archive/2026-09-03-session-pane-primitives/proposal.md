@@ -16,7 +16,7 @@ out to `tmux` directly, which is exactly what the ownership rule forbids.
 ## What Changes
 
 - Add four RPCs to `Session`: `OpenPane`, `ListPanes` (server-streaming),
-  `SendText`, `ClosePane`, plus the `Pane` message and the three request
+  `SendText`, `ClosePane`, plus the `Pane` message and the four request
   messages. Additive only — no existing RPC, message, or field number changes.
 - Implement all four in `plugins/session-tmux`.
 - `pane_id` is an opaque provider-specific handle (`%4` on tmux). Callers pass it

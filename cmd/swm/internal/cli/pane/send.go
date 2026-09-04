@@ -50,8 +50,7 @@ func NewSendCmd(mgr PluginManager) *cobra.Command {
 			"answering. The command then exits " + strconv.Itoa(ExitFocusedPane) + ". " +
 			"--allow-focused sends anyway; a caller that sets it owns the consequences, " +
 			"and the check is racy in any case.",
-		Args:    cobra.MaximumNArgs(1),
-		PreRunE: warmSession(mgr),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var text string
 			if len(args) == 1 {

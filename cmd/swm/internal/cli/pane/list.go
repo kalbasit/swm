@@ -26,8 +26,7 @@ func NewListCmd(mgr PluginManager) *cobra.Command {
 			"Both filters are optional: with neither, every pane in every live " +
 			"workspace is listed. That is the call to make first, because it is how a " +
 			"caller learns the workspace ids the other commands require.",
-		Args:    cobra.NoArgs,
-		PreRunE: warmSession(mgr),
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 

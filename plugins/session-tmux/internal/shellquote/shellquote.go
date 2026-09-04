@@ -12,8 +12,14 @@ package shellquote
 import "strings"
 
 // shellMeta lists the characters that make a word unsafe to hand to a shell
+//
+// `#` is in the set although it is special only at the start of a word: an
+// unquoted leading `#` opens a comment, so the shell discards that word and
+// every argument after it. Quoting it everywhere costs a pair of quotes on
+// words where it was harmless and removes a silent truncation where it was
+// not.
 // unquoted: word separators, redirections, expansions, globs, and quotes.
-const shellMeta = " \t\n&*;<>|'\"()$[]?~`{}!\\"
+const shellMeta = " \t\n&*;<>|'\"()$[]?~`{}!\\#"
 
 // Arg returns arg quoted so a POSIX shell reads it back as exactly arg.
 //

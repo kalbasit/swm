@@ -32,8 +32,7 @@ func NewOpenCmd(mgr PluginManager) *cobra.Command {
 			"re-split. With no program the plugin starts its default shell.\n\n" +
 			"By default the new pane's id is printed on stdout and nothing else, so it " +
 			"can be captured directly: pane=$(swm pane open -w ... -g ...).",
-		Args:    cobra.ArbitraryArgs,
-		PreRunE: warmSession(mgr),
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Parse before resolving the plugin: there is no point starting a
 			// plugin process only to be told the arguments were wrong.

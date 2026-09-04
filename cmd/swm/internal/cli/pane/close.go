@@ -21,8 +21,7 @@ func NewCloseCmd(mgr PluginManager) *cobra.Command {
 		Long: "Terminate a pane.\n\n" +
 			"Closing a pane that no longer exists is not an error: cleaning up after a " +
 			"program that already exited on its own is the normal case.",
-		Args:    cobra.NoArgs,
-		PreRunE: warmSession(mgr),
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
