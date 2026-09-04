@@ -13,6 +13,7 @@ import (
 	coreStory "github.com/kalbasit/swm/cmd/swm/internal/core/story"
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
+	"github.com/kalbasit/swm/cmd/swm/internal/cli/pane"
 	"github.com/kalbasit/swm/cmd/swm/internal/cli/pr"
 	"github.com/kalbasit/swm/cmd/swm/internal/cli/story"
 	"github.com/kalbasit/swm/cmd/swm/internal/cli/workspace"
@@ -86,6 +87,8 @@ func NewRootCmd(
 	prGroup.AddCommand(pr.NewListCmd(store, mgr, cfg))
 	prGroup.AddCommand(pr.NewCreateCmd(mgr, resolver, store, cfg))
 	root.AddCommand(prGroup)
+
+	root.AddCommand(pane.NewPaneCmd(mgr))
 
 	root.AddCommand(cliconfig.NewConfigCmd(cfgPath, cfg))
 
