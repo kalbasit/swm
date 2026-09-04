@@ -17,9 +17,11 @@ import (
 	pluginv1 "github.com/kalbasit/swm/proto/swm/plugin/v1"
 
 	"github.com/kalbasit/swm/cmd/swm/internal/cli"
+	"github.com/kalbasit/swm/cmd/swm/internal/cli/pane"
 	"github.com/kalbasit/swm/cmd/swm/internal/config"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/story"
+	"github.com/kalbasit/swm/cmd/swm/internal/exitcode"
 	"github.com/kalbasit/swm/cmd/swm/internal/hostsvc"
 	"github.com/kalbasit/swm/cmd/swm/internal/pluginmgr"
 )
@@ -697,4 +699,167 @@ func TestHooksRunOnStoryCreate(t *testing.T) {
 	require.NoError(t, root.Execute())
 
 	require.FileExists(t, sentinelFile, "expected pre-story-create hook to create sentinel file")
+}
+
+const (
+	cmdGroupPane = "pane"
+	cmdList      = "list"
+	cmdSend      = "send"
+	cmdClose     = "close"
+
+	flagWorkspace    = "--workspace"
+	flagPaneGroup    = "--pane-group"
+	flagPane         = "--pane"
+	flagJSON         = "--json"
+	flagAllowFocused = "--allow-focused"
+
+	testPaneGroup = "github.com/kalbasit/swm"
+)
+
+// paneJSON mirrors the JSON the pane commands emit. It is spelled out here
+// rather than shared with the CLI so that a change to the emitted keys breaks
+// this test — the shape is a contract with external callers.
+type paneJSON struct {
+	PaneID         string `json:"pane_id"`
+	PaneGroupID    string `json:"pane_group_id"`
+	WorkspaceID    string `json:"workspace_id"`
+	Title          string `json:"title"`
+	CurrentCommand string `json:"current_command"`
+	CurrentPath    string `json:"current_path"`
+	Focused        bool   `json:"focused"`
+}
+
+// setupPaneEnv points the session plugin at a private tmux socket directory
+// backed by faketmux and returns the socket of one live workspace.
+//
+// The socket is seeded directly rather than opened through `swm workspace
+// open`, because the pane commands care only that a live workspace exists and
+// not about how it came to.
+func setupPaneEnv(t *testing.T, paneRows ...string) string {
+	t.Helper()
+
+	// faketmuxBin IS named "tmux", so putting its directory first makes the
+	// session plugin find it instead of a real tmux.
+	t.Setenv("PATH", filepath.Dir(faketmuxBin)+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	runtimeDir := t.TempDir()
+	t.Setenv("XDG_RUNTIME_DIR", runtimeDir)
+
+	socketDir := filepath.Join(runtimeDir, "swm", "tmux")
+	require.NoError(t, os.MkdirAll(socketDir, 0o700))
+
+	sock := filepath.Join(socketDir, testStoryName+".sock")
+	require.NoError(t, os.WriteFile(sock, nil, 0o600))
+
+	if len(paneRows) > 0 {
+		require.NoError(t, os.WriteFile(sock+".panes",
+			[]byte(strings.Join(paneRows, "\n")+"\n"), 0o600))
+	}
+
+	return sock
+}
+
+// focusedPaneRow renders a faketmux list-panes row for a pane an attached
+// client is typing into, in the field order the plugin asks tmux for.
+func focusedPaneRow(paneID, group string) string {
+	return strings.Join([]string{paneID, group, "zsh", "zsh", "/tmp", "1", "1", "1"}, "\t")
+}
+
+// runSWM executes one swm command in-process and returns its stdout.
+func runSWM(t *testing.T, cfg *config.Config, mgr *pluginmgr.Manager,
+	store story.Store, resolver *layout.Resolver, args ...string,
+) (string, error) {
+	t.Helper()
+
+	var out bytes.Buffer
+
+	root := cli.NewRootCmd("", cfg, mgr, store, resolver)
+	root.SetArgs(args)
+	root.SetOut(&out)
+	root.SetErr(&out)
+
+	err := root.Execute()
+
+	return out.String(), err
+}
+
+//nolint:paralleltest // uses t.Setenv
+func TestPaneOpenListSendClose(t *testing.T) {
+	sock := setupPaneEnv(t)
+
+	cfg, resolver, store, mgr := setupEnv(t)
+
+	// open prints the new pane id and nothing else, so it can be captured
+	// straight out of a command substitution.
+	out, err := runSWM(t, cfg, mgr, store, resolver,
+		cmdGroupPane, cmdOpen, flagWorkspace, sock, flagPaneGroup, testPaneGroup,
+		"--", "echo", "hello world")
+	require.NoError(t, err)
+
+	paneID := strings.TrimSpace(out)
+	require.NotEmpty(t, paneID)
+	require.Equal(t, paneID+"\n", out, "open must print the pane id alone")
+
+	// list reports the pane the open just created.
+	out, err = runSWM(t, cfg, mgr, store, resolver,
+		cmdGroupPane, cmdList, flagWorkspace, sock, flagJSON)
+	require.NoError(t, err)
+
+	var panes []paneJSON
+	require.NoError(t, json.Unmarshal([]byte(out), &panes))
+	require.Len(t, panes, 1)
+	require.Equal(t, paneID, panes[0].PaneID)
+	require.Equal(t, testPaneGroup, panes[0].PaneGroupID)
+	require.Equal(t, sock, panes[0].WorkspaceID)
+	require.False(t, panes[0].Focused, "a pane on an unattached workspace is not focused")
+
+	// send delivers into it, because nobody is attached.
+	out, err = runSWM(t, cfg, mgr, store, resolver,
+		cmdGroupPane, cmdSend, flagWorkspace, sock, flagPane, paneID, "--submit", "hello")
+	require.NoError(t, err)
+	require.Empty(t, out)
+
+	// close tears it down.
+	out, err = runSWM(t, cfg, mgr, store, resolver,
+		cmdGroupPane, cmdClose, flagWorkspace, sock, flagPane, paneID)
+	require.NoError(t, err)
+	require.Empty(t, out)
+}
+
+//nolint:paralleltest // uses t.Setenv
+func TestPaneSendRefusesFocusedPane(t *testing.T) {
+	const focusedPaneID = "%9"
+
+	sock := setupPaneEnv(t, focusedPaneRow(focusedPaneID, testPaneGroup))
+
+	cfg, resolver, store, mgr := setupEnv(t)
+
+	_, err := runSWM(t, cfg, mgr, store, resolver,
+		cmdGroupPane, cmdSend, flagWorkspace, sock, flagPane, focusedPaneID, "hello")
+	require.Error(t, err)
+
+	// This is the whole point of the exit-status mapping: a caller can tell
+	// "someone is typing there" from any other failure without reading English.
+	require.Equal(t, pane.ExitFocusedPane, exitcode.From(err))
+	require.Contains(t, err.Error(), flagAllowFocused)
+
+	// The same send succeeds once the caller takes responsibility for it.
+	_, err = runSWM(t, cfg, mgr, store, resolver,
+		cmdGroupPane, cmdSend, flagWorkspace, sock, flagPane, focusedPaneID,
+		flagAllowFocused, "hello")
+	require.NoError(t, err)
+	require.Equal(t, 0, exitcode.From(err))
+}
+
+//nolint:paralleltest // uses t.Setenv
+func TestPaneSendUnknownPaneIsNotTheFocusedRefusal(t *testing.T) {
+	sock := setupPaneEnv(t)
+
+	cfg, resolver, store, mgr := setupEnv(t)
+
+	_, err := runSWM(t, cfg, mgr, store, resolver,
+		cmdGroupPane, cmdSend, flagWorkspace, sock, flagPane, "%404", "hello")
+	require.Error(t, err)
+	require.Equal(t, exitcode.Failure, exitcode.From(err))
+	require.NotEqual(t, pane.ExitFocusedPane, exitcode.From(err))
 }
