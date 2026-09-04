@@ -52,7 +52,15 @@ func main() {
 		}
 	case "list-sessions":
 		if socket != "" {
-			if _, err := os.Stat(socket); err != nil {
+			b, err := os.ReadFile(socket)
+			if err != nil {
+				os.Exit(1)
+			}
+
+			// A socket file outlives the server that created it. The fake has no
+			// server to exit, so a test models the stale case by writing "dead"
+			// into the socket file.
+			if strings.TrimSpace(string(b)) == "dead" {
 				os.Exit(1)
 			}
 		}

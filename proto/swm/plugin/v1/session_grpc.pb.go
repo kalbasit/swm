@@ -27,6 +27,10 @@ const (
 	Session_SwitchTo_FullMethodName          = "/swm.plugin.v1.Session/SwitchTo"
 	Session_IsInsideWorkspace_FullMethodName = "/swm.plugin.v1.Session/IsInsideWorkspace"
 	Session_CurrentContext_FullMethodName    = "/swm.plugin.v1.Session/CurrentContext"
+	Session_OpenPane_FullMethodName          = "/swm.plugin.v1.Session/OpenPane"
+	Session_ListPanes_FullMethodName         = "/swm.plugin.v1.Session/ListPanes"
+	Session_SendText_FullMethodName          = "/swm.plugin.v1.Session/SendText"
+	Session_ClosePane_FullMethodName         = "/swm.plugin.v1.Session/ClosePane"
 )
 
 // SessionClient is the client API for Session service.
@@ -43,6 +47,13 @@ type SessionClient interface {
 	SwitchTo(ctx context.Context, in *SwitchToRequest, opts ...grpc.CallOption) (*SwitchToResponse, error)
 	IsInsideWorkspace(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BoolValue, error)
 	CurrentContext(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*CurrentContextResponse, error)
+	// Pane-level primitives. These are deliberately generic: they say "pane",
+	// never a provider's own verb (tmux's send-keys, zellij's write-chars), and
+	// they carry no notion of what a pane is being used for.
+	OpenPane(ctx context.Context, in *OpenPaneRequest, opts ...grpc.CallOption) (*Pane, error)
+	ListPanes(ctx context.Context, in *ListPanesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Pane], error)
+	SendText(ctx context.Context, in *SendTextRequest, opts ...grpc.CallOption) (*Empty, error)
+	ClosePane(ctx context.Context, in *ClosePaneRequest, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type sessionClient struct {
@@ -142,6 +153,55 @@ func (c *sessionClient) CurrentContext(ctx context.Context, in *Empty, opts ...g
 	return out, nil
 }
 
+func (c *sessionClient) OpenPane(ctx context.Context, in *OpenPaneRequest, opts ...grpc.CallOption) (*Pane, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Pane)
+	err := c.cc.Invoke(ctx, Session_OpenPane_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionClient) ListPanes(ctx context.Context, in *ListPanesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Pane], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Session_ServiceDesc.Streams[1], Session_ListPanes_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ListPanesRequest, Pane]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Session_ListPanesClient = grpc.ServerStreamingClient[Pane]
+
+func (c *sessionClient) SendText(ctx context.Context, in *SendTextRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, Session_SendText_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionClient) ClosePane(ctx context.Context, in *ClosePaneRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, Session_ClosePane_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SessionServer is the server API for Session service.
 // All implementations should embed UnimplementedSessionServer
 // for forward compatibility.
@@ -156,6 +216,13 @@ type SessionServer interface {
 	SwitchTo(context.Context, *SwitchToRequest) (*SwitchToResponse, error)
 	IsInsideWorkspace(context.Context, *Empty) (*BoolValue, error)
 	CurrentContext(context.Context, *Empty) (*CurrentContextResponse, error)
+	// Pane-level primitives. These are deliberately generic: they say "pane",
+	// never a provider's own verb (tmux's send-keys, zellij's write-chars), and
+	// they carry no notion of what a pane is being used for.
+	OpenPane(context.Context, *OpenPaneRequest) (*Pane, error)
+	ListPanes(*ListPanesRequest, grpc.ServerStreamingServer[Pane]) error
+	SendText(context.Context, *SendTextRequest) (*Empty, error)
+	ClosePane(context.Context, *ClosePaneRequest) (*Empty, error)
 }
 
 // UnimplementedSessionServer should be embedded to have
@@ -188,6 +255,18 @@ func (UnimplementedSessionServer) IsInsideWorkspace(context.Context, *Empty) (*B
 }
 func (UnimplementedSessionServer) CurrentContext(context.Context, *Empty) (*CurrentContextResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CurrentContext not implemented")
+}
+func (UnimplementedSessionServer) OpenPane(context.Context, *OpenPaneRequest) (*Pane, error) {
+	return nil, status.Error(codes.Unimplemented, "method OpenPane not implemented")
+}
+func (UnimplementedSessionServer) ListPanes(*ListPanesRequest, grpc.ServerStreamingServer[Pane]) error {
+	return status.Error(codes.Unimplemented, "method ListPanes not implemented")
+}
+func (UnimplementedSessionServer) SendText(context.Context, *SendTextRequest) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method SendText not implemented")
+}
+func (UnimplementedSessionServer) ClosePane(context.Context, *ClosePaneRequest) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClosePane not implemented")
 }
 func (UnimplementedSessionServer) testEmbeddedByValue() {}
 
@@ -346,6 +425,71 @@ func _Session_CurrentContext_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Session_OpenPane_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OpenPaneRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServer).OpenPane(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Session_OpenPane_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServer).OpenPane(ctx, req.(*OpenPaneRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Session_ListPanes_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ListPanesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(SessionServer).ListPanes(m, &grpc.GenericServerStream[ListPanesRequest, Pane]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Session_ListPanesServer = grpc.ServerStreamingServer[Pane]
+
+func _Session_SendText_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendTextRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServer).SendText(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Session_SendText_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServer).SendText(ctx, req.(*SendTextRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Session_ClosePane_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClosePaneRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServer).ClosePane(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Session_ClosePane_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServer).ClosePane(ctx, req.(*ClosePaneRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Session_ServiceDesc is the grpc.ServiceDesc for Session service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -381,11 +525,28 @@ var Session_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "CurrentContext",
 			Handler:    _Session_CurrentContext_Handler,
 		},
+		{
+			MethodName: "OpenPane",
+			Handler:    _Session_OpenPane_Handler,
+		},
+		{
+			MethodName: "SendText",
+			Handler:    _Session_SendText_Handler,
+		},
+		{
+			MethodName: "ClosePane",
+			Handler:    _Session_ClosePane_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "ListWorkspaces",
 			Handler:       _Session_ListWorkspaces_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ListPanes",
+			Handler:       _Session_ListPanes_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -283,6 +283,14 @@ type stubSessionClient struct {
 	openWorkspaceFn func(*pluginv1.OpenWorkspaceRequest) (*pluginv1.Workspace, error)
 }
 
+func (s *stubSessionClient) ClosePane(
+	context.Context,
+	*pluginv1.ClosePaneRequest,
+	...grpc.CallOption,
+) (*pluginv1.Empty, error) {
+	panic("stub")
+}
+
 func (s *stubSessionClient) CloseWorkspace(
 	context.Context,
 	*pluginv1.CloseWorkspaceRequest,
@@ -315,12 +323,28 @@ func (s *stubSessionClient) IsInsideWorkspace(
 	panic("stub")
 }
 
+func (s *stubSessionClient) ListPanes(
+	context.Context,
+	*pluginv1.ListPanesRequest,
+	...grpc.CallOption,
+) (grpc.ServerStreamingClient[pluginv1.Pane], error) {
+	panic("stub")
+}
+
 func (s *stubSessionClient) ListWorkspaces(
 	context.Context,
 	*pluginv1.Empty,
 	...grpc.CallOption,
 ) (grpc.ServerStreamingClient[pluginv1.Workspace], error) {
 	return &emptyStream{}, nil
+}
+
+func (s *stubSessionClient) OpenPane(
+	context.Context,
+	*pluginv1.OpenPaneRequest,
+	...grpc.CallOption,
+) (*pluginv1.Pane, error) {
+	panic("stub")
 }
 
 func (s *stubSessionClient) OpenPaneGroup(
@@ -341,6 +365,14 @@ func (s *stubSessionClient) OpenWorkspace(
 	}
 
 	return &pluginv1.Workspace{WorkspaceId: "sock", StoryName: req.GetStoryName()}, nil
+}
+
+func (s *stubSessionClient) SendText(
+	context.Context,
+	*pluginv1.SendTextRequest,
+	...grpc.CallOption,
+) (*pluginv1.Empty, error) {
+	panic("stub")
 }
 
 func (s *stubSessionClient) SwitchTo(

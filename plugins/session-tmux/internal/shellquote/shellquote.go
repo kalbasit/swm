@@ -20,8 +20,9 @@ const shellMeta = " \t\n&*;<>|'\"()$[]?~`{}!\\"
 // Words with no shell-special characters are returned untouched, which keeps
 // the common case readable in logs and in the tmux command line. Everything
 // else is wrapped in single quotes, inside which a shell expands nothing. A
-// single quote cannot appear inside single quotes, so each one is closed,
-// escaped, and reopened using the '\'' idiom.
+// single quote cannot appear inside single quotes, so each one is replaced by
+// the four-character sequence quote-backslash-quote-quote: close the quoted
+// run, emit an escaped quote, reopen it.
 func Arg(arg string) string {
 	if arg == "" {
 		return "''"

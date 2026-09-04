@@ -8,6 +8,9 @@ import (
 	"github.com/kalbasit/swm/plugins/session-tmux/internal/shellquote"
 )
 
+// vimCmd stands in for any argument a shell would leave untouched.
+const vimCmd = "vim"
+
 func TestArg(t *testing.T) {
 	t.Parallel()
 
@@ -16,7 +19,7 @@ func TestArg(t *testing.T) {
 		arg  string
 		want string
 	}{
-		{name: "bare word is left alone", arg: "vim", want: "vim"},
+		{name: "bare word is left alone", arg: vimCmd, want: vimCmd},
 		{name: "path is left alone", arg: "/usr/bin/env", want: "/usr/bin/env"},
 		{name: "flag is left alone", arg: "--flag=value", want: "--flag=value"},
 		{name: "empty string becomes empty quotes", arg: "", want: "''"},
@@ -49,7 +52,7 @@ func TestArgv(t *testing.T) {
 		want string
 	}{
 		{name: "nil argv is empty", argv: nil, want: ""},
-		{name: "single element", argv: []string{"vim"}, want: "vim"},
+		{name: "single element", argv: []string{vimCmd}, want: vimCmd},
 		{
 			name: "element with spaces stays one word",
 			argv: []string{"my-tool", "--flag", "two words"},
