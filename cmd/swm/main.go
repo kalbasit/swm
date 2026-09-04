@@ -14,6 +14,7 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/config"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/layout"
 	"github.com/kalbasit/swm/cmd/swm/internal/core/story"
+	"github.com/kalbasit/swm/cmd/swm/internal/exitcode"
 	"github.com/kalbasit/swm/cmd/swm/internal/hostsvc"
 	"github.com/kalbasit/swm/cmd/swm/internal/pluginmgr"
 )
@@ -50,8 +51,12 @@ func main() {
 	root := cli.NewRootCmd(cfgPath, cfg, mgr, store, resolver, workspace.WithProjectLister(hostSrv))
 	root.Version = version
 
+	// A command that needs a status other than the generic failure attaches it
+	// to the error it returns; see internal/exitcode. `swm pane send` uses this
+	// so a caller can tell a focused-pane refusal from any other failure
+	// without parsing stderr.
 	if err := root.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitcode.From(err))
 	}
 }
