@@ -179,6 +179,47 @@ name = "code"
   commands = ["nvim ."]
 ```
 
+## Pane primitives
+
+Beyond workspace and pane-group lifecycle, the plugin implements the `Session`
+service's four pane-level RPCs. They exist so that a program which needs to run
+and drive something in a pane can do it through swm rather than shelling out to
+`tmux` — swm owns multiplexer access, and a direct `tmux` call would not survive
+a switch to another provider.
+
+| RPC         | tmux equivalent                 | Notes                                                         |
+| ----------- | ------------------------------- | ------------------------------------------------------------- |
+| `OpenPane`  | `new-window -P -F '#{pane_id}'` | `argv` is shell-quoted; empty `argv` starts the default shell |
+| `ListPanes` | `list-panes -a -F …`            | Every live workspace when `workspace_id` is empty             |
+| `SendText`  | `send-keys -l -- …`             | Refuses a focused pane unless `allow_focused` is set          |
+| `ClosePane` | `kill-pane`                     | Succeeds when the pane is already gone                        |
+
+`pane_id` is an opaque handle (`%4` on tmux). Pass it back verbatim; do not
+parse it. It is meaningful only within the workspace that produced it, which is
+why every request carrying one also carries `workspace_id`.
+
+### Sending text into a pane someone is using
+
+Text delivered by `SendText` arrives exactly as if it had been typed, so
+whatever the pane is currently displaying consumes it. If a person is sitting at
+a `y/N` confirmation, injected text answers it on their behalf.
+
+The plugin therefore **refuses to deliver into a focused pane** — one that is
+the active pane, of the active window, of a session with an attached client, so
+that a human's keystrokes would currently land there. The call fails with
+`FAILED_PRECONDITION`; set `allow_focused` to send anyway.
+
+`ListPanes` reports the same `focused` flag from the same query, so a caller can
+see in advance which panes will be refused. The check is racy by construction —
+someone can focus a pane the instant after it passes — so it is a guard against
+the common accident, not a guarantee. A caller that sets `allow_focused` owns
+the consequences.
+
+`delay_ms` waits before delivering, the same mitigation `pane_cmd_delay` offers
+for layout commands: a program that has just started may not have installed its
+input handler yet. To leave a gap between the text and Enter, send them as two
+calls — an empty `text` with `submit = true` delivers only the submit key.
+
 ## Plugin configuration (`config.toml`)
 
 The plugin itself needs no configuration for layout — the `session-tmux.toml` files (above) are sufficient. The following options can be set under `[plugins.config.session-tmux]` when needed:

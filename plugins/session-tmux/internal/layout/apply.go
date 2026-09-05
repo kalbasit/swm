@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kalbasit/swm/plugins/session-tmux/internal/shellquote"
 )
 
 // RunFunc executes a tmux subcommand and returns its stdout.
@@ -253,26 +255,9 @@ func cmdString(c Command) string {
 		return c.Command
 	}
 
-	quoted := make([]string, len(c.Args))
-	for i, arg := range c.Args {
-		quoted[i] = shellQuote(arg)
-	}
-
-	return c.Command + " " + strings.Join(quoted, " ")
-}
-
-// shellQuote wraps arg in single quotes if it contains shell metacharacters.
-// Single quotes inside the arg are escaped using the ”\” idiom.
-func shellQuote(arg string) string {
-	if arg == "" {
-		return "''"
-	}
-
-	if !strings.ContainsAny(arg, " \t\n&*;<>|'\"()$[]?~`{}!\\") {
-		return arg
-	}
-
-	return "'" + strings.ReplaceAll(arg, "'", `'\''`) + "'"
+	// Only the args are quoted: Command is a command line from the layout file
+	// and may legitimately carry its own flags and shell syntax.
+	return c.Command + " " + shellquote.Argv(c.Args)
 }
 
 // exactTarget escapes a tmux target given by *name* so it matches only that

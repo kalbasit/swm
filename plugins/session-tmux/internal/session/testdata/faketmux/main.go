@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -44,12 +45,22 @@ func main() {
 		}
 	case "kill-server":
 		if socket != "" {
-			os.Remove(socket)               //nolint:errcheck // fake socket removal
-			os.Remove(sessionsFile(socket)) //nolint:errcheck // fake session list removal
+			os.Remove(socket)                //nolint:errcheck // fake socket removal
+			os.Remove(sessionsFile(socket))  //nolint:errcheck // fake session list removal
+			os.Remove(panesFile(socket))     //nolint:errcheck // fake pane list removal
+			os.Remove(paneCountFile(socket)) //nolint:errcheck // fake pane counter removal
 		}
 	case "list-sessions":
 		if socket != "" {
-			if _, err := os.Stat(socket); err != nil {
+			b, err := os.ReadFile(socket)
+			if err != nil {
+				os.Exit(1)
+			}
+
+			// A socket file outlives the server that created it. The fake has no
+			// server to exit, so a test models the stale case by writing "dead"
+			// into the socket file.
+			if strings.TrimSpace(string(b)) == "dead" {
 				os.Exit(1)
 			}
 		}
@@ -83,7 +94,78 @@ func main() {
 	case "split-window":
 		// Return a fake pane ID so layout.Apply can reference the new pane.
 		fmt.Println("%1")
+	case "new-window":
+		// FAKETMUX_NEW_WINDOW_FAIL simulates tmux refusing to create a window
+		// because the target pane group does not exist.
+		if os.Getenv("FAKETMUX_NEW_WINDOW_FAIL") == "1" {
+			fmt.Fprintln(os.Stderr, "can't find session")
+			os.Exit(1)
+		}
+
+		paneID := nextPaneID(socket)
+		recordPane(socket, paneID, strings.TrimPrefix(flagValue(args, "-t"), "="), flagValue(args, "-c"))
+		fmt.Println(paneID)
+	case "list-panes":
+		// The rows are pre-formatted by whoever recorded them, so the fake does
+		// not have to implement tmux's -F format expansion. Tests that care
+		// about specific field values seed the file directly.
+		if socket != "" {
+			if b, err := os.ReadFile(panesFile(socket)); err == nil {
+				os.Stdout.Write(b) //nolint:errcheck // best-effort fake output
+			}
+		}
 	}
+}
+
+// panesFile is the path where the fake records the panes that exist on a given
+// socket, one tab-separated row per pane.
+func panesFile(socket string) string { return socket + ".panes" }
+
+// paneCountFile is the path where the fake keeps its per-socket pane ID counter.
+func paneCountFile(socket string) string { return socket + ".panecount" }
+
+// nextPaneID mints a tmux-style pane ID ("%N") for socket, incrementing a
+// per-socket counter so that two panes never share an ID.
+func nextPaneID(socket string) string {
+	if socket == "" {
+		return "%0"
+	}
+
+	counter := paneCountFile(socket)
+
+	n := 0
+	if b, err := os.ReadFile(counter); err == nil {
+		if parsed, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+			n = parsed
+		}
+	}
+
+	n++
+
+	os.WriteFile(counter, []byte(strconv.Itoa(n)), 0o600) //nolint:errcheck // best-effort fake state
+
+	return "%" + strconv.Itoa(n)
+}
+
+// recordPane appends a pane row for socket in the same field order production
+// code asks tmux for: pane ID, session, title, current command, current path,
+// session_attached, window_active, pane_active.
+//
+// A pane created by the fake is reported as unattached and inactive, so tests
+// that want the focused case seed their own rows rather than getting it by
+// accident.
+func recordPane(socket, paneID, session, path string) {
+	if socket == "" {
+		return
+	}
+
+	f, err := os.OpenFile(panesFile(socket), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer f.Close() //nolint:errcheck // best-effort record
+
+	fmt.Fprintf(f, "%s\t%s\t%s\t%s\t%s\t0\t0\t0\n", paneID, session, "fake", "fake", path)
 }
 
 // resolveTarget reports whether target selects one of sessions.

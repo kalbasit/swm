@@ -72,6 +72,101 @@ message SwitchToResponse {
   repeated string exec_argv = 1;
 }
 
+// Pane represents a single addressable pane inside a pane group. It is the
+// place a program runs; what that program is, is the caller's concern and not
+// something swm models.
+message Pane {
+  // pane_id is an opaque handle minted by the plugin. Its format is
+  // provider-specific ("%4" for session-tmux). Callers MUST pass it back
+  // verbatim and MUST NOT parse it, construct it, or derive meaning from it.
+  //
+  // This is not a new kind of value on this service:
+  // SwitchToRequest.close_origin_pane_id already carries a
+  // multiplexer-specific pane reference across the same boundary.
+  //
+  // A pane_id is meaningful only within the workspace that produced it, which
+  // is why every request carrying one also carries a workspace_id.
+  string pane_id = 1;
+  string pane_group_id = 2;
+  string workspace_id = 3;
+
+  // The fields below are descriptive, not identity. They are reported by the
+  // provider on a best-effort basis: a provider that cannot supply one leaves
+  // it at its zero value. They exist so ListPanes can answer "what is running
+  // here" without the caller inspecting the multiplexer itself.
+  string title = 4;
+  string current_command = 5;
+  string current_path = 6;
+
+  // focused is true when the multiplexer reports that this pane is where an
+  // attached client's keystrokes currently land — i.e. a human typing right
+  // now would type into this pane. SendText refuses such a pane by default;
+  // see SendTextRequest.allow_focused.
+  bool focused = 7;
+}
+
+// OpenPaneRequest asks the plugin to start a program in a new pane.
+message OpenPaneRequest {
+  string workspace_id = 1;
+  string pane_group_id = 2;
+  // argv is the program and its arguments, already split. An element
+  // containing spaces or shell metacharacters is passed through intact and is
+  // never re-split. Empty argv starts the provider's default shell.
+  repeated string argv = 3;
+  // cwd, when non-empty, is the pane's starting directory.
+  string cwd = 4;
+  // env entries are set in the new pane's environment.
+  map<string, string> env = 5;
+}
+
+// ListPanesRequest asks the plugin to enumerate panes. Both filters are
+// optional: an empty workspace_id enumerates every live workspace, and an
+// empty pane_group_id enumerates every pane group within those workspaces.
+message ListPanesRequest {
+  string workspace_id = 1;
+  string pane_group_id = 2;
+}
+
+// SendTextRequest asks the plugin to deliver text to a pane.
+//
+// HAZARD: the text arrives exactly as if a human had typed it. Whatever the
+// pane is currently displaying will consume it — including a confirmation
+// prompt a human is in the middle of answering. Delivery into a pane a person
+// is using can therefore answer a question on their behalf.
+message SendTextRequest {
+  string workspace_id = 1;
+  string pane_id = 2;
+  // text is delivered literally. No part of it is interpreted as a key name,
+  // so "Enter" arrives as five characters and not as the Enter key.
+  string text = 3;
+  // submit appends the provider's submit key (Enter) after the text, as a
+  // separate delivery. Empty text with submit set delivers only that key,
+  // which is how a caller inserts a gap between text and submission: send the
+  // text, then send the submit key with a delay. Empty text without submit is
+  // INVALID_ARGUMENT — there is nothing to deliver.
+  bool submit = 4;
+  // delay_ms, when positive, is observed BEFORE delivering. This is the same
+  // mitigation session-tmux's layout config exposes as pane_cmd_delay: a
+  // program that has just started may not have installed its input handler
+  // yet, and keystrokes arriving before it does are lost.
+  int32 delay_ms = 5;
+  // allow_focused overrides the plugin's refusal to deliver into a pane it
+  // reports as focused (see Pane.focused). Plugins SHALL refuse a focused pane
+  // with FAILED_PRECONDITION unless this is set. The check is inherently racy
+  // — a human can focus the pane immediately after it passes — so it is a
+  // guard against the common accident, not a guarantee. A caller that sets
+  // this owns the consequences.
+  bool allow_focused = 6;
+}
+
+// ClosePaneRequest asks the plugin to terminate a pane. Closing a pane that no
+// longer exists is not an error; cleaning up after a program that already
+// exited is the normal case.
+message ClosePaneRequest {
+  string workspace_id = 1;
+  string pane_id = 2;
+}
+
 // Session is implemented by terminal-multiplexer plugins (e.g. session-tmux).
 service Session {
   rpc Info(Empty) returns (SessionInfo);
@@ -82,4 +177,12 @@ service Session {
   rpc SwitchTo(SwitchToRequest) returns (SwitchToResponse);
   rpc IsInsideWorkspace(Empty) returns (BoolValue);
   rpc CurrentContext(Empty) returns (CurrentContextResponse);
+
+  // Pane-level primitives. These are deliberately generic: they say "pane",
+  // never a provider's own verb (tmux's send-keys, zellij's write-chars), and
+  // they carry no notion of what a pane is being used for.
+  rpc OpenPane(OpenPaneRequest) returns (Pane);
+  rpc ListPanes(ListPanesRequest) returns (stream Pane);
+  rpc SendText(SendTextRequest) returns (Empty);
+  rpc ClosePane(ClosePaneRequest) returns (Empty);
 }
