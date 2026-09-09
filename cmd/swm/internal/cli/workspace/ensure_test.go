@@ -148,14 +148,14 @@ func TestEnsureCmd_IsIdempotent(t *testing.T) {
 	story := &coreStory.Story{Name: testStoryName, Projects: projects("swm")}
 
 	first := &recordingSess{}
-	cmd1, out1 := ensureCmd(t, &stubStore{getStory: story}, first, hookexec.Noop, testStoryName)
-	require.NoError(t, cmd1.Execute())
+	firstCmd, firstOut := ensureCmd(t, &stubStore{getStory: story}, first, hookexec.Noop, testStoryName)
+	require.NoError(t, firstCmd.Execute())
 
 	second := &recordingSess{}
-	cmd2, out2 := ensureCmd(t, &stubStore{getStory: story}, second, hookexec.Noop, testStoryName)
-	require.NoError(t, cmd2.Execute())
+	secondCmd, secondOut := ensureCmd(t, &stubStore{getStory: story}, second, hookexec.Noop, testStoryName)
+	require.NoError(t, secondCmd.Execute())
 
-	require.Equal(t, out1.String(), out2.String(), "the same story must report the same workspace id")
+	require.Equal(t, firstOut.String(), secondOut.String(), "the same story must report the same workspace id")
 	require.Len(t, second.paneGroupReqs, len(first.paneGroupReqs))
 }
 
@@ -368,6 +368,8 @@ func TestEnsureCmd_CompletionDegradesOnStoreError(t *testing.T) {
 	cmd, _ := ensureCmd(t, store, &recordingSess{}, hookexec.Noop)
 
 	names, directive := cmd.ValidArgsFunction(cmd, nil, "")
-	require.Empty(t, names, "a store error offers no candidates rather than filenames")
-	require.Equal(t, cobra.ShellCompDirectiveError, directive)
+	require.Empty(t, names, "a store error offers no candidates")
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive,
+		"not ShellCompDirectiveError: cobra's bash script returns on Error before "+
+			"disabling default completion, so Error would offer filenames")
 }

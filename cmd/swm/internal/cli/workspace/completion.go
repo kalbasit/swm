@@ -10,8 +10,14 @@ import (
 // the names in the store, and offers nothing once that argument is given.
 //
 // Shared by `open` and `ensure` so the two cannot come to disagree about what a
-// story name is; a store error offers no candidates rather than falling back to
-// filenames, which would complete a path where a story name belongs.
+// story name is.
+//
+// A store error returns NoFileComp rather than Error. Cobra registers bash
+// completion with `complete -o default`, and its script returns on the Error
+// directive before reaching `compopt +o default` -- so Error means the shell
+// completes filenames, which is the one thing that must not happen where a
+// story name belongs. NoFileComp with no candidates offers nothing, which is
+// what "no completions" should mean.
 func storyNameCompletion(
 	store coreStory.Store,
 ) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
@@ -22,7 +28,7 @@ func storyNameCompletion(
 
 		stories, err := store.List(cmd.Context())
 		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
+			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		names := make([]string, len(stories))

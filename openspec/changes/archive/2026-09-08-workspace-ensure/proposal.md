@@ -32,7 +32,14 @@ open a pane in it.
 - It runs the same `pre-workspace-open` and `post-workspace-open` hooks as
   `open`, so an ensured workspace is not a subtly different environment from an
   opened one.
-- `swm workspace open` is unchanged.
+- `swm workspace open` is unchanged, with one exception found in review: its
+  story-name completion returned `ShellCompDirectiveError` on a store error.
+  Cobra registers bash completion with `complete -o default` and its script
+  returns on that directive before reaching `compopt +o default`, so a store
+  error made bash complete **filenames** -- the thing the existing
+  "No fallback to filename completion" scenario forbids. The shared helper now
+  returns `ShellCompDirectiveNoFileComp`, which offers nothing. `open` was
+  violating its own spec; it no longer is.
 
 ## Capabilities
 
