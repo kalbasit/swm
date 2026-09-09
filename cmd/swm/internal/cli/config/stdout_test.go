@@ -48,11 +48,24 @@ func captureStdout(t *testing.T, fn func()) string {
 		done <- string(b)
 	}()
 
+	// Deferred, because fn asserts: a failing require calls FailNow, which
+	// unwinds through runtime.Goexit. That runs deferred functions and skips
+	// everything after the call -- so without this, one failing test would
+	// leave os.Stdout pointed at a pipe nobody reads for the rest of the
+	// process, and every later test writing to stdout would fill it and block.
+	// Closing w here also releases the reader goroutine on that path.
+	defer func() {
+		os.Stdout = saved
+		//nolint:errcheck // already closed on the success path; the error says exactly that
+		_ = w.Close()
+		//nolint:errcheck // nothing can act on a failure to close a test pipe
+		_ = r.Close()
+	}()
+
 	fn()
 
+	// Closed before reading, or ReadAll never returns.
 	require.NoError(t, w.Close())
-
-	os.Stdout = saved
 
 	return <-done
 }
