@@ -21,7 +21,14 @@ func NewGetCmd(cfg *appconfig.Config) *cobra.Command {
 				return fmt.Errorf("%q: %w", args[0], appconfig.ErrUnknownKey)
 			}
 
-			cmd.Println(k.Get(cfg))
+			// Explicitly stdout. cobra's Println writes to OutOrStderr(), which
+			// sent the value to stderr and made `root=$(swm config get
+			// code_root)` come back empty -- the only thing this command is
+			// for. A steward host agent hit exactly that and reported the code
+			// root as missing on a machine where it was configured.
+			if _, err := fmt.Fprintln(cmd.OutOrStdout(), k.Get(cfg)); err != nil {
+				return fmt.Errorf("writing value: %w", err)
+			}
 
 			return nil
 		},

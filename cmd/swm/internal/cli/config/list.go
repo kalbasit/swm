@@ -35,7 +35,9 @@ func NewListCmd(cfgPath string, cfg *appconfig.Config) *cobra.Command {
 
 func printAll(cmd *cobra.Command, cfg *appconfig.Config) error {
 	for _, k := range appconfig.AllKeys(cfg) {
-		cmd.Printf("%s = %s\n", k.Path, k.Get(cfg))
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s = %s\n", k.Path, k.Get(cfg)); err != nil {
+			return fmt.Errorf("writing config: %w", err)
+		}
 	}
 
 	return nil
@@ -48,7 +50,9 @@ func printConfigured(cmd *cobra.Command, cfgPath string, cfg *appconfig.Config) 
 	}
 
 	for _, k := range keys {
-		cmd.Printf("%s = %s\n", k.Path, k.Get(cfg))
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s = %s\n", k.Path, k.Get(cfg)); err != nil {
+			return fmt.Errorf("writing config: %w", err)
+		}
 	}
 
 	return nil
