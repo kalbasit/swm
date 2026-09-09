@@ -50,6 +50,28 @@ Opens the workspace for a story. Story resolution order:
 If a picker plugin is configured and no story is specified, an interactive list is shown. `--kill-pane` closes the originating tmux pane after switching.
 
 ```sh
+swm workspace ensure [story-name] [--json]
+```
+
+Makes the workspace and its pane groups exist, prints the workspace id, and
+exits. This is the one a script wants: `open` ends by attaching you to the
+workspace, replacing its own process with the multiplexer, so it never returns
+to whatever called it.
+
+`ensure` never attaches, never shows a picker and never prompts, whether or not
+a terminal is attached. It opens a pane group for **every** attached project,
+where `open` opens one and switches you into it. A story that does not exist is
+an error rather than a prompt — use `swm story create` to make one.
+
+Story resolution is the same as `open` minus the picker: positional argument,
+then `$SWM_STORY`, then `default_story`.
+
+```sh
+ws=$(swm workspace ensure feat-x)
+swm pane open -w "$ws" -g github.com/kalbasit/swm -- nvim
+```
+
+```sh
 swm workspace list
 ```
 
