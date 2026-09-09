@@ -253,7 +253,7 @@ func NewOpenCmd(
 			}
 
 			if err := hooks.Run(ctx, hookexec.RunConfig{
-				Event:     "pre-workspace-open",
+				Event:     eventPreWorkspaceOpen,
 				CodeRoot:  cfg.CodeRoot,
 				StoryName: storyName,
 				WorkDir:   cfg.CodeRoot,
@@ -304,23 +304,7 @@ func NewOpenCmd(
 	cmd.Flags().BoolVar(&killPane, "kill-pane", false,
 		"close the originating multiplexer pane after switching to the new workspace")
 
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
-		if len(args) > 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		stories, err := store.List(cmd.Context())
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		names := make([]string, len(stories))
-		for i, s := range stories {
-			names[i] = s.Name
-		}
-
-		return names, cobra.ShellCompDirectiveNoFileComp
-	}
+	cmd.ValidArgsFunction = storyNameCompletion(store)
 
 	return cmd
 }
@@ -535,7 +519,7 @@ func openWithPicker(
 	// Run the post hook before exec so it is not skipped when the host process
 	// is replaced by syscall.Exec.
 	_ = hooks.Run(ctx, hookexec.RunConfig{ //nolint:errcheck // post-* hooks always return nil; Run already logs failures
-		Event:     "post-workspace-open",
+		Event:     eventPostWorkspaceOpen,
 		CodeRoot:  cfg.CodeRoot,
 		StoryName: storyName,
 		WorkDir:   worktreePath,
@@ -563,55 +547,38 @@ func openAllAttached(
 	killPane bool,
 	execFn ExecFunc,
 ) error {
-	worktreePaths := make(map[string]string, len(st.Projects))
-
-	for i := range st.Projects {
-		p := &st.Projects[i]
-		pid := &pluginv1.ProjectID{Host: p.Host, Segments: p.Segments}
-		key := p.Host + "/" + strings.Join(p.Segments, "/")
-		worktreePaths[key] = resolver.WorktreePath(storyName, pid)
+	// Only the first project gets a pane group here: this path is about to
+	// switch the caller into one, and opening the rest would change what
+	// `workspace open` does. `workspace ensure` passes every project instead.
+	var groupsFor []coreStory.Project
+	if len(st.Projects) > 0 {
+		groupsFor = st.Projects[:1]
 	}
 
-	ws, err := sess.OpenWorkspace(ctx, &pluginv1.OpenWorkspaceRequest{
-		StoryName:     storyName,
-		WorktreePaths: worktreePaths,
-	})
+	opened, err := openWorkspaceWithGroups(ctx, sess, resolver, st, storyName, groupsFor)
 	if err != nil {
-		return fmt.Errorf("opening workspace: %w", err)
+		return err
 	}
 
 	cmd.Printf("workspace opened for story %q\n", storyName)
 
 	// With no attached projects there is no pane group to switch to.
-	if len(st.Projects) == 0 {
+	if len(opened.Groups) == 0 {
 		return nil
 	}
 
-	// Open a pane group for the first attached project and switch to it so that
-	// exec (tmux attach-session) works consistently with the picker path.
-	first := &st.Projects[0]
-	firstPID := &pluginv1.ProjectID{Host: first.Host, Segments: first.Segments}
-	firstKey := first.Host + "/" + strings.Join(first.Segments, "/")
-
-	pg, err := sess.OpenPaneGroup(ctx, &pluginv1.OpenPaneGroupRequest{
-		WorkspaceId:  ws.GetWorkspaceId(),
-		ProjectId:    firstPID,
-		WorktreePath: worktreePaths[firstKey],
-	})
-	if err != nil {
-		return fmt.Errorf("opening pane group: %w", err)
-	}
+	first := opened.Groups[0]
 
 	// Run the post hook before exec so it is not skipped when the host process
 	// is replaced by syscall.Exec.
 	_ = hooks.Run(ctx, hookexec.RunConfig{ //nolint:errcheck // post-* hooks always return nil; Run already logs failures
-		Event:     "post-workspace-open",
+		Event:     eventPostWorkspaceOpen,
 		CodeRoot:  cfg.CodeRoot,
 		StoryName: storyName,
-		WorkDir:   worktreePaths[firstKey],
+		WorkDir:   opened.WorktreePaths[first.ProjectKey],
 	})
 
-	switchRes, err := sess.SwitchTo(ctx, buildSwitchToReq(ctx, sess, ws.GetWorkspaceId(), pg.GetPaneGroupId(), killPane))
+	switchRes, err := sess.SwitchTo(ctx, buildSwitchToReq(ctx, sess, opened.ID, first.PaneGroupID, killPane))
 	if err != nil {
 		return fmt.Errorf("switching to pane group: %w", err)
 	}
