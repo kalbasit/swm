@@ -126,7 +126,11 @@ func printStory(cmd *cobra.Command, out showOutput, asJSON bool) error {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "%s\n", out.Name)
-	fmt.Fprintf(&b, "  branch %s\n", out.BranchName)
+	fmt.Fprintf(&b, "  branch  %s\n", out.BranchName)
+	// Absolute rather than an age. This is the form a caller pastes into a
+	// bug report or compares against a log line, and "3d ago" stops being
+	// true the moment it is written down.
+	fmt.Fprintf(&b, "  created %s\n", out.CreatedAt.Format(time.RFC3339))
 
 	for _, p := range out.Projects {
 		fmt.Fprintf(&b, "  %s -> %s\n", p.Key, p.WorktreePath)

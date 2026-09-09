@@ -205,6 +205,8 @@ func TestShowHumanReadableOutput(t *testing.T) {
 	text := out.String()
 	require.Contains(t, text, testStoryName)
 	require.Contains(t, text, "user/wnasreddine/"+testStoryName)
+	require.Contains(t, text, time.Unix(0, 0).UTC().Format(time.RFC3339),
+		"the requirement says the command reports when the story was created, in both forms")
 	require.Contains(t, text, "/code/stories/"+testStoryName+"/github.com/kalbasit/swm")
 	require.Contains(t, text, "github.com/kalbasit/swm")
 }
