@@ -574,7 +574,18 @@ type Pane struct {
 	// attached client's keystrokes currently land — i.e. a human typing right
 	// now would type into this pane. SendText refuses such a pane by default;
 	// see SendTextRequest.allow_focused.
-	Focused       bool `protobuf:"varint,7,opt,name=focused,proto3" json:"focused,omitempty"`
+	Focused bool `protobuf:"varint,7,opt,name=focused,proto3" json:"focused,omitempty"`
+	// tags are the caller's own marks on this pane, returned as they were given.
+	//
+	// Opaque to swm: it stores them and reports them and never reads them. They
+	// let a caller recognise a pane it opened without having kept the pane_id,
+	// and they belong to the pane rather than to the program in it — so they
+	// survive that program exiting and being replaced, and cease to exist when
+	// the pane closes.
+	//
+	// A pane opened without tags reports none rather than an empty entry, so a
+	// caller checking for its own mark need not distinguish absent from empty.
+	Tags          map[string]string `protobuf:"bytes,8,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -658,6 +669,13 @@ func (x *Pane) GetFocused() bool {
 	return false
 }
 
+func (x *Pane) GetTags() map[string]string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
 // OpenPaneRequest asks the plugin to start a program in a new pane.
 type OpenPaneRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -669,8 +687,12 @@ type OpenPaneRequest struct {
 	Argv []string `protobuf:"bytes,3,rep,name=argv,proto3" json:"argv,omitempty"`
 	// cwd, when non-empty, is the pane's starting directory.
 	Cwd string `protobuf:"bytes,4,opt,name=cwd,proto3" json:"cwd,omitempty"`
-	// env entries are set in the new pane's environment.
-	Env           map[string]string `protobuf:"bytes,5,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// env entries are set in the new pane's environment. They belong to the
+	// process: they die with it, and ListPanes cannot report them.
+	Env map[string]string `protobuf:"bytes,5,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// tags are opaque marks attached to the pane itself rather than to the
+	// program in it, and are reported back by ListPanes. See Pane.tags.
+	Tags          map[string]string `protobuf:"bytes,6,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -736,6 +758,13 @@ func (x *OpenPaneRequest) GetCwd() string {
 func (x *OpenPaneRequest) GetEnv() map[string]string {
 	if x != nil {
 		return x.Env
+	}
+	return nil
+}
+
+func (x *OpenPaneRequest) GetTags() map[string]string {
+	if x != nil {
+		return x.Tags
 	}
 	return nil
 }
@@ -1003,7 +1032,7 @@ const file_swm_plugin_v1_session_proto_rawDesc = "" +
 	"\x19close_origin_workspace_id\x18\x03 \x01(\tR\x16closeOriginWorkspaceId\x12/\n" +
 	"\x14close_origin_pane_id\x18\x04 \x01(\tR\x11closeOriginPaneId\"/\n" +
 	"\x10SwitchToResponse\x12\x1b\n" +
-	"\texec_argv\x18\x01 \x03(\tR\bexecArgv\"\xe2\x01\n" +
+	"\texec_argv\x18\x01 \x03(\tR\bexecArgv\"\xce\x02\n" +
 	"\x04Pane\x12\x17\n" +
 	"\apane_id\x18\x01 \x01(\tR\x06paneId\x12\"\n" +
 	"\rpane_group_id\x18\x02 \x01(\tR\vpaneGroupId\x12!\n" +
@@ -1011,14 +1040,22 @@ const file_swm_plugin_v1_session_proto_rawDesc = "" +
 	"\x05title\x18\x04 \x01(\tR\x05title\x12'\n" +
 	"\x0fcurrent_command\x18\x05 \x01(\tR\x0ecurrentCommand\x12!\n" +
 	"\fcurrent_path\x18\x06 \x01(\tR\vcurrentPath\x12\x18\n" +
-	"\afocused\x18\a \x01(\bR\afocused\"\xf1\x01\n" +
+	"\afocused\x18\a \x01(\bR\afocused\x121\n" +
+	"\x04tags\x18\b \x03(\v2\x1d.swm.plugin.v1.Pane.TagsEntryR\x04tags\x1a7\n" +
+	"\tTagsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe8\x02\n" +
 	"\x0fOpenPaneRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\"\n" +
 	"\rpane_group_id\x18\x02 \x01(\tR\vpaneGroupId\x12\x12\n" +
 	"\x04argv\x18\x03 \x03(\tR\x04argv\x12\x10\n" +
 	"\x03cwd\x18\x04 \x01(\tR\x03cwd\x129\n" +
-	"\x03env\x18\x05 \x03(\v2'.swm.plugin.v1.OpenPaneRequest.EnvEntryR\x03env\x1a6\n" +
+	"\x03env\x18\x05 \x03(\v2'.swm.plugin.v1.OpenPaneRequest.EnvEntryR\x03env\x12<\n" +
+	"\x04tags\x18\x06 \x03(\v2(.swm.plugin.v1.OpenPaneRequest.TagsEntryR\x04tags\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a7\n" +
+	"\tTagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Y\n" +
 	"\x10ListPanesRequest\x12!\n" +
@@ -1060,7 +1097,7 @@ func file_swm_plugin_v1_session_proto_rawDescGZIP() []byte {
 	return file_swm_plugin_v1_session_proto_rawDescData
 }
 
-var file_swm_plugin_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_swm_plugin_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_swm_plugin_v1_session_proto_goTypes = []any{
 	(*SessionInfo)(nil),            // 0: swm.plugin.v1.SessionInfo
 	(*Workspace)(nil),              // 1: swm.plugin.v1.Workspace
@@ -1077,48 +1114,52 @@ var file_swm_plugin_v1_session_proto_goTypes = []any{
 	(*SendTextRequest)(nil),        // 12: swm.plugin.v1.SendTextRequest
 	(*ClosePaneRequest)(nil),       // 13: swm.plugin.v1.ClosePaneRequest
 	nil,                            // 14: swm.plugin.v1.OpenWorkspaceRequest.WorktreePathsEntry
-	nil,                            // 15: swm.plugin.v1.OpenPaneRequest.EnvEntry
-	(*PluginInfo)(nil),             // 16: swm.plugin.v1.PluginInfo
-	(*ProjectID)(nil),              // 17: swm.plugin.v1.ProjectID
-	(*Empty)(nil),                  // 18: swm.plugin.v1.Empty
-	(*BoolValue)(nil),              // 19: swm.plugin.v1.BoolValue
+	nil,                            // 15: swm.plugin.v1.Pane.TagsEntry
+	nil,                            // 16: swm.plugin.v1.OpenPaneRequest.EnvEntry
+	nil,                            // 17: swm.plugin.v1.OpenPaneRequest.TagsEntry
+	(*PluginInfo)(nil),             // 18: swm.plugin.v1.PluginInfo
+	(*ProjectID)(nil),              // 19: swm.plugin.v1.ProjectID
+	(*Empty)(nil),                  // 20: swm.plugin.v1.Empty
+	(*BoolValue)(nil),              // 21: swm.plugin.v1.BoolValue
 }
 var file_swm_plugin_v1_session_proto_depIdxs = []int32{
-	16, // 0: swm.plugin.v1.SessionInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
-	17, // 1: swm.plugin.v1.PaneGroup.project_id:type_name -> swm.plugin.v1.ProjectID
-	17, // 2: swm.plugin.v1.CurrentContextResponse.project_id:type_name -> swm.plugin.v1.ProjectID
+	18, // 0: swm.plugin.v1.SessionInfo.plugin_info:type_name -> swm.plugin.v1.PluginInfo
+	19, // 1: swm.plugin.v1.PaneGroup.project_id:type_name -> swm.plugin.v1.ProjectID
+	19, // 2: swm.plugin.v1.CurrentContextResponse.project_id:type_name -> swm.plugin.v1.ProjectID
 	14, // 3: swm.plugin.v1.OpenWorkspaceRequest.worktree_paths:type_name -> swm.plugin.v1.OpenWorkspaceRequest.WorktreePathsEntry
-	17, // 4: swm.plugin.v1.OpenPaneGroupRequest.project_id:type_name -> swm.plugin.v1.ProjectID
-	15, // 5: swm.plugin.v1.OpenPaneRequest.env:type_name -> swm.plugin.v1.OpenPaneRequest.EnvEntry
-	18, // 6: swm.plugin.v1.Session.Info:input_type -> swm.plugin.v1.Empty
-	4,  // 7: swm.plugin.v1.Session.OpenWorkspace:input_type -> swm.plugin.v1.OpenWorkspaceRequest
-	5,  // 8: swm.plugin.v1.Session.CloseWorkspace:input_type -> swm.plugin.v1.CloseWorkspaceRequest
-	18, // 9: swm.plugin.v1.Session.ListWorkspaces:input_type -> swm.plugin.v1.Empty
-	6,  // 10: swm.plugin.v1.Session.OpenPaneGroup:input_type -> swm.plugin.v1.OpenPaneGroupRequest
-	7,  // 11: swm.plugin.v1.Session.SwitchTo:input_type -> swm.plugin.v1.SwitchToRequest
-	18, // 12: swm.plugin.v1.Session.IsInsideWorkspace:input_type -> swm.plugin.v1.Empty
-	18, // 13: swm.plugin.v1.Session.CurrentContext:input_type -> swm.plugin.v1.Empty
-	10, // 14: swm.plugin.v1.Session.OpenPane:input_type -> swm.plugin.v1.OpenPaneRequest
-	11, // 15: swm.plugin.v1.Session.ListPanes:input_type -> swm.plugin.v1.ListPanesRequest
-	12, // 16: swm.plugin.v1.Session.SendText:input_type -> swm.plugin.v1.SendTextRequest
-	13, // 17: swm.plugin.v1.Session.ClosePane:input_type -> swm.plugin.v1.ClosePaneRequest
-	0,  // 18: swm.plugin.v1.Session.Info:output_type -> swm.plugin.v1.SessionInfo
-	1,  // 19: swm.plugin.v1.Session.OpenWorkspace:output_type -> swm.plugin.v1.Workspace
-	18, // 20: swm.plugin.v1.Session.CloseWorkspace:output_type -> swm.plugin.v1.Empty
-	1,  // 21: swm.plugin.v1.Session.ListWorkspaces:output_type -> swm.plugin.v1.Workspace
-	2,  // 22: swm.plugin.v1.Session.OpenPaneGroup:output_type -> swm.plugin.v1.PaneGroup
-	8,  // 23: swm.plugin.v1.Session.SwitchTo:output_type -> swm.plugin.v1.SwitchToResponse
-	19, // 24: swm.plugin.v1.Session.IsInsideWorkspace:output_type -> swm.plugin.v1.BoolValue
-	3,  // 25: swm.plugin.v1.Session.CurrentContext:output_type -> swm.plugin.v1.CurrentContextResponse
-	9,  // 26: swm.plugin.v1.Session.OpenPane:output_type -> swm.plugin.v1.Pane
-	9,  // 27: swm.plugin.v1.Session.ListPanes:output_type -> swm.plugin.v1.Pane
-	18, // 28: swm.plugin.v1.Session.SendText:output_type -> swm.plugin.v1.Empty
-	18, // 29: swm.plugin.v1.Session.ClosePane:output_type -> swm.plugin.v1.Empty
-	18, // [18:30] is the sub-list for method output_type
-	6,  // [6:18] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	19, // 4: swm.plugin.v1.OpenPaneGroupRequest.project_id:type_name -> swm.plugin.v1.ProjectID
+	15, // 5: swm.plugin.v1.Pane.tags:type_name -> swm.plugin.v1.Pane.TagsEntry
+	16, // 6: swm.plugin.v1.OpenPaneRequest.env:type_name -> swm.plugin.v1.OpenPaneRequest.EnvEntry
+	17, // 7: swm.plugin.v1.OpenPaneRequest.tags:type_name -> swm.plugin.v1.OpenPaneRequest.TagsEntry
+	20, // 8: swm.plugin.v1.Session.Info:input_type -> swm.plugin.v1.Empty
+	4,  // 9: swm.plugin.v1.Session.OpenWorkspace:input_type -> swm.plugin.v1.OpenWorkspaceRequest
+	5,  // 10: swm.plugin.v1.Session.CloseWorkspace:input_type -> swm.plugin.v1.CloseWorkspaceRequest
+	20, // 11: swm.plugin.v1.Session.ListWorkspaces:input_type -> swm.plugin.v1.Empty
+	6,  // 12: swm.plugin.v1.Session.OpenPaneGroup:input_type -> swm.plugin.v1.OpenPaneGroupRequest
+	7,  // 13: swm.plugin.v1.Session.SwitchTo:input_type -> swm.plugin.v1.SwitchToRequest
+	20, // 14: swm.plugin.v1.Session.IsInsideWorkspace:input_type -> swm.plugin.v1.Empty
+	20, // 15: swm.plugin.v1.Session.CurrentContext:input_type -> swm.plugin.v1.Empty
+	10, // 16: swm.plugin.v1.Session.OpenPane:input_type -> swm.plugin.v1.OpenPaneRequest
+	11, // 17: swm.plugin.v1.Session.ListPanes:input_type -> swm.plugin.v1.ListPanesRequest
+	12, // 18: swm.plugin.v1.Session.SendText:input_type -> swm.plugin.v1.SendTextRequest
+	13, // 19: swm.plugin.v1.Session.ClosePane:input_type -> swm.plugin.v1.ClosePaneRequest
+	0,  // 20: swm.plugin.v1.Session.Info:output_type -> swm.plugin.v1.SessionInfo
+	1,  // 21: swm.plugin.v1.Session.OpenWorkspace:output_type -> swm.plugin.v1.Workspace
+	20, // 22: swm.plugin.v1.Session.CloseWorkspace:output_type -> swm.plugin.v1.Empty
+	1,  // 23: swm.plugin.v1.Session.ListWorkspaces:output_type -> swm.plugin.v1.Workspace
+	2,  // 24: swm.plugin.v1.Session.OpenPaneGroup:output_type -> swm.plugin.v1.PaneGroup
+	8,  // 25: swm.plugin.v1.Session.SwitchTo:output_type -> swm.plugin.v1.SwitchToResponse
+	21, // 26: swm.plugin.v1.Session.IsInsideWorkspace:output_type -> swm.plugin.v1.BoolValue
+	3,  // 27: swm.plugin.v1.Session.CurrentContext:output_type -> swm.plugin.v1.CurrentContextResponse
+	9,  // 28: swm.plugin.v1.Session.OpenPane:output_type -> swm.plugin.v1.Pane
+	9,  // 29: swm.plugin.v1.Session.ListPanes:output_type -> swm.plugin.v1.Pane
+	20, // 30: swm.plugin.v1.Session.SendText:output_type -> swm.plugin.v1.Empty
+	20, // 31: swm.plugin.v1.Session.ClosePane:output_type -> swm.plugin.v1.Empty
+	20, // [20:32] is the sub-list for method output_type
+	8,  // [8:20] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_swm_plugin_v1_session_proto_init() }
@@ -1133,7 +1174,7 @@ func file_swm_plugin_v1_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swm_plugin_v1_session_proto_rawDesc), len(file_swm_plugin_v1_session_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

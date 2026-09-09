@@ -165,7 +165,9 @@ func recordPane(socket, paneID, session, path string) {
 	}
 	defer f.Close() //nolint:errcheck // best-effort record
 
-	fmt.Fprintf(f, "%s\t%s\t%s\t%s\t%s\t0\t0\t0\n", paneID, session, "fake", "fake", path)
+	// The sixth field is the pane's tags option, which real tmux substitutes
+	// into the format and which is empty for a pane nothing tagged.
+	fmt.Fprintf(f, "%s\t%s\t%s\t%s\t%s\t\t0\t0\t0\n", paneID, session, "fake", "fake", path)
 }
 
 // resolveTarget reports whether target selects one of sessions.

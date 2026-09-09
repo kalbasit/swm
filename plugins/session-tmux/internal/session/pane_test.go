@@ -25,16 +25,27 @@ const (
 	noWorkspace = "no workspace"
 	helloText   = "hello"
 
+	tagOwner   = "owner"
+	tagSteward = "steward"
+
 	testPaneID    = "%1"
 	otherPaneID   = "%2"
 	missingPaneID = "%99"
 )
 
 // fakePaneRow renders one faketmux list-panes row in the field order the plugin
-// asks tmux for: pane ID, session, title, current command, current path,
+// asks tmux for: pane ID, session, title, current command, current path, tags,
 // session_attached, window_active, pane_active.
 func fakePaneRow(id, group, title, command, path, attached, winActive, paneActive string) string {
-	return strings.Join([]string{id, group, title, command, path, attached, winActive, paneActive}, "\t")
+	return fakeTaggedPaneRow(id, group, title, command, path, attached, winActive, paneActive, "")
+}
+
+// fakeTaggedPaneRow is fakePaneRow with the pane's tags option, as tmux would
+// substitute it into the format.
+func fakeTaggedPaneRow(id, group, title, command, path, attached, winActive, paneActive, tags string) string {
+	return strings.Join([]string{
+		id, group, title, command, path, tags, attached, winActive, paneActive,
+	}, "\t")
 }
 
 // unfocusedPaneRow is a pane on a workspace no client is attached to, so no
@@ -666,4 +677,100 @@ func TestClosePane_MissingIdentifiers(t *testing.T) {
 	}
 
 	require.Empty(t, tmuxLogLines(t, logFile), "a rejected request must not reach tmux")
+}
+
+// TestOpenPaneStoresTagsAsPaneOptions: a tag belongs to the pane, so it is set
+// as a pane-scoped option rather than put in the program's environment.
+func TestOpenPaneStoresTagsAsPaneOptions(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sock := seedWorkspace(t, socketDir, "alpha")
+
+	_, err := tmux.OpenPane(context.Background(), &pluginv1.OpenPaneRequest{
+		WorkspaceId: sock,
+		PaneGroupId: testPaneGroupFull,
+		Tags:        map[string]string{tagOwner: tagSteward},
+	})
+	require.NoError(t, err)
+
+	logged, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	require.Contains(t, string(logged), "set-option",
+		"tags must be stored on the pane, not in the process environment")
+	require.Contains(t, string(logged), "@swm_tags")
+	require.Contains(t, string(logged), `{"owner":"steward"}`)
+}
+
+// TestOpenPaneWithNoTagsSetsNothing keeps the common case free of an extra tmux
+// call, and a pane nobody tagged free of an option nothing reads.
+func TestOpenPaneWithNoTagsSetsNothing(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+
+	tmux, socketDir := newTmux(t)
+	sock := seedWorkspace(t, socketDir, "alpha")
+
+	_, err := tmux.OpenPane(context.Background(), &pluginv1.OpenPaneRequest{
+		WorkspaceId: sock,
+		PaneGroupId: testPaneGroupFull,
+	})
+	require.NoError(t, err)
+
+	logged, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	require.NotContains(t, string(logged), "@swm_tags")
+}
+
+// TestListPanesReportsTags is the other half: a mark is only useful if it can
+// be read back.
+func TestListPanesReportsTags(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	t.Setenv("FAKETMUX_LOG", filepath.Join(t.TempDir(), "tmux.log"))
+
+	tmux, socketDir := newTmux(t)
+	seedWorkspace(t, socketDir, "alpha",
+		fakeTaggedPaneRow(testPaneID, testPaneGroupFull, "zsh", "zsh", testWorktree,
+			"0", "1", "1", `{"owner":"steward"}`),
+		unfocusedPaneRow(otherPaneID, testPaneGroupFull))
+
+	panes := listPanes(t, tmux, &pluginv1.ListPanesRequest{})
+	require.Len(t, panes, 2)
+
+	byID := map[string]*pluginv1.Pane{}
+	for _, p := range panes {
+		byID[p.GetPaneId()] = p
+	}
+
+	require.Equal(t, map[string]string{tagOwner: tagSteward}, byID[testPaneID].GetTags())
+
+	// A pane nobody tagged reports none rather than an empty map a caller would
+	// have to tell apart from absence.
+	require.Empty(t, byID[otherPaneID].GetTags())
+}
+
+// TestTagsSurviveTheProgramInThePane is the reason tags exist rather than
+// callers using --env: an option outlives the process it was set alongside.
+func TestTagsSurviveTheProgramInThePane(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	t.Setenv("FAKETMUX_LOG", filepath.Join(t.TempDir(), "tmux.log"))
+
+	tmux, socketDir := newTmux(t)
+
+	// The same pane, listed after whatever was running in it has been replaced:
+	// a different current_command, the tags unchanged, because they were never
+	// held by that program.
+	seedWorkspace(t, socketDir, "alpha",
+		fakeTaggedPaneRow(testPaneID, testPaneGroupFull, "zsh", "vim", testWorktree,
+			"0", "1", "1", `{"owner":"steward"}`))
+
+	panes := listPanes(t, tmux, &pluginv1.ListPanesRequest{})
+	require.Len(t, panes, 1)
+	require.Equal(t, "vim", panes[0].GetCurrentCommand())
+	require.Equal(t, map[string]string{tagOwner: tagSteward}, panes[0].GetTags())
 }

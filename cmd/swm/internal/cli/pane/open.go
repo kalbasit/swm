@@ -13,6 +13,9 @@ import (
 // errMalformedEnv is returned for an --env value that is not KEY=VALUE.
 var errMalformedEnv = errors.New("malformed --env entry")
 
+// errMalformedTag is returned for a --tag value that is not KEY=VALUE.
+var errMalformedTag = errors.New("malformed --tag entry")
+
 // NewOpenCmd returns the `swm pane open` command.
 func NewOpenCmd(mgr PluginManager) *cobra.Command {
 	var (
@@ -20,6 +23,7 @@ func NewOpenCmd(mgr PluginManager) *cobra.Command {
 		paneGroupID string
 		cwd         string
 		envEntries  []string
+		tagEntries  []string
 		asJSON      bool
 	)
 
@@ -36,6 +40,11 @@ func NewOpenCmd(mgr PluginManager) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Parse before resolving the plugin: there is no point starting a
 			// plugin process only to be told the arguments were wrong.
+			tags, err := parseKV(tagEntries, errMalformedTag)
+			if err != nil {
+				return err
+			}
+
 			env, err := parseEnv(envEntries)
 			if err != nil {
 				return err
@@ -54,6 +63,7 @@ func NewOpenCmd(mgr PluginManager) *cobra.Command {
 				Argv:        args,
 				Cwd:         cwd,
 				Env:         env,
+				Tags:        tags,
 			})
 			if err != nil {
 				return fmt.Errorf("opening pane in pane group %q: %w", paneGroupID, err)
@@ -77,6 +87,8 @@ func NewOpenCmd(mgr PluginManager) *cobra.Command {
 	cmd.Flags().StringVar(&cwd, "cwd", "", "starting directory for the new pane")
 	cmd.Flags().StringArrayVar(&envEntries, "env", nil,
 		"environment entry KEY=VALUE for the new pane (repeatable)")
+	cmd.Flags().StringArrayVar(&tagEntries, "tag", nil,
+		"opaque mark KEY=VALUE attached to the pane itself (repeatable)")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print the pane as a JSON object")
 
 	markRequired(cmd, "workspace", "pane-group")
@@ -90,19 +102,28 @@ func NewOpenCmd(mgr PluginManager) *cobra.Command {
 // entry like PATH=/a:/b=c is a value, not an error. An entry with no separator
 // or an empty key is rejected rather than guessed at.
 func parseEnv(entries []string) (map[string]string, error) {
+	return parseKV(entries, errMalformedEnv)
+}
+
+// parseKV turns repeated KEY=VALUE flag values into a map, reporting malformed
+// entries as bad.
+//
+// Shared by --env and --tag so two flags on one command taking the same shape
+// cannot come to disagree about what that shape is.
+func parseKV(entries []string, bad error) (map[string]string, error) {
 	// Always non-nil: an empty map marshals the same as an absent one, and
 	// returning a nil map alongside a nil error would be two ways of saying
 	// the same thing.
-	env := make(map[string]string, len(entries))
+	out := make(map[string]string, len(entries))
 
 	for _, entry := range entries {
 		key, value, found := strings.Cut(entry, "=")
 		if !found || key == "" {
-			return nil, fmt.Errorf("%w %q: expected KEY=VALUE", errMalformedEnv, entry)
+			return nil, fmt.Errorf("%w %q: expected KEY=VALUE", bad, entry)
 		}
 
-		env[key] = value
+		out[key] = value
 	}
 
-	return env, nil
+	return out, nil
 }

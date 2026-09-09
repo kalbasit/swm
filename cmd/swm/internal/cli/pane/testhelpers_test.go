@@ -124,6 +124,17 @@ func (w *wrongPluginManager) Warm(context.Context, ...string) error { return nil
 
 // stubSessionClient records the pane requests it receives and replays canned
 // responses.
+// Tag values shared by the tag tests, named so the assertions and the
+// arguments cannot drift apart.
+const (
+	tagOwner   = "owner"
+	tagSteward = "steward"
+
+	// envFoo is the environment key the --env tests use; named because the tag
+	// tests now assert on it too, to show a tag and an env entry stay apart.
+	envFoo = "FOO"
+)
+
 type stubSessionClient struct {
 	openReq  *pluginv1.OpenPaneRequest
 	openPane *pluginv1.Pane

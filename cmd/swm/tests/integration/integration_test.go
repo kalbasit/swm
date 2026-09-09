@@ -760,9 +760,11 @@ func setupPaneEnv(t *testing.T, paneRows ...string) string {
 }
 
 // focusedPaneRow renders a faketmux list-panes row for a pane an attached
-// client is typing into, in the field order the plugin asks tmux for.
+// client is typing into, in the field order the plugin asks tmux for: pane ID,
+// session, title, current command, current path, tags, session_attached,
+// window_active, pane_active.
 func focusedPaneRow(paneID, group string) string {
-	return strings.Join([]string{paneID, group, "zsh", "zsh", "/tmp", "1", "1", "1"}, "\t")
+	return strings.Join([]string{paneID, group, "zsh", "zsh", "/tmp", "", "1", "1", "1"}, "\t")
 }
 
 // runSWM executes one swm command in-process and returns its stdout.

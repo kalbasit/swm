@@ -142,3 +142,43 @@ func TestListCmd_Errors(t *testing.T) {
 		require.ErrorIs(t, err, errNoSessionPlugin)
 	})
 }
+
+// TestListCmd_ReportsTags: a mark a caller set is only useful if it comes back.
+func TestListCmd_ReportsTags(t *testing.T) {
+	t.Parallel()
+
+	sess := &stubSessionClient{listPanes: []*pluginv1.Pane{
+		{
+			PaneId:      testPaneID,
+			PaneGroupId: testPaneGroupID,
+			WorkspaceId: testWorkspaceID,
+			Tags:        map[string]string{tagOwner: tagSteward},
+		},
+	}}
+
+	out, err := runPane(t, &stubManager{sess: sess}, cmdList, flagJSON)
+	require.NoError(t, err)
+
+	var got []struct {
+		Tags map[string]string `json:"tags"`
+	}
+
+	require.NoError(t, json.Unmarshal([]byte(out), &got))
+	require.Len(t, got, 1)
+	require.Equal(t, map[string]string{tagOwner: tagSteward}, got[0].Tags)
+}
+
+// TestListCmd_OmitsAbsentTags: a caller checking for its own mark should not
+// have to tell an empty object from a missing one.
+func TestListCmd_OmitsAbsentTags(t *testing.T) {
+	t.Parallel()
+
+	sess := &stubSessionClient{listPanes: []*pluginv1.Pane{
+		{PaneId: testPaneID, PaneGroupId: testPaneGroupID, WorkspaceId: testWorkspaceID},
+	}}
+
+	out, err := runPane(t, &stubManager{sess: sess}, cmdList, flagJSON)
+	require.NoError(t, err)
+
+	require.NotContains(t, out, `"tags"`)
+}

@@ -103,6 +103,18 @@ message Pane {
   // now would type into this pane. SendText refuses such a pane by default;
   // see SendTextRequest.allow_focused.
   bool focused = 7;
+
+  // tags are the caller's own marks on this pane, returned as they were given.
+  //
+  // Opaque to swm: it stores them and reports them and never reads them. They
+  // let a caller recognise a pane it opened without having kept the pane_id,
+  // and they belong to the pane rather than to the program in it — so they
+  // survive that program exiting and being replaced, and cease to exist when
+  // the pane closes.
+  //
+  // A pane opened without tags reports none rather than an empty entry, so a
+  // caller checking for its own mark need not distinguish absent from empty.
+  map<string, string> tags = 8;
 }
 
 // OpenPaneRequest asks the plugin to start a program in a new pane.
@@ -115,8 +127,12 @@ message OpenPaneRequest {
   repeated string argv = 3;
   // cwd, when non-empty, is the pane's starting directory.
   string cwd = 4;
-  // env entries are set in the new pane's environment.
+  // env entries are set in the new pane's environment. They belong to the
+  // process: they die with it, and ListPanes cannot report them.
   map<string, string> env = 5;
+  // tags are opaque marks attached to the pane itself rather than to the
+  // program in it, and are reported back by ListPanes. See Pane.tags.
+  map<string, string> tags = 6;
 }
 
 // ListPanesRequest asks the plugin to enumerate panes. Both filters are
