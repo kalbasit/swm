@@ -73,6 +73,7 @@ func NewRootCmd(
 	storyGroup.AddCommand(story.NewListCmd(store, cfg.DefaultStory))
 	storyGroup.AddCommand(story.NewRemoveCmd(store, mgr, resolver, hooks))
 	storyGroup.AddCommand(story.NewAttachCmd(store, mgr, resolver, hooks, cfg.DefaultStory))
+	storyGroup.AddCommand(story.NewShowCmd(store, resolver, cfg.DefaultStory))
 	root.AddCommand(storyGroup)
 
 	root.AddCommand(NewCloneCmd(mgr, resolver, hooks))

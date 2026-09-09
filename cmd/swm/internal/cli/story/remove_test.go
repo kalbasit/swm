@@ -303,7 +303,13 @@ func TestRemoveCmd_Completion_NoFileComp(t *testing.T) {
 	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
 }
 
-func TestRemoveCmd_Completion_StoreError_ReturnsError(t *testing.T) {
+// TestRemoveCmd_Completion_StoreError_OffersNothing was written against
+// ShellCompDirectiveError. Cobra registers bash completion with
+// `complete -o default` and its script returns on the Error directive before
+// reaching `compopt +o default`, so Error made bash complete filenames -- which
+// is what the spec's "No fallback to filename completion" scenario forbids.
+// NoFileComp with no candidates offers nothing, which is what it always meant.
+func TestRemoveCmd_Completion_StoreError_OffersNothing(t *testing.T) {
 	t.Parallel()
 
 	store := &stubStore{listErr: errFakeStore}
@@ -313,7 +319,7 @@ func TestRemoveCmd_Completion_StoreError_ReturnsError(t *testing.T) {
 	cmd := story.NewRemoveCmd(store, mgr, resolver, hookexec.Noop)
 
 	completions, directive := cmd.ValidArgsFunction(cmd, nil, "")
-	require.Equal(t, cobra.ShellCompDirectiveError, directive)
+	require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
 	require.Empty(t, completions)
 }
 

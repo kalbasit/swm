@@ -261,7 +261,12 @@ func storyNameCompletion(
 
 		stories, err := store.List(cmd.Context())
 		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
+			// NoFileComp rather than Error. Cobra registers bash completion
+			// with `complete -o default`, and its script returns on the Error
+			// directive before reaching `compopt +o default` -- so Error means
+			// the shell completes filenames, which is the one thing that must
+			// not happen where a story name belongs.
+			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		names := make([]string, len(stories))

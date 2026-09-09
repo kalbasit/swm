@@ -30,6 +30,22 @@ swm story list
 Lists all stories and their attached projects.
 
 ```sh
+swm story show [story-name] [--json]
+```
+
+Reports one story: its branch name, when it was created, and every attached
+project with the worktree path it resolves to on this host.
+
+Paths come from swm's own records, not from the filesystem — a reported path is
+where the worktree belongs, which is not a promise that it is there. Nothing
+about a running session is reported either, so this answers for a story whose
+workspace is closed and on a machine where the multiplexer is not running.
+
+This is how a script learns a story's branch name. Reading it with `git` in a
+worktree answers a different question: the branch checked out at that moment,
+which stops being the story's branch the moment anyone switches.
+
+```sh
 swm story remove [<name>] [-f | --force]
 ```
 
