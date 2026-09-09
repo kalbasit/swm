@@ -20,6 +20,12 @@
           pname = "swm-plugin-picker-fzf";
           modRoot = "plugins/picker-fzf";
 
+          # The binary must report the version this derivation was built with;
+          # buildVersion has no other source.
+          ldflags = [
+            "-X github.com/kalbasit/swm/plugins/picker-fzf/internal/picker.buildVersion=${version}"
+          ];
+
           src = lib.fileset.toSource {
             root = ../../..;
             fileset = lib.fileset.unions [

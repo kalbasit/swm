@@ -17,6 +17,17 @@ jobs:
         with:
           name: swm
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      # The tag reaches the build from the pushed ref, never from a value
+      # committed to the repo: a flake's `self` exposes no ref, so this is the
+      # only point where the build can learn which release it is.
+      - name: Create version file
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "$REF_NAME" > nix/packages/swm/version.txt
+          fi
       - name: Flake check
         run: nix flake check -L
   release:

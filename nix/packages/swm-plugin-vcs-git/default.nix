@@ -20,6 +20,12 @@
           pname = "swm-plugin-vcs-git";
           modRoot = "plugins/vcs-git";
 
+          # The binary must report the version this derivation was built with;
+          # buildVersion has no other source.
+          ldflags = [
+            "-X github.com/kalbasit/swm/plugins/vcs-git/internal/vcs.buildVersion=${version}"
+          ];
+
           src = lib.fileset.toSource {
             root = ../../..;
             fileset = lib.fileset.unions [
