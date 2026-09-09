@@ -25,9 +25,18 @@ jobs:
         env:
           REF_NAME: ${{ github.ref_name }}
         run: |
-          if [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
-            echo "$REF_NAME" > nix/packages/swm/version.txt
+          # The trigger glob `v*.*.*` is looser than a semantic version: it also
+          # matches refs like `v1.2.3.4`. Refusing those here is the point --
+          # silently skipping would build a revision-stamped artifact and
+          # release it as a version, which is the failure this wiring exists to
+          # prevent. Each pre-release and build-metadata identifier must be
+          # non-empty, so `v1.2.3-rc..1` and `v1.2.3+build.` are refused too.
+          semver='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+          if [[ ! "$REF_NAME" =~ $semver ]]; then
+            echo "::error::tag '$REF_NAME' is not a semantic version, so the build cannot report it; not releasing"
+            exit 1
           fi
+          echo "$REF_NAME" > nix/packages/swm/version.txt
       - name: Flake check
         run: nix flake check -L
   release:
