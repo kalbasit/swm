@@ -26,6 +26,13 @@ type paneView struct {
 	CurrentCommand string `json:"current_command"`
 	CurrentPath    string `json:"current_path"`
 	Focused        bool   `json:"focused"`
+
+	// Tags is omitted for a pane carrying none, unlike the descriptive fields
+	// above. Those are always present because a provider that cannot report
+	// one still has an answer -- "not known". A tag has no such reading: a
+	// caller looking for its own mark wants "this pane has none", and an empty
+	// object would be a second way to say it.
+	Tags map[string]string `json:"tags,omitempty"`
 }
 
 // newPaneView projects a Pane onto its JSON shape.
@@ -38,6 +45,7 @@ func newPaneView(p *pluginv1.Pane) paneView {
 		CurrentCommand: p.GetCurrentCommand(),
 		CurrentPath:    p.GetCurrentPath(),
 		Focused:        p.GetFocused(),
+		Tags:           p.GetTags(),
 	}
 }
 

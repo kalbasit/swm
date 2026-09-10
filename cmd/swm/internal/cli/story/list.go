@@ -20,12 +20,21 @@ func NewListCmd(store coreStory.Store, defaultStory string) *cobra.Command {
 				return fmt.Errorf("listing stories: %w", err)
 			}
 
+			// Explicitly stdout. cobra's Println writes to OutOrStderr(), which
+			// left this command's stdout empty -- so `swm story list | grep`
+			// found nothing and every story looked absent. A steward host agent
+			// asked whether a story existed, was told no, and failed a real
+			// assignment while that story's worktree sat on disk.
+			out := cmd.OutOrStdout()
+
 			for _, s := range stories {
 				if s.Name == defaultStory {
 					continue
 				}
 
-				cmd.Println(s.Name)
+				if _, err := fmt.Fprintln(out, s.Name); err != nil {
+					return fmt.Errorf("writing story names: %w", err)
+				}
 			}
 
 			return nil

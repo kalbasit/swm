@@ -4,6 +4,7 @@ package session
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"maps"
@@ -34,12 +35,29 @@ var buildVersion = "dev" //nolint:gochecknoglobals // set via ldflags at link ti
 // paneFormat is the tmux -F format behind both ListPanes and the SendText
 // focus guard. Fields are tab-separated because a tab cannot occur in a pane ID,
 // a session name, or a path, while a space occurs in all sorts of titles.
+// Tags are not last on purpose: the runner trims trailing whitespace from a
+// command's output, so a final field that is empty -- which it is for every
+// pane nobody tagged -- would be eaten before the row is split. pane_active is
+// always 0 or 1 and can safely terminate the row.
 const paneFormat = "#{pane_id}\t#{session_name}\t#{pane_title}\t" +
 	"#{pane_current_command}\t#{pane_current_path}\t" +
+	"#{" + tagsOption + "}\t" +
 	"#{session_attached}\t#{window_active}\t#{pane_active}"
 
 // paneFieldCount is how many fields paneFormat produces.
-const paneFieldCount = 8
+const paneFieldCount = 9
+
+// tagsOption is the pane-scoped tmux option holding a pane's tags.
+//
+// One option carrying every tag, rather than one option per tag. Tag keys are
+// the caller's and cannot be named in a format string ahead of time, so
+// per-tag options would mean an extra tmux call for every pane in a listing.
+// This way `list-panes` returns them with everything else.
+//
+// The @ prefix is tmux's rule for user options. The name is namespaced because
+// panes carry other tools' marks -- agent-mesh keeps its agent id this way, on
+// panes swm may well have opened.
+const tagsOption = "@swm_tags"
 
 // sessionNameReplacer substitutes characters that are unsafe in tmux session names.
 var sessionNameReplacer = strings.NewReplacer(".", "•", ":", "：") //nolint:gochecknoglobals // package-level replacer
@@ -303,11 +321,75 @@ func (t *Tmux) OpenPane(ctx context.Context, req *pluginv1.OpenPaneRequest) (*pl
 		return nil, err
 	}
 
+	// A pane-scoped option rather than the environment: an option belongs to
+	// the pane, so it outlives the program started above and is readable by
+	// ListPanes. The environment belongs to the process and can be neither.
+	tags := req.GetTags()
+	if len(tags) > 0 {
+		encoded, err := encodeTags(tags)
+		if err != nil {
+			t.killPane(ctx, sock, paneID)
+
+			return nil, err
+		}
+
+		if _, err := t.run(ctx, "-S", sock, "set-option", "-p", "-t", paneID,
+			tagsOption, encoded); err != nil {
+			// The pane exists and its program is already running: new-window
+			// started it before this call. Returning an error while leaving it
+			// alive would hand the caller a failure and a running process it
+			// has no id for, and a retry would start a second one.
+			t.killPane(ctx, sock, paneID)
+
+			return nil, fmt.Errorf("setting tags on pane %s: %w", paneID, err)
+		}
+	}
+
 	return &pluginv1.Pane{
 		PaneId:      paneID,
 		PaneGroupId: group,
 		WorkspaceId: sock,
+		Tags:        tags,
 	}, nil
+}
+
+// encodeTags renders a pane's tags for storage in one tmux option.
+//
+// JSON because it escapes control characters: the listing format is tab
+// separated and newline delimited, and a tag value carrying either would
+// otherwise shift every field after it.
+func encodeTags(tags map[string]string) (string, error) {
+	b, err := json.Marshal(tags)
+	if err != nil {
+		return "", fmt.Errorf("encoding tags: %w", err)
+	}
+
+	return string(b), nil
+}
+
+// decodeTags reads back what encodeTags wrote, and reports nothing for a pane
+// that carries no tags.
+//
+// A pane with none returns nil rather than an empty map, so a caller checking
+// for its own mark need not tell absent from empty. Unparseable content is
+// treated as no tags: it means something other than this wrote the option, and
+// refusing to list the pane at all would be a worse answer than describing it
+// without them.
+func decodeTags(encoded string) map[string]string {
+	if encoded == "" {
+		return nil
+	}
+
+	var tags map[string]string
+	if err := json.Unmarshal([]byte(encoded), &tags); err != nil {
+		return nil
+	}
+
+	if len(tags) == 0 {
+		return nil
+	}
+
+	return tags
 }
 
 // OpenPaneGroup creates or reuses a tmux session for a project inside a workspace.
@@ -562,6 +644,17 @@ func (t *Tmux) killOriginPane(ctx context.Context, originSock, paneID string) er
 	return nil
 }
 
+// killPane removes a pane this call created but could not finish setting up.
+//
+// Best effort: the caller is already returning an error, and a failure to clean
+// up is not a better one to return than the failure that caused it. The pane
+// being left behind is the outcome this guards against, not one it can
+// guarantee against.
+func (t *Tmux) killPane(ctx context.Context, sock, paneID string) {
+	//nolint:errcheck // best effort; the caller is already failing
+	_, _ = t.run(ctx, "-S", sock, "kill-pane", "-t", paneID)
+}
+
 // isTargetNotFound reports whether a tmux error means the target it names no
 // longer exists — an expected race, not a failure.
 //
@@ -681,7 +774,9 @@ func (t *Tmux) panes(ctx context.Context, sock string) ([]*pluginv1.Pane, error)
 			// A pane is where a human is typing only when a client is attached
 			// to its session, that session is showing its window, and the pane
 			// is the active one within that window.
-			Focused: fields[5] != "0" && fields[6] == "1" && fields[7] == "1",
+			Focused: fields[6] != "0" && fields[7] == "1" && fields[8] == "1",
+
+			Tags: decodeTags(fields[5]),
 		})
 	}
 

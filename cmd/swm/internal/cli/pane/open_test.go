@@ -80,14 +80,14 @@ func TestOpenCmd_CwdAndEnv(t *testing.T) {
 
 	_, err := runPane(t, &stubManager{sess: sess}, openArgs(
 		"--cwd", testWorktree,
-		"--env", "FOO=bar",
+		"--env", envFoo+"=bar",
 		"--env", "EQ=a=b",
 		"--env", "EMPTY=",
 	)...)
 	require.NoError(t, err)
 
 	require.Equal(t, testWorktree, sess.openReq.GetCwd())
-	require.Equal(t, map[string]string{"FOO": "bar", "EQ": "a=b", "EMPTY": ""}, sess.openReq.GetEnv())
+	require.Equal(t, map[string]string{envFoo: "bar", "EQ": "a=b", "EMPTY": ""}, sess.openReq.GetEnv())
 }
 
 func TestOpenCmd_MalformedEnv(t *testing.T) {
@@ -191,4 +191,57 @@ func TestOpenCmd_PluginErrors(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "SessionClient")
 	})
+}
+
+func TestOpenCmd_Tags(t *testing.T) {
+	t.Parallel()
+
+	sess := &stubSessionClient{}
+
+	_, err := runPane(t, &stubManager{sess: sess},
+		openArgs("--tag", tagOwner+"="+tagSteward, "--tag", "item=8f7e")...)
+	require.NoError(t, err)
+
+	require.Equal(t, map[string]string{tagOwner: tagSteward, "item": "8f7e"}, sess.openReq.GetTags())
+}
+
+// TestOpenCmd_TagsAndEnvAreDistinct: a tag belongs to the pane and an env entry
+// to the process in it, so neither may leak into the other.
+func TestOpenCmd_TagsAndEnvAreDistinct(t *testing.T) {
+	t.Parallel()
+
+	sess := &stubSessionClient{}
+
+	_, err := runPane(t, &stubManager{sess: sess},
+		openArgs("--tag", tagOwner+"="+tagSteward, "--env", envFoo+"=bar")...)
+	require.NoError(t, err)
+
+	require.Equal(t, map[string]string{tagOwner: tagSteward}, sess.openReq.GetTags())
+	require.Equal(t, map[string]string{envFoo: "bar"}, sess.openReq.GetEnv())
+}
+
+// TestOpenCmd_MalformedTag: rejected before any plugin call, exactly as a
+// malformed --env entry is, because the two flags take the same shape.
+func TestOpenCmd_MalformedTag(t *testing.T) {
+	t.Parallel()
+
+	sess := &stubSessionClient{}
+
+	_, err := runPane(t, &stubManager{sess: sess}, openArgs("--tag", tagOwner)...)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), tagOwner)
+	require.Nil(t, sess.openReq, "a pane was opened despite a malformed tag")
+}
+
+// TestOpenCmd_ValueMayContainEquals mirrors the --env rule: only the first
+// separator splits.
+func TestOpenCmd_TagValueMayContainEquals(t *testing.T) {
+	t.Parallel()
+
+	sess := &stubSessionClient{}
+
+	_, err := runPane(t, &stubManager{sess: sess}, openArgs("--tag", "expr=a=b")...)
+	require.NoError(t, err)
+
+	require.Equal(t, map[string]string{"expr": "a=b"}, sess.openReq.GetTags())
 }

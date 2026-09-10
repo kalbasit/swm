@@ -251,7 +251,7 @@ remain reachable.
 ### Requirement: OpenPane starts a program in a new pane
 
 `session-tmux` SHALL implement `Session.OpenPane({workspace_id, pane_group_id,
-argv, cwd, env})` by creating a new pane in the named pane group on the named
+argv, cwd, env, tags})` by creating a new pane in the named pane group on the named
 workspace socket and returning a `Pane` whose `pane_id` is the identifier tmux
 assigned to it.
 
@@ -264,6 +264,11 @@ assigned to it.
 - `env` entries SHALL be set in the pane's environment. They SHALL be applied in
   a deterministic order so that repeated calls issue identical commands.
 - The pane group SHALL be addressed by exact name, never by prefix or glob.
+- `tags` SHALL be stored as pane-scoped tmux options, which is where tmux keeps
+  what belongs to a pane rather than to the process in it. They SHALL therefore
+  survive the pane's program exiting and being replaced, and SHALL cease to
+  exist when the pane closes. They SHALL be applied in a deterministic order so
+  repeated calls issue identical commands.
 
 Where the new pane is placed is provider policy and is not part of the contract.
 
@@ -301,6 +306,16 @@ An empty `workspace_id` or `pane_group_id` SHALL be rejected with
 - **WHEN** `OpenPane` is called with an empty `workspace_id` or an empty
   `pane_group_id`
 - **THEN** the call fails with `INVALID_ARGUMENT` and no tmux command is issued
+
+#### Scenario: Tags outlive the program in the pane
+
+- **WHEN** a pane is opened with tags and its program exits and is replaced
+- **THEN** `ListPanes` still reports that pane's tags, because they were stored on the pane and not in the process
+
+#### Scenario: Tags are read back by ListPanes
+
+- **WHEN** `ListPanes` enumerates a pane that was opened with tags
+- **THEN** the returned `Pane` carries them
 
 ### Requirement: ListPanes enumerates panes across workspaces
 

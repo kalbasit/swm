@@ -80,6 +80,13 @@ func main() {
 		default:
 			os.Exit(1)
 		}
+	case "set-option":
+		// FAKETMUX_SET_OPTION_FAIL simulates tmux refusing to store a pane
+		// option, which happens after the pane's program is already running.
+		if os.Getenv("FAKETMUX_SET_OPTION_FAIL") == "1" {
+			fmt.Fprintln(os.Stderr, "can't set option")
+			os.Exit(1)
+		}
 	case "kill-pane":
 		if os.Getenv("FAKETMUX_KILL_PANE_FAIL") == "1" {
 			fmt.Fprintln(os.Stderr, "no such pane")
@@ -165,7 +172,10 @@ func recordPane(socket, paneID, session, path string) {
 	}
 	defer f.Close() //nolint:errcheck // best-effort record
 
-	fmt.Fprintf(f, "%s\t%s\t%s\t%s\t%s\t0\t0\t0\n", paneID, session, "fake", "fake", path)
+	// The sixth field is the pane's tags option, which real tmux substitutes
+	// into the format and which is empty for a pane nothing tagged.
+	//nolint:errcheck // best-effort record, like the Close above
+	fmt.Fprintf(f, "%s\t%s\t%s\t%s\t%s\t\t0\t0\t0\n", paneID, session, "fake", "fake", path)
 }
 
 // resolveTarget reports whether target selects one of sessions.

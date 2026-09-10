@@ -87,6 +87,27 @@ ws=$(swm workspace ensure feat-x)
 swm pane open -w "$ws" -g github.com/kalbasit/swm -- nvim
 ```
 
+`swm pane open` takes two flags that look alike and are not:
+
+- `--env KEY=VALUE` belongs to the **process**. It is set in the environment of
+  the program being started, dies when that program exits, and cannot be read
+  back — `pane list` does not report it.
+- `--tag KEY=VALUE` belongs to the **pane**. It survives the program exiting and
+  being replaced, ends when the pane closes, and is reported by
+  `swm pane list --json`.
+
+Tags are opaque to swm: it stores them and hands them back, and never reads
+them. They exist so a caller can recognise a pane it opened without having kept
+the pane id:
+
+```sh
+swm pane open -w "$ws" -g github.com/kalbasit/swm --tag owner=steward -- claude
+swm pane list --json | jq '.[] | select(.tags.owner == "steward")'
+```
+
+A pane with no tags omits the field rather than reporting an empty object, so a
+caller need not tell absent from empty.
+
 ```sh
 swm workspace list
 ```
