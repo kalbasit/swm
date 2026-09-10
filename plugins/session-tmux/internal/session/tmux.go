@@ -328,11 +328,19 @@ func (t *Tmux) OpenPane(ctx context.Context, req *pluginv1.OpenPaneRequest) (*pl
 	if len(tags) > 0 {
 		encoded, err := encodeTags(tags)
 		if err != nil {
+			t.killPane(ctx, sock, paneID)
+
 			return nil, err
 		}
 
 		if _, err := t.run(ctx, "-S", sock, "set-option", "-p", "-t", paneID,
 			tagsOption, encoded); err != nil {
+			// The pane exists and its program is already running: new-window
+			// started it before this call. Returning an error while leaving it
+			// alive would hand the caller a failure and a running process it
+			// has no id for, and a retry would start a second one.
+			t.killPane(ctx, sock, paneID)
+
 			return nil, fmt.Errorf("setting tags on pane %s: %w", paneID, err)
 		}
 	}
@@ -343,6 +351,17 @@ func (t *Tmux) OpenPane(ctx context.Context, req *pluginv1.OpenPaneRequest) (*pl
 		WorkspaceId: sock,
 		Tags:        tags,
 	}, nil
+}
+
+// killPane removes a pane this call created but could not finish setting up.
+//
+// Best effort: the caller is already returning an error, and a failure to clean
+// up is not a better one to return than the failure that caused it. The pane
+// being left behind is the outcome this guards against, not one it can
+// guarantee against.
+func (t *Tmux) killPane(ctx context.Context, sock, paneID string) {
+	//nolint:errcheck // best effort; the caller is already failing
+	_, _ = t.run(ctx, "-S", sock, "kill-pane", "-t", paneID)
 }
 
 // encodeTags renders a pane's tags for storage in one tmux option.

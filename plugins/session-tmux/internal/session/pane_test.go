@@ -774,3 +774,55 @@ func TestTagsSurviveTheProgramInThePane(t *testing.T) {
 	require.Equal(t, "vim", panes[0].GetCurrentCommand())
 	require.Equal(t, map[string]string{tagOwner: tagSteward}, panes[0].GetTags())
 }
+
+// TestOpenPaneKillsThePaneWhenTagsCannotBeStored: new-window has already
+// created the pane and started its program by the time tags are written.
+// Returning an error while leaving that pane alive would hand the caller a
+// failure and a running process it has no id for -- and a retry would start a
+// second one.
+func TestOpenPaneKillsThePaneWhenTagsCannotBeStored(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+	t.Setenv("FAKETMUX_SET_OPTION_FAIL", "1")
+
+	tmux, socketDir := newTmux(t)
+	sock := seedWorkspace(t, socketDir, "alpha")
+
+	_, err := tmux.OpenPane(context.Background(), &pluginv1.OpenPaneRequest{
+		WorkspaceId: sock,
+		PaneGroupId: testPaneGroupFull,
+		Tags:        map[string]string{tagOwner: tagSteward},
+	})
+	require.Error(t, err)
+
+	logged, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	require.Contains(t, string(logged), killPaneCmd,
+		"the pane was left running after its tags could not be stored")
+}
+
+// TestOpenPaneWithoutTagsIsUnaffectedByOptionFailure: a pane with no tags never
+// sets an option, so nothing can fail there and nothing is killed.
+func TestOpenPaneWithoutTagsIsUnaffectedByOptionFailure(t *testing.T) {
+	// Cannot be parallel — sets env vars.
+	logFile := filepath.Join(t.TempDir(), "tmux.log")
+	t.Setenv("FAKETMUX_LOG", logFile)
+	t.Setenv("FAKETMUX_SET_OPTION_FAIL", "1")
+
+	tmux, socketDir := newTmux(t)
+	sock := seedWorkspace(t, socketDir, "alpha")
+
+	pane, err := tmux.OpenPane(context.Background(), &pluginv1.OpenPaneRequest{
+		WorkspaceId: sock,
+		PaneGroupId: testPaneGroupFull,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, pane.GetPaneId())
+
+	logged, err := os.ReadFile(logFile) //nolint:gosec // G304: test-controlled path
+	require.NoError(t, err)
+
+	require.NotContains(t, string(logged), killPaneCmd)
+}
