@@ -353,17 +353,6 @@ func (t *Tmux) OpenPane(ctx context.Context, req *pluginv1.OpenPaneRequest) (*pl
 	}, nil
 }
 
-// killPane removes a pane this call created but could not finish setting up.
-//
-// Best effort: the caller is already returning an error, and a failure to clean
-// up is not a better one to return than the failure that caused it. The pane
-// being left behind is the outcome this guards against, not one it can
-// guarantee against.
-func (t *Tmux) killPane(ctx context.Context, sock, paneID string) {
-	//nolint:errcheck // best effort; the caller is already failing
-	_, _ = t.run(ctx, "-S", sock, "kill-pane", "-t", paneID)
-}
-
 // encodeTags renders a pane's tags for storage in one tmux option.
 //
 // JSON because it escapes control characters: the listing format is tab
@@ -653,6 +642,17 @@ func (t *Tmux) killOriginPane(ctx context.Context, originSock, paneID string) er
 	}
 
 	return nil
+}
+
+// killPane removes a pane this call created but could not finish setting up.
+//
+// Best effort: the caller is already returning an error, and a failure to clean
+// up is not a better one to return than the failure that caused it. The pane
+// being left behind is the outcome this guards against, not one it can
+// guarantee against.
+func (t *Tmux) killPane(ctx context.Context, sock, paneID string) {
+	//nolint:errcheck // best effort; the caller is already failing
+	_, _ = t.run(ctx, "-S", sock, "kill-pane", "-t", paneID)
 }
 
 // isTargetNotFound reports whether a tmux error means the target it names no
