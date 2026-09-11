@@ -20,6 +20,12 @@
           pname = "swm-plugin-forge-github";
           modRoot = "plugins/forge-github";
 
+          # The binary must report the version this derivation was built with;
+          # buildVersion has no other source.
+          ldflags = [
+            "-X github.com/kalbasit/swm/plugins/forge-github/internal/forge.buildVersion=${version}"
+          ];
+
           src = lib.fileset.toSource {
             root = ../../..;
             fileset = lib.fileset.unions [

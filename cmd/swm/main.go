@@ -17,9 +17,8 @@ import (
 	"github.com/kalbasit/swm/cmd/swm/internal/exitcode"
 	"github.com/kalbasit/swm/cmd/swm/internal/hostsvc"
 	"github.com/kalbasit/swm/cmd/swm/internal/pluginmgr"
+	"github.com/kalbasit/swm/cmd/swm/internal/version"
 )
-
-var version = "v2.0.0-dev"
 
 func main() {
 	cfgPath := config.ResolveConfigPath(os.Getenv("SWM_CONFIG"), xdg.ConfigHome)
@@ -49,7 +48,7 @@ func main() {
 	defer mgr.Close() //nolint:errcheck // best-effort close on exit
 
 	root := cli.NewRootCmd(cfgPath, cfg, mgr, store, resolver, workspace.WithProjectLister(hostSrv))
-	root.Version = version
+	root.Version = version.Version()
 
 	// A command that needs a status other than the generic failure attaches it
 	// to the error it returns; see internal/exitcode. `swm pane send` uses this

@@ -20,6 +20,13 @@
           pname = "swm";
           modRoot = "cmd/swm";
 
+          # The binary must report the version this derivation was built with.
+          # Without this the version is only a derivation-name attribute and
+          # every build reports whatever default the source carries.
+          ldflags = [
+            "-X github.com/kalbasit/swm/cmd/swm/internal/version.version=${version}"
+          ];
+
           src = lib.fileset.toSource {
             root = ../../..;
             fileset = lib.fileset.unions [
@@ -43,6 +50,15 @@
           '';
 
           postInstall = lib.optionalString (pkgs.stdenv.hostPlatform == pkgs.stdenv.buildPlatform) ''
+            # Guard the ldflags above: they are easy to drop and the loss is
+            # silent, which is exactly how the version came to be frozen at a
+            # stale default. Only runnable when we can execute what we built.
+            reported="$($out/bin/swm --version)"
+            if [[ "$reported" != "swm version ${version}" ]]; then
+              echo "swm --version reported '$reported', expected 'swm version ${version}'" >&2
+              exit 1
+            fi
+
             installShellCompletion --cmd swm \
               --bash <($out/bin/swm completion bash) \
               --zsh  <($out/bin/swm completion zsh)  \
