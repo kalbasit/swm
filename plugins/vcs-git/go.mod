@@ -6,7 +6,7 @@ require (
 	github.com/kalbasit/swm/proto v0.0.0
 	github.com/kalbasit/swm/sdk/go v0.0.0
 	github.com/stretchr/testify v1.12.1
-	google.golang.org/grpc v1.83.2
+	google.golang.org/grpc v1.84.0
 )
 
 require (
