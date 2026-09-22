@@ -68,7 +68,7 @@ No swm-facing behaviour change; the `forge` capability contract is untouched.
 | `github.com/kalbasit/swm/sdk/go` pseudo-version in `plugins/picker-fzf/go.mod` | `v0.0.0-20260825223552-d3cff0a71d07` | `go get -u` bumped this to a newer same-repo commit; reverted deliberately. It is satisfied by a `replace` directive pointing at `../../sdk/go`, so the version string is never used for resolution — churning it would imply a dependency moved when none did. |
 | ~25 deep transitives (otel, `cloud.google.com/go/*`, `envoyproxy/*`, `spiffe`, `googleapis/gax-go`, …) | various | Not in any `go.mod` require block. They appear in `go list -m all`'s module graph via grpc's optional/test surface but are not part of our build; `go mod tidy` correctly does not record them. |
 
-## Files changed (21) — all accounted for
+## Files changed (26) — all accounted for
 
 - `flake.lock` — the 3 input bumps above
 - 7 × `go.mod` + 7 × `go.sum` — the dependency table above. `go.sum` files shrink
@@ -80,3 +80,6 @@ No swm-facing behaviour change; the `forge` capability contract is untouched.
   their hash from `config.packages.<pkg>.goModules.outputHash`, so these 5 literal
   hashes are the complete set.
 - `plugins/forge-github/internal/forge/github.go` — the go-github v92 call-site port
+- 5 × `openspec/changes/archive/2026-09-21-dependency-refresh/*` — this change's
+  own OpenSpec records (`.openspec.yaml`, `proposal.md`, `design.md`, `tasks.md`,
+  `report.md`), archived alongside the implementation.

@@ -1,12 +1,12 @@
 ## Why
 
-Both halves of the toolchain have drifted. `flake.lock` trails current `nixpkgs`/`treefmt-nix`/`git-hooks-nix`/`flake-parts`, and the Go module graph is behind on `grpc`, three `golang.org/x/*` modules, `gofrs/flock`, and — most significantly — `google/go-github`, which is four major versions behind (v88 vs v92). Renovate opens one PR per dependency per module and never proposes major Go bumps, so the go-github gap will not close on its own.
+Both halves of the toolchain have drifted. `flake.lock` trails current `nixpkgs`/`git-hooks-nix`/`flake-parts` (`treefmt-nix`, `process-compose-flake` and the transitive `flake-compat` are checked too, but are already at upstream HEAD), and the Go module graph is behind on `grpc`, three `golang.org/x/*` modules, `gofrs/flock`, and — most significantly — `google/go-github`, which is four major versions behind (v88 vs v92). Renovate opens one PR per dependency per module and never proposes major Go bumps, so the go-github gap will not close on its own.
 
 Capability surface affected: **forge** (go-github sits behind the `forge-github` plugin). No proto changes.
 
 ## What Changes
 
-- `nix flake update`: refresh all five declared flake inputs plus the transitive `flake-compat` node. Current `nixpkgs` and latest `nixpkgs` both ship Go **1.26.7**, so this does not move the Go toolchain.
+- `nix flake update`: re-resolve all five declared flake inputs plus the transitive `flake-compat` node; only `nixpkgs`, `git-hooks-nix` and `flake-parts` are behind and actually move. Current `nixpkgs` and latest `nixpkgs` both ship Go **1.26.7**, so this does not move the Go toolchain.
 - Go module dependencies across all 7 modules brought to current:
   - `google.golang.org/grpc` v1.83.2 → v1.84.0 (all 7 modules)
   - `github.com/gofrs/flock` v0.13.0 → v0.13.1 (`cmd/swm`)
