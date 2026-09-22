@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/go-github/v88/github"
+	"github.com/google/go-github/v92/github"
 	"github.com/pelletier/go-toml/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -109,10 +109,10 @@ func (g *GitHub) CreatePullRequest(ctx context.Context, req *pluginv1.CreatePRRe
 
 	draft := req.GetDraft()
 
-	pr, resp, err := client.PullRequests.Create(ctx, owner, repo, &github.NewPullRequest{
+	pr, resp, err := client.PullRequests.Create(ctx, owner, repo, github.CreatePullRequest{
 		Title: new(req.GetTitle()),
-		Head:  new(req.GetHeadBranch()),
-		Base:  new(req.GetBaseBranch()),
+		Head:  req.GetHeadBranch(),
+		Base:  req.GetBaseBranch(),
 		Body:  new(req.GetBody()),
 		Draft: new(draft),
 	})
