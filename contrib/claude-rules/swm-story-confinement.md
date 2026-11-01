@@ -17,7 +17,10 @@ opened via `swm workspace open <STORY>`, which runs in its own tmux session.
 Additional repos get attached to the same story via `swm workspace open
 --kill-pane` from within it.
 
-**Detect the story**: check `$SWM_STORY` in the environment.
+**Detect the story**: if `swm-story-from-path.md` is installed next to this rule, use the story
+it resolved from the working directory — an inherited `$SWM_STORY` may belong to another session.
+Only when that rule is not installed, read `$SWM_STORY` from the environment. Everywhere below,
+`$SWM_STORY` means the story resolved this way.
 
 > **Default story exception.** swm's default story (`_default`, or whatever `swm config get
 default_story` reports) has no separate worktree — its checkout IS the canonical clone under
