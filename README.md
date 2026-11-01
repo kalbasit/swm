@@ -189,9 +189,10 @@ See the [Hook System reference](cmd/swm/README.md#hook-system) in the host CLI R
 
 Optional, copyable assets that aren't part of the core tool live under [`contrib/`](contrib/):
 
-| Asset                                                                                            | Description                                                                                              |
-| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| [`contrib/claude-rules/swm-story-confinement.md`](contrib/claude-rules/swm-story-confinement.md) | Rule that confines an AI agent to a single story, using `swm story attach` to create worktrees on demand |
+| Asset                                                                                            | Description                                                                                                           |
+| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| [`contrib/claude-rules/swm-story-confinement.md`](contrib/claude-rules/swm-story-confinement.md) | Rule that confines an AI agent to a single story, using `swm story attach` to create worktrees on demand              |
+| [`contrib/claude-rules/swm-story-from-path.md`](contrib/claude-rules/swm-story-from-path.md)     | Rule that makes an AI agent derive its story from the working directory instead of trusting an inherited `$SWM_STORY` |
 
 ## Module READMEs
 
