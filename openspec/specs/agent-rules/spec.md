@@ -25,7 +25,8 @@ The repository SHALL ship `contrib/claude-rules/swm-story-confinement.md` and
 Each rule SHALL refer to swm only, through `$SWM_STORY`, `swm config get`, `swm story attach`,
 `swm workspace open` and the story JSON under `${XDG_DATA_HOME:-$HOME/.local/share}/swm/stories/`.
 A rule SHALL NOT name another story manager's commands or environment variables, and SHALL NOT
-contain host names, user names or organisation-specific paths.
+contain host names, user names or organisation-specific paths, other than links to swm's own
+public repository.
 
 #### Scenario: No foreign tool names
 
