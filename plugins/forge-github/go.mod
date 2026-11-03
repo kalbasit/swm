@@ -9,6 +9,7 @@ replace (
 
 require (
 	github.com/google/go-github/v92 v92.0.0
+	github.com/google/go-github/v93 v93.0.0
 	github.com/kalbasit/swm/proto v0.0.0
 	github.com/kalbasit/swm/sdk/go v0.0.0
 	github.com/pelletier/go-toml/v2 v2.4.3
