@@ -7,7 +7,7 @@ on:
       - "v*.*.*"
 jobs:
   flake-check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -40,7 +40,7 @@ jobs:
       - name: Flake check
         run: nix flake check -L
   release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: flake-check
     permissions:
       contents: write
