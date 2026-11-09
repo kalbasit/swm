@@ -4,7 +4,7 @@ go 1.26.7
 
 require (
 	github.com/adrg/xdg v0.5.3
-	github.com/gofrs/flock v0.13.1
+	github.com/gofrs/flock v0.13.2
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.8.0
 	github.com/kalbasit/swm/proto v0.0.0
@@ -12,7 +12,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/sys v0.48.0
+	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.46.0
 	google.golang.org/grpc v1.84.0
 )
